@@ -1,0 +1,28 @@
+# ---------------------------------------------------------------------------
+# Distill API — Python Dependencies
+# ---------------------------------------------------------------------------
+
+# Web framework
+fastapi==0.115.12
+uvicorn[standard]==0.34.3
+
+# Database
+sqlmodel==0.0.22
+sqlalchemy==2.0.40
+psycopg[binary]==3.3.4
+alembic==1.15.2
+
+# Config & validation
+pydantic-settings==2.9.1
+python-dotenv==1.1.0
+python-multipart==0.0.20
+
+# Auth (Phase 1 — minimal, will expand in Phase 2)
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+
+# Storage / background processing / parsing
+supabase==2.15.3
+celery[redis]==5.5.3
+PyMuPDF==1.26.0
+google-genai==1.16.1

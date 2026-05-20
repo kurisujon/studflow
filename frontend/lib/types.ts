@@ -1,0 +1,45 @@
+export type DocumentListItem = {
+  id: string;
+  filename: string;
+  status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+  created_at: string;
+  updated_at: string;
+  page_count: number | null;
+  summary_ready: boolean;
+  flashcard_count: number;
+  quiz_ready: boolean;
+};
+
+export type StudyFlashcard = {
+  id: string;
+  front: string;
+  back: string;
+  order_index: number;
+};
+
+export type StudyQuizQuestion = {
+  id: string;
+  question: string;
+  options: string[];
+  correct_answer_index: number;
+  explanation: string;
+  order_index: number;
+};
+
+export type StudyDocument = {
+  id: string;
+  filename: string;
+  status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+  created_at: string;
+  summary: string | null;
+  summary_data: {
+    overall_overview: string;
+    detailed_sections: Array<{
+      topic_title: string;
+      key_points: string[];
+      important_terms_and_definitions: string[];
+    }>;
+  } | null;
+  flashcards: StudyFlashcard[];
+  quiz: StudyQuizQuestion[];
+};
