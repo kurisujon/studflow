@@ -128,7 +128,13 @@ export function AIStudyAssistantPanel({
   });
 
   useEffect(() => {
-    resetPanelForContext();
+    const timeoutId = window.setTimeout(() => {
+      resetPanelForContext();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
   }, [context.noteContent, context.selectedText, context.source, initialQuestion, mode]);
 
   useEffect(() => {

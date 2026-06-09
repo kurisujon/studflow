@@ -57,13 +57,22 @@ export default function UploadPage() {
   });
 
   useEffect(() => {
-    if (statusData?.status === "COMPLETED") {
-      handleTerminalStatus(statusData.status, statusData.document_id);
+    if (!statusData || (statusData.status !== "COMPLETED" && statusData.status !== "FAILED")) {
+      return;
     }
 
-    if (statusData?.status === "FAILED") {
+    const timeoutId = window.setTimeout(() => {
+      if (statusData.status === "COMPLETED") {
+        handleTerminalStatus(statusData.status, statusData.document_id);
+        return;
+      }
+
       handleTerminalStatus(statusData.status);
-    }
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
   }, [statusData]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
