@@ -1,6 +1,12 @@
 import path from "node:path";
 import type { NextConfig } from "next";
 
+const apiBaseUrl = (
+  process.env.INTERNAL_API_BASE_URL ??
+  process.env.NEXT_PUBLIC_API_BASE_URL ??
+  "http://127.0.0.1:8000"
+).replace(/\/$/, "");
+
 const nextConfig: NextConfig = {
   experimental: {
     proxyClientMaxBodySize: "50mb",
@@ -12,7 +18,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/api/:path*",
-        destination: "http://127.0.0.1:8000/api/:path*",
+        destination: `${apiBaseUrl}/api/:path*`,
       },
     ];
   },

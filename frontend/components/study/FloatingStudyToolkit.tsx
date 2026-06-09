@@ -11,7 +11,6 @@ export function FloatingStudyToolkit({
   onToggleHighlight,
   onUnderline,
   onEraser,
-  onClearFormatting,
   onUndo,
   onRedo,
   canUndo,
@@ -22,7 +21,6 @@ export function FloatingStudyToolkit({
   onToggleHighlight: () => void;
   onUnderline: () => void;
   onEraser: () => void;
-  onClearFormatting: () => void;
   onUndo: () => void;
   onRedo: () => void;
   canUndo: boolean;

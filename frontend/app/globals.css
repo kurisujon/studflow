@@ -9,6 +9,7 @@
    ------------------------------------------------------------------------- */
 :root {
   color-scheme: light;
+  --font-sans: "Aptos", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
 
   --background: #f9f9f8;
   --foreground: #111110;

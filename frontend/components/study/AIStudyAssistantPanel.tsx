@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type MouseEvent } from "react";
+import { useEffect, useEffectEvent, useRef, useState, type MouseEvent } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -118,13 +118,17 @@ export function AIStudyAssistantPanel({
   const questionRef = useRef<HTMLTextAreaElement | null>(null);
   const { getToken } = useAuth();
 
-  useEffect(() => {
+  const resetPanelForContext = useEffectEvent(() => {
     setQuestion(initialQuestion ?? "");
     setLoadedHistoryItem(null);
     setResponse(null);
     setError(null);
     setHistoryActionError(null);
     setActiveMode(mode);
+  });
+
+  useEffect(() => {
+    resetPanelForContext();
   }, [context.noteContent, context.selectedText, context.source, initialQuestion, mode]);
 
   useEffect(() => {

@@ -43,19 +43,28 @@ export default function UploadPage() {
     });
   });
 
-  useEffect(() => {
-    if (statusData?.status === "COMPLETED") {
+  const handleTerminalStatus = useEffectEvent((status: "COMPLETED" | "FAILED", completedDocumentId?: string) => {
+    if (status === "COMPLETED" && completedDocumentId) {
       setPollingEnabled(false);
       setIsUploading(false);
-      redirectToStudy(statusData.document_id);
+      redirectToStudy(completedDocumentId);
+      return;
+    }
+
+    setPollingEnabled(false);
+    setIsUploading(false);
+    setError("Processing failed. Please try another file or review extraction quality.");
+  });
+
+  useEffect(() => {
+    if (statusData?.status === "COMPLETED") {
+      handleTerminalStatus(statusData.status, statusData.document_id);
     }
 
     if (statusData?.status === "FAILED") {
-      setPollingEnabled(false);
-      setIsUploading(false);
-      setError("Processing failed. Please try another file or review extraction quality.");
+      handleTerminalStatus(statusData.status);
     }
-  }, [redirectToStudy, statusData]);
+  }, [statusData]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();

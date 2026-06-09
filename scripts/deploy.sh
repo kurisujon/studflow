@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+APP_DIR="${APP_DIR:-$HOME/studflow}"
+ARCHIVE_PATH="${ARCHIVE_PATH:-/tmp/studflow-release.tgz}"
+ENV_PATH="${ENV_PATH:-$APP_DIR/.env.production}"
+TMP_DIR="$(mktemp -d)"
+
+cleanup() {
+  rm -rf "$TMP_DIR"
+}
+
+trap cleanup EXIT
+
+if ! command -v docker >/dev/null 2>&1; then
+  echo "docker is required on the target server." >&2
+  exit 1
+fi
+
+if ! docker compose version >/dev/null 2>&1; then
+  echo "docker compose plugin is required on the target server." >&2
+  exit 1
+fi
+
+if ! command -v rsync >/dev/null 2>&1; then
+  echo "rsync is required on the target server." >&2
+  exit 1
+fi
+
+if [ ! -f "$ARCHIVE_PATH" ]; then
+  echo "Release archive not found at $ARCHIVE_PATH." >&2
+  exit 1
+fi
+
+mkdir -p "$APP_DIR"
+tar -xzf "$ARCHIVE_PATH" -C "$TMP_DIR"
+rsync -a --delete --exclude ".env.production" "$TMP_DIR"/ "$APP_DIR"/
+
+if [ ! -f "$ENV_PATH" ]; then
+  echo "Environment file not found at $ENV_PATH." >&2
+  exit 1
+fi
+
+cd "$APP_DIR"
+compose_build_on_server="$(
+  grep -m1 '^COMPOSE_BUILD_ON_SERVER=' "$ENV_PATH" | cut -d= -f2- | tr -d '\r' | tr '[:upper:]' '[:lower:]' || true
+)"
+
+if [ -n "${GHCR_USERNAME:-}" ] && [ -n "${GHCR_TOKEN:-}" ]; then
+  printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
+fi
+
+if [ "$compose_build_on_server" = "true" ]; then
+  docker compose --env-file "$ENV_PATH" up -d --build --remove-orphans
+else
+  docker compose --env-file "$ENV_PATH" pull frontend backend worker postgres redis
+  docker compose --env-file "$ENV_PATH" up -d --remove-orphans
+fi
+
+docker compose --env-file "$ENV_PATH" ps

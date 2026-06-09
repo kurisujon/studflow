@@ -19,15 +19,12 @@ export function QuizStudy({
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
   const [showScore, setShowScore] = useState(false);
   const hasCelebratedRef = useRef(false);
-
-  if (questions.length === 0) {
-    return <p>No quiz available yet.</p>;
-  }
-
-  const question = questions[activeIndex];
+  const hasQuestions = questions.length > 0;
+  const question = hasQuestions ? questions[activeIndex] : null;
   const selectedIndex = selectedAnswers[activeIndex];
   const answered = selectedIndex !== undefined;
-  const isCorrect = answered && selectedIndex === question.correct_answer_index;
+  const isCorrect =
+    question !== null && answered && selectedIndex === question.correct_answer_index;
   const score = questions.reduce((total, currentQuestion, index) => {
     return total + Number(selectedAnswers[index] === currentQuestion.correct_answer_index);
   }, 0);
@@ -58,6 +55,10 @@ export function QuizStudy({
       isMounted = false;
     };
   }, [passed, showScore]);
+
+  if (!hasQuestions || question === null) {
+    return <p>No quiz available yet.</p>;
+  }
 
   function handleSelectOption(optionIndex: number) {
     if (answered) {

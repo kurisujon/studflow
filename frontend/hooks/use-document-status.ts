@@ -84,16 +84,19 @@ export function useDocumentStatus(
       return;
     }
 
-    void fetchStatus();
+    const initialFetchTimeoutId = window.setTimeout(() => {
+      void fetchStatus();
+    }, 0);
 
     const intervalId = window.setInterval(() => {
       void fetchStatus();
     }, intervalMs);
 
     return () => {
+      window.clearTimeout(initialFetchTimeoutId);
       window.clearInterval(intervalId);
     };
-  }, [documentId, enabled, intervalMs, fetchStatus]);
+  }, [documentId, enabled, intervalMs]);
 
   return {
     data,

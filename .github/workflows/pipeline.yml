@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  packages: write
 
 concurrency:
   group: pipeline-${{ github.ref }}
@@ -38,6 +39,9 @@ jobs:
         run: npm run lint
 
       - name: Build frontend
+        env:
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ci_placeholder
+          CLERK_SECRET_KEY: sk_test_ci_placeholder
         run: npm run build
 
   backend:
@@ -69,40 +73,145 @@ jobs:
       - name: Smoke test FastAPI app import
         run: python -c "from main import app; print(app.title)"
 
-  deploy-staging:
-    name: Deploy staging
-    if: github.event_name == 'push' && github.ref == 'refs/heads/staging'
-    needs:
-      - frontend
-      - backend
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    environment:
-      name: staging
-    steps:
-      - name: Install doctl
-        uses: digitalocean/action-doctl@v2
-        with:
-          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
-
-      - name: Trigger staging deployment
-        run: doctl apps create-deployment "${{ secrets.DIGITALOCEAN_STAGING_APP_ID }}" --update-sources --force-rebuild --wait
-
-  deploy-production:
-    name: Deploy production
+  build-images:
+    name: Build production images
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs:
       - frontend
       - backend
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    outputs:
+      frontend_image: ${{ steps.image-meta.outputs.frontend_image }}
+      backend_image: ${{ steps.image-meta.outputs.backend_image }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Write production environment file
+        env:
+          PRODUCTION_ENV_FILE: ${{ secrets.PRODUCTION_ENV_FILE }}
+        run: printf '%s' "$PRODUCTION_ENV_FILE" > .env.production
+
+      - name: Extract frontend build variables
+        id: frontend-env
+        run: |
+          echo "next_public_api_base_url=$(grep '^NEXT_PUBLIC_API_BASE_URL=' .env.production | cut -d= -f2-)" >> "$GITHUB_OUTPUT"
+          echo "internal_api_base_url=$(grep '^INTERNAL_API_BASE_URL=' .env.production | cut -d= -f2-)" >> "$GITHUB_OUTPUT"
+          echo "next_public_clerk_publishable_key=$(grep '^NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=' .env.production | cut -d= -f2-)" >> "$GITHUB_OUTPUT"
+          echo "next_public_clerk_sign_in_url=$(grep '^NEXT_PUBLIC_CLERK_SIGN_IN_URL=' .env.production | cut -d= -f2-)" >> "$GITHUB_OUTPUT"
+          echo "next_public_clerk_sign_up_url=$(grep '^NEXT_PUBLIC_CLERK_SIGN_UP_URL=' .env.production | cut -d= -f2-)" >> "$GITHUB_OUTPUT"
+          echo "next_public_clerk_after_sign_in_url=$(grep '^NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=' .env.production | cut -d= -f2-)" >> "$GITHUB_OUTPUT"
+          echo "next_public_clerk_after_sign_up_url=$(grep '^NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=' .env.production | cut -d= -f2-)" >> "$GITHUB_OUTPUT"
+
+      - name: Set image tags
+        id: image-meta
+        run: |
+          owner="$(printf '%s' "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')"
+          echo "frontend_image=ghcr.io/${owner}/studflow-frontend:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          echo "backend_image=ghcr.io/${owner}/studflow-backend:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          echo "frontend_latest=ghcr.io/${owner}/studflow-frontend:latest" >> "$GITHUB_OUTPUT"
+          echo "backend_latest=ghcr.io/${owner}/studflow-backend:latest" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ${{ steps.image-meta.outputs.backend_image }}
+            ${{ steps.image-meta.outputs.backend_latest }}
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          push: true
+          build-args: |
+            NEXT_PUBLIC_API_BASE_URL=${{ steps.frontend-env.outputs.next_public_api_base_url }}
+            INTERNAL_API_BASE_URL=${{ steps.frontend-env.outputs.internal_api_base_url }}
+            NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ steps.frontend-env.outputs.next_public_clerk_publishable_key }}
+            NEXT_PUBLIC_CLERK_SIGN_IN_URL=${{ steps.frontend-env.outputs.next_public_clerk_sign_in_url }}
+            NEXT_PUBLIC_CLERK_SIGN_UP_URL=${{ steps.frontend-env.outputs.next_public_clerk_sign_up_url }}
+            NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=${{ steps.frontend-env.outputs.next_public_clerk_after_sign_in_url }}
+            NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=${{ steps.frontend-env.outputs.next_public_clerk_after_sign_up_url }}
+          tags: |
+            ${{ steps.image-meta.outputs.frontend_image }}
+            ${{ steps.image-meta.outputs.frontend_latest }}
+
+  deploy-production:
+    name: Deploy production
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs:
+      - build-images
+    runs-on: ubuntu-latest
     environment:
       name: production
     steps:
-      - name: Install doctl
-        uses: digitalocean/action-doctl@v2
-        with:
-          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+      - name: Check out repository
+        uses: actions/checkout@v4
 
-      - name: Trigger production deployment
-        run: doctl apps create-deployment "${{ secrets.DIGITALOCEAN_PRODUCTION_APP_ID }}" --update-sources --force-rebuild --wait
+      - name: Package release archive
+        run: git archive --format=tar.gz --output=release.tgz HEAD
+
+      - name: Write deployment SSH key
+        env:
+          AZURE_VM_SSH_KEY: ${{ secrets.AZURE_VM_SSH_KEY }}
+        run: |
+          mkdir -p "$HOME/.ssh"
+          printf '%s' "$AZURE_VM_SSH_KEY" > "$HOME/.ssh/id_ed25519"
+          chmod 600 "$HOME/.ssh/id_ed25519"
+
+      - name: Trust target host
+        env:
+          AZURE_VM_HOST: ${{ secrets.AZURE_VM_HOST }}
+          AZURE_VM_PORT: ${{ secrets.AZURE_VM_PORT }}
+        run: ssh-keyscan -p "${AZURE_VM_PORT:-22}" -H "$AZURE_VM_HOST" >> "$HOME/.ssh/known_hosts"
+
+      - name: Write production environment file
+        env:
+          PRODUCTION_ENV_FILE: ${{ secrets.PRODUCTION_ENV_FILE }}
+        run: |
+          printf '%s' "$PRODUCTION_ENV_FILE" > .env.production
+          {
+            echo "FRONTEND_IMAGE=${{ needs.build-images.outputs.frontend_image }}"
+            echo "BACKEND_IMAGE=${{ needs.build-images.outputs.backend_image }}"
+            echo "COMPOSE_BUILD_ON_SERVER=false"
+          } >> .env.production
+
+      - name: Upload release bundle
+        env:
+          AZURE_VM_HOST: ${{ secrets.AZURE_VM_HOST }}
+          AZURE_VM_PORT: ${{ secrets.AZURE_VM_PORT }}
+          AZURE_VM_USER: ${{ secrets.AZURE_VM_USER }}
+        run: |
+          scp -P "${AZURE_VM_PORT:-22}" release.tgz .env.production \
+            "${AZURE_VM_USER}@${AZURE_VM_HOST}:/tmp/"
+
+      - name: Deploy on Azure VM
+        env:
+          AZURE_VM_HOST: ${{ secrets.AZURE_VM_HOST }}
+          AZURE_VM_PORT: ${{ secrets.AZURE_VM_PORT }}
+          AZURE_VM_USER: ${{ secrets.AZURE_VM_USER }}
+          AZURE_VM_APP_PATH: ${{ secrets.AZURE_VM_APP_PATH }}
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          GHCR_PAT: ${{ secrets.GHCR_PAT }}
+        run: |
+          ssh -p "${AZURE_VM_PORT:-22}" "${AZURE_VM_USER}@${AZURE_VM_HOST}" "
+            APP_PATH='${AZURE_VM_APP_PATH:-/home/${AZURE_VM_USER}/studflow}' &&
+            TMP_DEPLOY_DIR=\$(mktemp -d) &&
+            mkdir -p \"\$APP_PATH\" &&
+            tar -xzf /tmp/release.tgz -C \"\$TMP_DEPLOY_DIR\" &&
+            mv /tmp/.env.production \"\$APP_PATH/.env.production\" &&
+            GHCR_USERNAME='${GHCR_USERNAME}' GHCR_TOKEN='${GHCR_PAT}' APP_DIR=\"\$APP_PATH\" ARCHIVE_PATH=/tmp/release.tgz ENV_PATH=\"\$APP_PATH/.env.production\" bash \"\$TMP_DEPLOY_DIR/scripts/deploy.sh\" &&
+            rm -rf \"\$TMP_DEPLOY_DIR\"
+          "

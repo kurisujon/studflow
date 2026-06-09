@@ -1,193 +1,144 @@
-# CI/CD on DigitalOcean
+# CI/CD on Azure VM
 
-This project is best deployed to DigitalOcean App Platform as one app per environment:
+This repository deploys to the Azure VM at `4.145.113.246` using Docker Compose, GitHub Actions, and GitHub Container Registry.
 
-- `studflow-staging` wired to the `staging` branch
-- `studflow-production` wired to the `main` branch
+The deployment path is:
 
-Each app should contain three components from the same GitHub repository:
+1. GitHub Actions runs frontend and backend CI.
+2. A push to `main` builds production Docker images in GitHub Actions.
+3. GitHub Actions pushes those images to GitHub Container Registry.
+4. GitHub Actions uploads the release archive and production env file to the VM over SSH.
+5. The VM runs `scripts/deploy.sh`, syncs the repo snapshot, logs into GHCR, pulls the tagged images, and starts the stack.
 
-- `frontend` web service from `frontend/`
-- `api` web service from `backend/`
-- `worker` background worker from `backend/`
+The workflow is defined in [.github/workflows/pipeline.yml](/mnt/c/Users/CJK_LAPTOP/Personal_Projects/Javascript/studflow/.github/workflows/pipeline.yml).
 
-This structure matches the current monorepo and keeps the browser on the same origin for `/api` requests.
+## Runtime Layout
 
-## Branch Flow
+The production stack is defined in [docker-compose.yml](/mnt/c/Users/CJK_LAPTOP/Personal_Projects/Javascript/studflow/docker-compose.yml).
 
-- `feature/*` branches: CI only
-- `staging` branch: deploy staging after CI passes
-- `main` branch: deploy production after CI passes
+It starts five services:
 
-Recommended workflow:
+- `frontend`: Next.js on port `3000`
+- `backend`: FastAPI internal service on port `8000`
+- `worker`: Celery worker
+- `postgres`: PostgreSQL 16
+- `redis`: Redis 7
 
-1. Create a feature branch from `staging`.
-2. Open a pull request into `staging`.
-3. After validation, merge into `staging` and let GitHub Actions deploy staging.
-4. Promote tested changes from `staging` into `main`.
-5. Merge into `main` and let GitHub Actions deploy production.
+The browser entrypoint is:
 
-## GitHub Actions
+- `http://4.145.113.246:3000`
 
-The repository workflow is defined in [.github/workflows/pipeline.yml](/mnt/c/users/cjk_laptop/personal_projects/javascript/studflow/.github/workflows/pipeline.yml).
+API requests still go through `/api/...` on the same origin. The frontend proxies those requests to the backend container internally.
 
-It does four things:
+## Server Prerequisites
 
-- runs frontend CI on every push and pull request
-- runs backend CI on every push and pull request
-- deploys the `staging` branch to DigitalOcean after CI passes
-- deploys the `main` branch to DigitalOcean after CI passes
+Install these packages on the Azure VM before the first deployment:
 
-## One-Time GitHub Setup
+- Docker Engine
+- Docker Compose plugin
+- `rsync`
 
-Add these repository secrets in GitHub:
+The SSH user used by GitHub Actions must also be allowed to run Docker commands.
 
-- `DIGITALOCEAN_ACCESS_TOKEN`
-- `DIGITALOCEAN_STAGING_APP_ID`
-- `DIGITALOCEAN_PRODUCTION_APP_ID`
+## Production Env File
 
-The app IDs come from the DigitalOcean App Platform dashboards for your staging and production apps.
+Use [.env.production.example](/mnt/c/Users/CJK_LAPTOP/Personal_Projects/Javascript/studflow/.env.production.example) as the template for the server environment file.
 
-## One-Time DigitalOcean Setup
+Important production values for the current server:
 
-Create a staging app and a production app in App Platform from the GitHub repo `Kurisujon/studflow`.
+- `NEXT_PUBLIC_API_BASE_URL=http://4.145.113.246:3000`
+- `INTERNAL_API_BASE_URL=http://backend:8000`
+- `ALLOWED_ORIGINS=["http://4.145.113.246:3000"]`
+- `COMPOSE_BUILD_ON_SERVER=false`
 
-For staging:
+Set real values for:
 
-- branch: `staging`
-- app name: `studflow-staging`
-
-For production:
-
-- branch: `main`
-- app name: `studflow-production`
-
-Disable App Platform automatic deploy-on-push after the apps are created. GitHub Actions should be the deployment gate so broken pushes do not bypass CI.
-
-## App Platform Components
-
-For both staging and production, configure the same component layout.
-
-### Frontend Service
-
-- component type: Web Service
-- source directory: `frontend`
-- environment: Node.js
-- build command: `npm ci && npm run build`
-- run command: `npm run start -- --hostname 0.0.0.0 --port 3000`
-- HTTP port: `3000`
-
-Frontend environment variables:
-
-- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
-- `NEXT_PUBLIC_API_BASE_URL`
-
-Set `NEXT_PUBLIC_API_BASE_URL` to the public base URL of the same App Platform app, not the backend component URL. The frontend’s server-side requests use this value, while browser requests already use same-origin `/api`.
-
-Example:
-
-- staging: `https://studflow-staging-xxxxx.ondigitalocean.app`
-- production: `https://studflow-production-xxxxx.ondigitalocean.app`
-
-### API Service
-
-- component type: Web Service
-- source directory: `backend`
-- environment: Python
-- build command: `pip install -r requirements.txt`
-- run command: `uvicorn main:app --host 0.0.0.0 --port 8000`
-- HTTP port: `8000`
-
-Backend environment variables:
-
-- `DATABASE_URL`
-- `REDIS_URL`
-- `CELERY_RESULT_BACKEND`
-- `SUPABASE_URL`
-- `SUPABASE_KEY`
-- `SUPABASE_STORAGE_BUCKET`
-- `SUPABASE_STORAGE_FOLDER`
-- `GEMINI_API_KEY`
-- `GEMINI_MODEL`
-- `GEMINI_FALLBACK_MODELS`
-- `GEMINI_MAX_RETRIES`
-- `YOUTUBE_API_KEY`
+- `POSTGRES_PASSWORD`
 - `SECRET_KEY`
-- `ALGORITHM`
-- `ACCESS_TOKEN_EXPIRE_MINUTES`
-- `CLERK_SECRET_KEY`
-- `CLERK_PUBLISHABLE_KEY`
-- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
-- `CLERK_JWKS_URL`
-- `CLERK_ISSUER`
-- `CLERK_AUDIENCE`
-- `ALLOWED_ORIGINS`
+- Clerk keys
+- Supabase keys
+- Gemini keys
+- any optional YouTube key
 
-Set `ALLOWED_ORIGINS` to the frontend URLs for the current environment.
+Keep placeholder values for:
 
-### Worker
+- `FRONTEND_IMAGE`
+- `BACKEND_IMAGE`
 
-- component type: Worker
-- source directory: `backend`
-- environment: Python
-- build command: `pip install -r requirements.txt`
-- run command: `celery -A core.celery_app.celery_app worker --loglevel=info`
+Those image tags are written automatically by the deploy workflow before the env file is uploaded to the VM.
 
-Use the same backend environment variables for the worker as the API service.
+## GitHub Secrets
 
-## Routing
+Add these repository secrets:
 
-Because the frontend browser code calls `/api/...` on the same origin, App Platform ingress must route `/api` to the backend service and `/` to the frontend service.
+- `AZURE_VM_HOST`
+  Set this to `4.145.113.246`
+- `AZURE_VM_PORT`
+  Usually `22`
+- `AZURE_VM_USER`
+  Your VM SSH username, for example `azureuser`
+- `AZURE_VM_SSH_KEY`
+  The private key content used by GitHub Actions to SSH into the VM
+- `AZURE_VM_APP_PATH`
+  Example: `/home/azureuser/studflow`
+- `PRODUCTION_ENV_FILE`
+  The full contents of your production `.env.production`
+- `GHCR_USERNAME`
+  Your GitHub username or org account name that owns the container packages
+- `GHCR_PAT`
+  A GitHub personal access token with at least `read:packages`
 
-Configure routes like this in the App Platform UI:
+`PRODUCTION_ENV_FILE` should be a multiline secret copied from your final production env file.
 
-1. `/api` -> `api`
-2. `/` -> `frontend`
+The workflow uses the built-in GitHub Actions token to push images to GHCR. The VM uses `GHCR_USERNAME` and `GHCR_PAT` to pull those images during deployment.
 
-Preserve the `/api` prefix when routing to the API service because the FastAPI routes are mounted under `/api`.
+## First-Time Server Setup
 
-## Databases and Queues
+1. SSH into the VM.
+2. Install Docker, Docker Compose plugin, and `rsync`.
+3. Create the application directory, for example `/home/azureuser/studflow`.
+4. Make sure `azureuser` is in the `docker` group or can otherwise run Docker without interactive sudo prompts.
+5. Open port `3000` in the Azure Network Security Group for the VM.
 
-Provision separate managed resources for staging and production:
+If you want HTTPS later, put Nginx, Caddy, or Azure Application Gateway in front of port `3000`.
 
-- Managed PostgreSQL for each environment
-- Managed Redis for each environment
+## GitHub Flow
 
-Point the environment variables at the matching environment resources:
+- Push any branch: CI runs.
+- Merge or push to `main`: CI runs, images are built and pushed, then production deploy starts automatically.
 
-- staging app -> staging Postgres and staging Redis
-- production app -> production Postgres and production Redis
+## Manual Deployment
 
-## Migrations
+If you need to deploy manually on the VM:
 
-This repository uses Alembic from [backend/alembic.ini](/mnt/c/users/cjk_laptop/personal_projects/javascript/studflow/backend/alembic.ini).
-
-Run this command against the target environment before the first deployment and whenever a new migration is added:
+1. Copy the repo contents or a release archive to the VM.
+2. Place your production env file at `<app-path>/.env.production`.
+3. Log into GHCR on the VM if the images are private:
 
 ```bash
-cd backend
-alembic upgrade head
+printf '%s' '<ghcr-pat>' | docker login ghcr.io -u '<github-user>' --password-stdin
 ```
 
-The simplest safe setup is to run migrations from the App Platform console or from your own machine with the production or staging `DATABASE_URL` loaded. Keep schema changes explicit instead of hiding them in application startup.
+4. Run:
 
-## Validation Checklist
+```bash
+APP_DIR=/home/azureuser/studflow \
+ARCHIVE_PATH=/tmp/studflow-release.tgz \
+ENV_PATH=/home/azureuser/studflow/.env.production \
+bash /home/azureuser/studflow/scripts/deploy.sh
+```
 
-- `staging` branch exists on GitHub
-- staging app is connected to branch `staging`
-- production app is connected to branch `main`
-- deploy-on-push is disabled in App Platform
-- GitHub secrets are configured
-- App Platform ingress routes `/api` to `api`
-- `NEXT_PUBLIC_API_BASE_URL` points to the current app base URL
-- Postgres and Redis are provisioned for each environment
-- backend and worker share the same runtime secrets
+## Validation
 
-## Daily Usage
+After deployment, validate:
 
-After the one-time setup:
+- `docker compose --env-file .env.production ps`
+- `http://4.145.113.246:3000`
+- `http://4.145.113.246:3000/api/health`
 
-1. Push to a feature branch to run CI.
-2. Merge into `staging` to deploy staging automatically.
-3. Verify staging.
-4. Merge into `main` to deploy production automatically.
+If the API health check fails but the frontend opens, inspect:
+
+- frontend logs
+- backend logs
+- worker logs
+- contents of `.env.production`

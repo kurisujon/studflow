@@ -2,11 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Navbar } from "@/components/navbar";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
-import { Geist } from "next/font/google";
-import { cn } from "@/lib/utils";
 import { ClerkProvider } from "@clerk/nextjs";
-
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
   title: {
@@ -27,7 +23,7 @@ export default function RootLayout({
     <ClerkProvider>
       <html
         lang="en"
-        className={cn("font-sans", geist.variable)}
+        className="font-sans"
         data-theme-color="system"
         suppressHydrationWarning
       >
