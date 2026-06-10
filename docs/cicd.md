@@ -27,7 +27,7 @@ It starts six services:
 
 The browser entrypoint is:
 
-- `https://webcris.dev`
+- `https://studflow.webcris.dev`
 
 API requests still go through `/api/...` on the same origin. The frontend proxies those requests to the backend container internally.
 
@@ -47,10 +47,10 @@ Use [.env.production.example](/mnt/c/Users/CJK_LAPTOP/Personal_Projects/Javascri
 
 Important production values for the current server:
 
-- `PUBLIC_DOMAIN=webcris.dev`
-- `NEXT_PUBLIC_API_BASE_URL=https://webcris.dev`
+- `PUBLIC_DOMAIN=studflow.webcris.dev`
+- `NEXT_PUBLIC_API_BASE_URL=https://studflow.webcris.dev`
 - `INTERNAL_API_BASE_URL=http://backend:8000`
-- `ALLOWED_ORIGINS=["https://webcris.dev","http://webcris.dev"]`
+- `ALLOWED_ORIGINS=["https://studflow.webcris.dev","http://studflow.webcris.dev"]`
 - `COMPOSE_BUILD_ON_SERVER=false`
 
 Set real values for:
@@ -134,8 +134,8 @@ bash /home/azureuser/studflow/scripts/deploy.sh
 After deployment, validate:
 
 - `docker compose --env-file .env.production ps`
-- `https://webcris.dev`
-- `http://4.145.113.246` should redirect to `https://webcris.dev`
+- `https://studflow.webcris.dev`
+- `http://4.145.113.246` should redirect to `https://studflow.webcris.dev`
 
 If the API health check fails but the frontend opens, inspect:
 
