@@ -150,7 +150,12 @@ export function QuizStudy({
         <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
           <Button
             onClick={handleRetake}
-            style={{ minHeight: "42px", paddingInline: "18px", borderRadius: "14px" }}
+            style={{
+              minHeight: "42px",
+              paddingInline: "18px",
+              borderRadius: "14px",
+              color: "var(--theme-on-primary)",
+            }}
           >
             {passed ? "Retake Quiz" : "Try Again"}
           </Button>
@@ -269,6 +274,7 @@ export function QuizStudy({
           paddingInline: "18px",
           borderRadius: "14px",
           whiteSpace: "nowrap",
+          color: "var(--theme-on-primary)",
         }}
       >
         {activeIndex === questions.length - 1 ? "Show Score" : "Next Question"}

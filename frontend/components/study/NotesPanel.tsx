@@ -56,10 +56,32 @@ export function NotesPanel({
           Notes
         </p>
         <div style={{ display: "flex", gap: "0.45rem" }}>
-          <Button variant={view === "active" ? "default" : "outline"} size="sm" onClick={() => setView("active")} style={{ minHeight: "38px", minWidth: "78px", paddingInline: "14px", borderRadius: "999px" }}>
+          <Button
+            variant={view === "active" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setView("active")}
+            style={{
+              minHeight: "38px",
+              minWidth: "78px",
+              paddingInline: "14px",
+              borderRadius: "999px",
+              color: view === "active" ? "var(--theme-on-primary)" : "var(--foreground)",
+            }}
+          >
             Active
           </Button>
-          <Button variant={view === "trash" ? "default" : "outline"} size="sm" onClick={() => setView("trash")} style={{ minHeight: "38px", minWidth: "78px", paddingInline: "14px", borderRadius: "999px" }}>
+          <Button
+            variant={view === "trash" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setView("trash")}
+            style={{
+              minHeight: "38px",
+              minWidth: "78px",
+              paddingInline: "14px",
+              borderRadius: "999px",
+              color: view === "trash" ? "var(--theme-on-primary)" : "var(--foreground)",
+            }}
+          >
             Trash {deletedNotes.length > 0 ? `(${deletedNotes.length})` : ""}
           </Button>
         </div>
@@ -172,7 +194,15 @@ export function NotesPanel({
               color: "var(--foreground)",
             }}
           />
-          <Button onClick={onSaveNote} style={{ minHeight: "42px", paddingInline: "18px", borderRadius: "14px" }}>
+          <Button
+            onClick={onSaveNote}
+            style={{
+              minHeight: "42px",
+              paddingInline: "18px",
+              borderRadius: "14px",
+              color: "var(--theme-on-primary)",
+            }}
+          >
             Send
           </Button>
         </div>

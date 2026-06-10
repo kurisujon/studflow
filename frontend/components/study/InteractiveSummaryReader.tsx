@@ -997,7 +997,13 @@ export function InteractiveSummaryReader({
             <Button
               disabled={activeIndex === sections.length - 1}
               onClick={() => setActiveIndex((current) => current + 1)}
-              style={{ minHeight: "42px", minWidth: "128px", paddingInline: "18px", borderRadius: "14px" }}
+              style={{
+                minHeight: "42px",
+                minWidth: "128px",
+                paddingInline: "18px",
+                borderRadius: "14px",
+                color: "var(--theme-on-primary)",
+              }}
             >
               Next Topic
             </Button>

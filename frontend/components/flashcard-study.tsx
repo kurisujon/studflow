@@ -182,7 +182,13 @@ export function FlashcardStudy({
           variant="default"
           disabled={activeIndex === flashcards.length - 1 || isChangingCard}
           onClick={() => changeCard(activeIndex + 1)}
-          style={{ minHeight: "42px", minWidth: "96px", paddingInline: "18px", borderRadius: "14px" }}
+          style={{
+            minHeight: "42px",
+            minWidth: "96px",
+            paddingInline: "18px",
+            borderRadius: "14px",
+            color: "var(--theme-on-primary)",
+          }}
         >
           Next
         </Button>
