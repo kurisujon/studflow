@@ -37,25 +37,17 @@ export function RelatedLearningVideos({ documentId }: { documentId: string }) {
   return (
     <>
       <div
+        className="study-support-surface"
         style={{
-          padding: "1.4rem",
-          borderRadius: "24px",
-          background: "linear-gradient(135deg, var(--theme-soft), var(--card))",
-          border: "1px solid var(--theme-border)",
-          boxShadow: "0 18px 48px var(--theme-shadow)",
-          marginBottom: "1.5rem",
+          marginTop: "1.5rem",
         }}
       >
-        <p
-          style={{
-            fontSize: "0.72rem",
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
-            color: "var(--theme-primary)",
-            marginBottom: "1rem",
-          }}
-        >
-          Related Learning Videos
+        <p className="study-meta-label" style={{ marginBottom: "0.45rem" }}>
+          Further Study
+        </p>
+        <h3 style={{ marginBottom: "0.45rem" }}>Related learning videos</h3>
+        <p style={{ fontSize: "0.95rem", color: "var(--distill-text-secondary)", marginBottom: "1rem" }}>
+          Use these when you want extra context after reading the main study material.
         </p>
 
         <div
@@ -68,6 +60,7 @@ export function RelatedLearningVideos({ documentId }: { documentId: string }) {
           {videos.map((video) => (
             <article
               key={video.id}
+              className="study-interactive-card"
               style={{
                 display: "flex",
                 flexDirection: "column",
@@ -75,8 +68,7 @@ export function RelatedLearningVideos({ documentId }: { documentId: string }) {
                 overflow: "hidden",
                 backgroundColor: "var(--card)",
                 border: "1px solid var(--border)",
-                boxShadow: "0 4px 12px color-mix(in srgb, var(--foreground) 5%, transparent)",
-                transition: "transform 0.2s ease",
+                boxShadow: "0 8px 20px color-mix(in srgb, var(--foreground) 4%, transparent)",
               }}
             >
               <button

@@ -92,14 +92,23 @@ export function FlashcardStudy({
   }, [activeIndex, changeCard, isChangingCard]);
 
   if (flashcards.length === 0) {
-    return <p>No flashcards available yet.</p>;
+    return (
+      <div className="study-stage-shell">
+        <p className="study-meta-label" style={{ marginBottom: "0.45rem" }}>
+          Flashcards
+        </p>
+        <div className="study-empty-state">
+          <p className="study-body-copy">No flashcards available yet.</p>
+        </div>
+      </div>
+    );
   }
 
   const activeCard = flashcards[activeIndex];
   const progress = ((activeIndex + 1) / flashcards.length) * 100;
 
   return (
-    <section style={{ width: "100%" }}>
+    <section className="study-stage-shell" style={{ width: "100%" }}>
       <div
         style={{
           display: "flex",
@@ -109,14 +118,7 @@ export function FlashcardStudy({
           marginBottom: "1rem",
         }}
       >
-        <p
-          style={{
-            fontSize: "0.82rem",
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
-            color: "var(--distill-text-muted)",
-          }}
-        >
+        <p className="study-meta-label">
           Card {activeIndex + 1} of {flashcards.length}
         </p>
         <div
@@ -138,10 +140,14 @@ export function FlashcardStudy({
           />
         </div>
       </div>
+      <p className="study-body-copy" style={{ fontSize: "0.88rem", marginBottom: "1rem" }}>
+        Shortcuts: Space flips the card. Left and Right move between cards.
+      </p>
 
       <div style={{ perspective: "1400px", marginBottom: "1.2rem" }}>
         <motion.button
           type="button"
+          aria-keyshortcuts="Space ArrowLeft ArrowRight"
           onClick={() => {
             if (!isChangingCard) {
               setIsFlipped((current) => !current);
@@ -154,10 +160,11 @@ export function FlashcardStudy({
             minHeight: "360px",
             position: "relative",
             transformStyle: "preserve-3d",
-            border: "1px solid var(--distill-border)",
+            border: "1px solid color-mix(in srgb, var(--theme-border) 54%, var(--border))",
             borderRadius: "28px",
-            background: "linear-gradient(180deg, var(--card), color-mix(in srgb, var(--card) 86%, var(--theme-soft)))",
-            boxShadow: "0 24px 56px color-mix(in srgb, var(--foreground) 8%, transparent)",
+            background:
+              "linear-gradient(180deg, color-mix(in srgb, var(--card) 98%, white), color-mix(in srgb, var(--card) 90%, var(--theme-soft)))",
+            boxShadow: "0 22px 52px color-mix(in srgb, var(--theme-shadow) 32%, transparent)",
             cursor: "pointer",
             padding: 0,
           }}
@@ -179,31 +186,20 @@ export function FlashcardStudy({
                 transform: `rotateY(${face.rotate}deg)`,
               }}
             >
-              <p
-                style={{
-                  fontSize: "0.72rem",
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                  color: "var(--distill-text-muted)",
-                }}
-              >
+              <p className="study-meta-label">
                 {face.label}
               </p>
               <p
                 style={{
-                  fontSize: "clamp(1.5rem, 3vw, 2.4rem)",
-                  lineHeight: 1.3,
+                  fontSize: "clamp(1.4rem, 3vw, 2.25rem)",
+                  lineHeight: 1.32,
                   color: "var(--distill-text-primary)",
+                  letterSpacing: "-0.02em",
                 }}
               >
                 {face.content}
               </p>
-              <p
-                style={{
-                  fontSize: "0.92rem",
-                  color: "var(--distill-text-secondary)",
-                }}
-              >
+              <p className="study-body-copy" style={{ fontSize: "0.92rem" }}>
                 Tap the card to flip.
               </p>
             </div>
@@ -211,12 +207,13 @@ export function FlashcardStudy({
         </motion.button>
       </div>
 
-      <div style={{ display: "flex", gap: "0.75rem" }}>
+      <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
         <Button
           variant="outline"
           disabled={activeIndex === 0 || isChangingCard}
           onClick={() => changeCard(activeIndex - 1)}
-          style={{ minHeight: "42px", minWidth: "120px", paddingInline: "18px", borderRadius: "14px" }}
+          className="study-utility-pill"
+          style={{ minWidth: "120px" }}
         >
           Previous
         </Button>
@@ -224,11 +221,9 @@ export function FlashcardStudy({
           variant="default"
           disabled={activeIndex === flashcards.length - 1 || isChangingCard}
           onClick={() => changeCard(activeIndex + 1)}
+          className="study-utility-pill"
           style={{
-            minHeight: "42px",
             minWidth: "96px",
-            paddingInline: "18px",
-            borderRadius: "14px",
             color: "var(--theme-on-primary)",
           }}
         >

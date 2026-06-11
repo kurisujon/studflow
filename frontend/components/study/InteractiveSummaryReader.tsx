@@ -162,6 +162,7 @@ export function InteractiveSummaryReader({
   const [focusedNoteId, setFocusedNoteId] = useState<string | null>(null);
   const [pulseAnnotationId, setPulseAnnotationId] = useState<string | null>(null);
   const [annotationError, setAnnotationError] = useState<string | null>(null);
+  const [readingMode, setReadingMode] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const selectionPopoverRef = useRef<HTMLDivElement | null>(null);
 
@@ -777,129 +778,156 @@ export function InteractiveSummaryReader({
     });
   }
 
+  const supportContentVisible = !readingMode;
+
   return (
     <section style={{ width: "100%", display: "block" }}>
       <div
         ref={rootRef}
         style={{
           cursor: "text",
+          width: "100%",
+          maxWidth: readingMode ? "900px" : "1080px",
+          marginInline: "auto",
         }}
       >
         <div style={{ display: "grid", gap: "1rem", marginBottom: "1.5rem" }}>
           <div
+            className="study-support-surface"
             style={{
-              padding: "1.4rem",
-              borderRadius: "24px",
-              background: "linear-gradient(135deg, var(--theme-soft), var(--card))",
-              border: "1px solid var(--theme-border)",
-              boxShadow: "0 18px 48px var(--theme-shadow)",
+              maxWidth: "820px",
+              marginInline: "auto",
             }}
           >
-            <p
+            <div
               style={{
-                fontSize: "0.72rem",
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                color: "var(--theme-primary)",
-                marginBottom: "0.55rem",
+                display: "flex",
+                alignItems: "flex-start",
+                justifyContent: "space-between",
+                gap: "0.9rem",
+                flexWrap: "wrap",
+                marginBottom: "0.95rem",
               }}
             >
-              Overall Overview
-            </p>
-            <AnnotatableTextBlock
-              as="p"
-              blockId={overviewBlockId}
-              text={summary.overall_overview}
-              annotations={topicAnnotations.filter(
-                (annotation) => annotation.blockId === overviewBlockId,
-              )}
-              pendingSelection={pendingSelectionForBlock(overviewBlockId)}
-              onSelection={handleTextSelection}
-              onNoteClick={handleNoteMarkerClick}
+              <div>
+                <p className="study-meta-label" style={{ marginBottom: "0.3rem" }}>
+                  Study Summary
+                </p>
+                <p style={{ fontSize: "0.95rem", color: "var(--distill-text-secondary)", lineHeight: 1.6 }}>
+                  Topic {activeIndex + 1} of {sections.length}. Read first, then use notes and AI only when needed.
+                </p>
+                <p className="study-body-copy" style={{ fontSize: "0.86rem", marginTop: "0.35rem" }}>
+                  Select text to highlight, underline, attach a note, or ask AI.
+                </p>
+              </div>
+              <Button
+                variant={readingMode ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setReadingMode((current) => {
+                    const next = !current;
+                    if (next) {
+                      setDrawerOpen(false);
+                    }
+                    return next;
+                  });
+                }}
+                style={{
+                  minHeight: "40px",
+                  paddingInline: "16px",
+                  borderRadius: "999px",
+                  color: readingMode ? "var(--theme-on-primary)" : "var(--foreground)",
+                }}
+              >
+                {readingMode ? "Exit Focused Reading" : "Focused Reading"}
+              </Button>
+            </div>
+
+            <div
               style={{
-                fontFamily: '"Geist", "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif',
-                fontSize: "1.05rem",
-                lineHeight: 1.85,
-                color: "var(--distill-text-secondary)",
+                display: "flex",
+                alignItems: "center",
+                gap: "1rem",
+                flexWrap: "wrap",
               }}
-            />
+            >
+              <p className="study-meta-label" style={{ minWidth: "fit-content" }}>
+                Progress
+              </p>
+              <div
+                style={{
+                  flex: 1,
+                  minWidth: "180px",
+                  height: "8px",
+                  borderRadius: "999px",
+                  backgroundColor: "color-mix(in srgb, var(--theme-soft) 72%, var(--border))",
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    width: `${progress}%`,
+                    height: "100%",
+                    background: "linear-gradient(90deg, var(--theme-primary), var(--theme-primary-hover))",
+                  }}
+                />
+              </div>
+            </div>
           </div>
-          
-          <RelatedLearningVideos documentId={documentId} />
 
           {annotationError ? (
             <p
               style={{
                 color: "#b42318",
                 fontSize: "0.88rem",
-                marginTop: "-0.4rem",
+                maxWidth: "820px",
+                marginInline: "auto",
               }}
             >
               {annotationError}
             </p>
           ) : null}
 
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: "1rem",
-              flexWrap: "wrap",
-            }}
-          >
-            <p
-              style={{
-                fontSize: "0.82rem",
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                color: "var(--theme-primary)",
-              }}
-            >
-              Topic {activeIndex + 1} of {sections.length}
-            </p>
+          {supportContentVisible ? (
             <div
+              className="study-support-surface"
               style={{
-                flex: 1,
-                minWidth: "180px",
-                maxWidth: "320px",
-                height: "8px",
-                borderRadius: "999px",
-                backgroundColor: "var(--theme-soft)",
-                overflow: "hidden",
+                maxWidth: "820px",
+                marginInline: "auto",
               }}
             >
-              <div
+              <p className="study-meta-label" style={{ marginBottom: "0.55rem" }}>
+                Overall Overview
+              </p>
+              <AnnotatableTextBlock
+                as="p"
+                blockId={overviewBlockId}
+                text={summary.overall_overview}
+                annotations={topicAnnotations.filter(
+                  (annotation) => annotation.blockId === overviewBlockId,
+                )}
+                pendingSelection={pendingSelectionForBlock(overviewBlockId)}
+                onSelection={handleTextSelection}
+                onNoteClick={handleNoteMarkerClick}
                 style={{
-                  width: `${progress}%`,
-                  height: "100%",
-                  background: "linear-gradient(90deg, var(--theme-primary), var(--theme-primary-hover))",
+                  fontSize: "1.02rem",
+                  lineHeight: 1.82,
+                  color: "var(--distill-text-secondary)",
                 }}
               />
             </div>
-          </div>
+          ) : null}
         </div>
 
         <article
+          className="study-reading-surface"
           style={{
-            maxWidth: "760px",
-            marginInline: "auto",
-            padding: "2rem",
-            borderRadius: "30px",
-            background: "linear-gradient(180deg, var(--card), color-mix(in srgb, var(--card) 88%, var(--theme-soft)))",
-            border: "1px solid var(--theme-border)",
-            boxShadow: "0 24px 64px var(--theme-shadow)",
+            background: readingMode
+              ? "linear-gradient(180deg, color-mix(in srgb, var(--card) 99%, white), var(--card))"
+              : undefined,
           }}
         >
-          <p
-            style={{
-              fontSize: "0.72rem",
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              color: "var(--theme-primary)",
-              marginBottom: "0.7rem",
-            }}
-          >
+          <p className="study-meta-label" style={{ marginBottom: "0.7rem" }}>
             Detailed Topic
           </p>
           <AnnotatableTextBlock
@@ -913,26 +941,17 @@ export function InteractiveSummaryReader({
             onSelection={handleTextSelection}
             onNoteClick={handleNoteMarkerClick}
             style={{
-              fontFamily: '"Geist", "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif',
-              fontSize: "clamp(2rem, 4vw, 3rem)",
-              lineHeight: 1.2,
+              fontSize: "clamp(1.9rem, 4vw, 2.7rem)",
+              lineHeight: 1.16,
               fontWeight: 700,
               color: "var(--foreground)",
-              marginBottom: "1.3rem",
+              marginBottom: "1.45rem",
             }}
           />
 
-          <div style={{ display: "grid", gap: "1.4rem" }}>
+          <div style={{ display: "grid", gap: "1.75rem" }}>
             <div>
-              <p
-                style={{
-                  fontSize: "0.78rem",
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                  color: "var(--theme-primary)",
-                  marginBottom: "0.85rem",
-                }}
-              >
+              <p className="study-meta-label" style={{ marginBottom: "0.85rem" }}>
                 Key Points
               </p>
               <AnimatePresence mode="wait">
@@ -942,14 +961,11 @@ export function InteractiveSummaryReader({
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -10 }}
                   transition={{ duration: 0.18, ease: "easeOut" }}
+                  className="study-reading-copy"
                   style={{
                     display: "grid",
-                    gap: "0.85rem",
+                    gap: "0.95rem",
                     paddingLeft: "1.2rem",
-                    fontFamily: '"Geist", "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif',
-                    fontSize: "1.04rem",
-                    lineHeight: 1.9,
-                    color: "var(--distill-text-secondary)",
                   }}
                 >
                   {activeSection.key_points.map(renderPoint)}
@@ -959,22 +975,12 @@ export function InteractiveSummaryReader({
 
             {activeSection.important_terms_and_definitions.length > 0 ? (
               <div
+                className="study-support-surface"
                 style={{
-                  padding: "1.2rem 1.25rem",
-                  borderRadius: "22px",
-                  background: "linear-gradient(135deg, var(--theme-soft), var(--card))",
-                  border: "1px solid var(--theme-border)",
+                  padding: "1.1rem 1.2rem",
                 }}
               >
-                <p
-                  style={{
-                    fontSize: "0.78rem",
-                    letterSpacing: "0.08em",
-                    textTransform: "uppercase",
-                    color: "var(--theme-primary)",
-                    marginBottom: "0.85rem",
-                  }}
-                >
+                <p className="study-meta-label" style={{ marginBottom: "0.85rem" }}>
                   Important Terms and Definitions
                 </p>
                 <AnimatePresence mode="wait">
@@ -984,15 +990,12 @@ export function InteractiveSummaryReader({
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -10 }}
                     transition={{ duration: 0.18, ease: "easeOut" }}
+                    className="study-reading-copy"
                     style={{
                       display: "grid",
-                      gap: "0.7rem",
+                      gap: "0.8rem",
                       paddingLeft: 0,
                       listStyle: "none",
-                      fontFamily: '"Geist", "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif',
-                      fontSize: "1rem",
-                      lineHeight: 1.8,
-                      color: "var(--distill-text-secondary)",
                     }}
                   >
                     {activeSection.important_terms_and_definitions.map(renderTerm)}
@@ -1007,7 +1010,8 @@ export function InteractiveSummaryReader({
           style={{
             display: "flex",
             gap: "0.75rem",
-            marginTop: "1rem",
+            maxWidth: "820px",
+            margin: "1rem auto 0",
             justifyContent: "space-between",
             alignItems: "center",
             flexWrap: "wrap",
@@ -1018,7 +1022,7 @@ export function InteractiveSummaryReader({
               variant="outline"
               disabled={activeIndex === 0}
               onClick={() => setActiveIndex((current) => current - 1)}
-              style={{ minHeight: "42px", minWidth: "148px", paddingInline: "18px", borderRadius: "14px" }}
+              style={{ minHeight: "42px", minWidth: "148px", paddingInline: "18px", borderRadius: "999px" }}
             >
               Previous Topic
             </Button>
@@ -1031,7 +1035,7 @@ export function InteractiveSummaryReader({
                 minHeight: "42px",
                 minWidth: "128px",
                 paddingInline: "18px",
-                borderRadius: "14px",
+                borderRadius: "999px",
                 color: "var(--theme-on-primary)",
               }}
             >
@@ -1045,6 +1049,10 @@ export function InteractiveSummaryReader({
             onClick={handleBubbleHeadClick}
           />
         </div>
+
+        {supportContentVisible ? (
+          <RelatedLearningVideos documentId={documentId} />
+        ) : null}
 
         <AnimatePresence>
           {pendingSelection ? (
@@ -1066,6 +1074,7 @@ export function InteractiveSummaryReader({
               onClick={(event) => {
                 event.stopPropagation();
               }}
+              className="study-selection-popover"
               style={{
                 position: "fixed",
                 top: pendingSelection.y,
@@ -1089,6 +1098,7 @@ export function InteractiveSummaryReader({
                   key={color}
                   type="button"
                   onClick={() => saveHighlight(color)}
+                  aria-label={`Highlight selection in ${color}`}
                   style={{
                     width: "18px",
                     height: "18px",
@@ -1116,6 +1126,7 @@ export function InteractiveSummaryReader({
                   variant="secondary"
                   size="sm"
                   onClick={() => setUnderlineColorMode((current) => !current)}
+                  aria-keyshortcuts="Alt+U"
                   style={{ minHeight: "36px", paddingInline: "14px", borderRadius: "12px" }}
                 >
                   Underline
@@ -1140,6 +1151,7 @@ export function InteractiveSummaryReader({
                         key={`u-${color}`}
                         type="button"
                         onClick={() => saveUnderline(color)}
+                        aria-label={`Underline selection in ${color}`}
                         style={{
                           width: "18px",
                           height: "18px",
@@ -1168,6 +1180,7 @@ export function InteractiveSummaryReader({
                 variant="secondary"
                 size="sm"
                 onClick={openNotesFromPendingSelection}
+                aria-label="Add selected text to a note"
                 style={{ minHeight: "36px", paddingInline: "14px", borderRadius: "12px" }}
               >
                 Add to Note
@@ -1176,6 +1189,7 @@ export function InteractiveSummaryReader({
                 variant="secondary"
                 size="sm"
                 onClick={() => openAIFromPendingSelection("ask-ai")}
+                aria-label="Ask AI about the selected text"
                 style={{ minHeight: "36px", paddingInline: "14px", borderRadius: "12px" }}
               >
                 Ask AI

@@ -95,11 +95,12 @@ export function StudyWorkspace({
             key={item.key}
             variant={currentTab === item.key ? "default" : "outline"}
             size="lg"
+            className="study-utility-pill"
+            aria-keyshortcuts={
+              item.key === "summary" ? "1" : item.key === "flashcards" ? "2" : "3"
+            }
             onClick={() => navigateToTab(item.key)}
             style={{
-              minHeight: "42px",
-              paddingInline: "18px",
-              borderRadius: "999px",
               color: currentTab === item.key ? "var(--theme-on-primary)" : "var(--foreground)",
               backgroundColor: currentTab === item.key ? "var(--theme-primary)" : "var(--card)",
               border: currentTab === item.key ? "1px solid var(--theme-primary)" : "1px solid var(--border)",
@@ -109,15 +110,31 @@ export function StudyWorkspace({
           </Button>
         ))}
       </div>
+      <p
+        className="study-body-copy"
+        style={{ fontSize: "0.88rem", marginBottom: "1.25rem", maxWidth: "820px" }}
+      >
+        Shortcuts: 1 Summary, 2 Flashcards, 3 Quiz.
+      </p>
 
       <div
-        style={{
-          padding: "2rem",
-          border: "1px solid var(--theme-border)",
-          borderRadius: "28px",
-          background: "color-mix(in srgb, var(--card) 92%, var(--theme-soft))",
-          boxShadow: "0 22px 60px var(--theme-shadow)",
-        }}
+        style={
+          currentTab === "summary"
+            ? {
+                padding: 0,
+                border: "none",
+                borderRadius: 0,
+                background: "transparent",
+                boxShadow: "none",
+              }
+            : {
+                padding: "2rem",
+                border: "1px solid var(--theme-border)",
+                borderRadius: "28px",
+                background: "color-mix(in srgb, var(--card) 92%, var(--theme-soft))",
+                boxShadow: "0 22px 60px var(--theme-shadow)",
+              }
+        }
       >
         {currentTab === "flashcards" ? (
           <FlashcardStudy flashcards={document.flashcards} />

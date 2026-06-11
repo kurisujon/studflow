@@ -106,7 +106,16 @@ export function QuizStudy({
   }, [activeIndex, answered, question, questions.length, showScore]);
 
   if (!hasQuestions || question === null) {
-    return <p>No quiz available yet.</p>;
+    return (
+      <div className="study-stage-shell">
+        <p className="study-meta-label" style={{ marginBottom: "0.45rem" }}>
+          Quiz
+        </p>
+        <div className="study-empty-state">
+          <p className="study-body-copy">No quiz available yet.</p>
+        </div>
+      </div>
+    );
   }
 
   function handleSelectOption(optionIndex: number) {
@@ -139,31 +148,20 @@ export function QuizStudy({
   if (showScore) {
     return (
       <motion.section
+        className="study-stage-shell"
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25, ease: "easeOut" }}
         style={{
-          border: "1px solid var(--distill-border)",
-          borderRadius: "28px",
-          padding: "2rem",
           background:
             passed
-              ? "linear-gradient(180deg, var(--card), var(--theme-soft))"
-              : "linear-gradient(180deg, var(--card), var(--muted))",
+              ? "linear-gradient(180deg, color-mix(in srgb, var(--card) 98%, white), color-mix(in srgb, var(--card) 90%, var(--theme-soft)))"
+              : "linear-gradient(180deg, color-mix(in srgb, var(--card) 98%, white), color-mix(in srgb, var(--muted) 70%, var(--card)))",
           position: "relative",
           overflow: "hidden",
         }}
       >
-        <p
-          style={{
-            fontSize: "0.75rem",
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
-            color: "var(--distill-text-muted)",
-            marginBottom: "0.75rem",
-            position: "relative",
-          }}
-        >
+        <p className="study-meta-label" style={{ marginBottom: "0.75rem", position: "relative" }}>
           {passed ? "Quiz Complete" : "Try Again"}
         </p>
         {passed ? (
@@ -185,13 +183,13 @@ export function QuizStudy({
             <span style={{ fontSize: "0.88rem", fontWeight: 600 }}>Passed</span>
           </div>
         ) : null}
-        <h2 style={{ marginBottom: "0.75rem", position: "relative" }}>
+        <h2 style={{ marginBottom: "0.75rem", position: "relative", maxWidth: "18ch" }}>
           Final score: {score} / {questions.length}
         </h2>
-        <p style={{ marginBottom: "0.45rem", position: "relative" }}>
+        <p className="study-body-copy" style={{ marginBottom: "0.45rem", position: "relative" }}>
           Passing score: {passingScore} / {questions.length}
         </p>
-        <p style={{ marginBottom: "1.5rem", position: "relative" }}>
+        <p className="study-body-copy" style={{ marginBottom: "1.5rem", position: "relative", maxWidth: "58ch" }}>
           {passed
             ? "You passed. Review the material again or continue with another study session."
             : "You did not reach the passing score yet. Review the quiz again or return to the dashboard for more practice."}
@@ -199,10 +197,8 @@ export function QuizStudy({
         <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
           <Button
             onClick={handleRetake}
+            className="study-utility-pill"
             style={{
-              minHeight: "42px",
-              paddingInline: "18px",
-              borderRadius: "14px",
               color: "var(--theme-on-primary)",
             }}
           >
@@ -211,7 +207,7 @@ export function QuizStudy({
           <Button
             variant="outline"
             onClick={() => router.push("/dashboard")}
-            style={{ minHeight: "42px", paddingInline: "18px", borderRadius: "14px" }}
+            className="study-utility-pill"
           >
             Return to Dashboard
           </Button>
@@ -221,28 +217,15 @@ export function QuizStudy({
   }
 
   return (
-    <section
-      style={{
-        border: "1px solid var(--distill-border)",
-        borderRadius: "28px",
-        padding: "2rem",
-        backgroundColor: "var(--card)",
-        color: "var(--foreground)",
-      }}
-    >
-      <p
-        style={{
-          fontSize: "0.75rem",
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
-          color: "var(--distill-text-muted)",
-          marginBottom: "0.75rem",
-        }}
-      >
+    <section className="study-stage-shell" style={{ color: "var(--foreground)" }}>
+      <p className="study-meta-label" style={{ marginBottom: "0.75rem" }}>
         Question {activeIndex + 1} of {questions.length}
       </p>
+      <p className="study-body-copy" style={{ fontSize: "0.88rem", marginBottom: "0.9rem" }}>
+        Shortcuts: 1-4 choose an answer. Enter moves to the next question after you answer.
+      </p>
 
-      <h2 style={{ marginBottom: "1.25rem", lineHeight: 1.35 }}>
+      <h2 style={{ marginBottom: "1.25rem", lineHeight: 1.28, maxWidth: "22ch" }}>
         {question.question}
       </h2>
 
@@ -272,6 +255,8 @@ export function QuizStudy({
               key={option}
               type="button"
               onClick={() => handleSelectOption(optionIndex)}
+              aria-keyshortcuts={`${optionIndex + 1}`}
+              className="study-interactive-card"
               style={{
                 textAlign: "left",
                 width: "100%",
@@ -281,6 +266,7 @@ export function QuizStudy({
                 backgroundColor,
                 color: textColor,
                 cursor: answered ? "default" : "pointer",
+                lineHeight: 1.6,
               }}
             >
               {option}
@@ -299,29 +285,19 @@ export function QuizStudy({
             backgroundColor: "var(--muted)",
           }}
         >
-          <p
-            style={{
-              fontSize: "0.75rem",
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              color: "var(--distill-text-muted)",
-              marginBottom: "0.45rem",
-            }}
-          >
+          <p className="study-meta-label" style={{ marginBottom: "0.45rem" }}>
             Explanation
           </p>
-          <p>{question.explanation}</p>
+          <p className="study-body-copy">{question.explanation}</p>
         </div>
       ) : null}
 
       <Button
         onClick={handleNext}
         disabled={!answered}
+        className="study-utility-pill"
         style={{
-          minHeight: "42px",
           minWidth: activeIndex === questions.length - 1 ? "126px" : "146px",
-          paddingInline: "18px",
-          borderRadius: "14px",
           whiteSpace: "nowrap",
           color: "var(--theme-on-primary)",
         }}

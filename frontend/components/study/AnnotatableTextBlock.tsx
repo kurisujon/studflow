@@ -207,11 +207,26 @@ function renderAnnotatedNodes({
         key={`${start}-${end}`}
         data-annotation-id={annotationId}
         data-annotation-type={annotationType}
+        className={note ? "study-annotation-note" : undefined}
+        tabIndex={note ? 0 : undefined}
+        role={note ? "button" : undefined}
+        aria-label={note ? "Open note for this selection" : undefined}
         onClick={
           note
             ? (event) => {
                 event.stopPropagation();
                 onNoteClick?.(note.id);
+              }
+            : undefined
+        }
+        onKeyDown={
+          note
+            ? (event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onNoteClick?.(note.id);
+                }
               }
             : undefined
         }

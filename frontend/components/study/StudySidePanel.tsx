@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 
 import { AIStudyAssistantPanel } from "@/components/study/AIStudyAssistantPanel";
@@ -51,37 +52,48 @@ export function StudySidePanel({
   onJumpToText: (note: StudyNote) => void;
   onAskAINote: (note: StudyNote) => void;
 }) {
+  const [isCompactLayout, setIsCompactLayout] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia("(max-width: 768px)");
+    const syncLayout = () => setIsCompactLayout(mediaQuery.matches);
+    syncLayout();
+    mediaQuery.addEventListener("change", syncLayout);
+
+    return () => {
+      mediaQuery.removeEventListener("change", syncLayout);
+    };
+  }, []);
+
   return (
     <AnimatePresence>
       {open ? (
         <motion.aside
           data-study-bubble="true"
-          initial={{ x: "100%", opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          exit={{ x: "100%", opacity: 0 }}
+          initial={isCompactLayout ? { y: 24, opacity: 0 } : { x: "100%", opacity: 0 }}
+          animate={isCompactLayout ? { y: 0, opacity: 1 } : { x: 0, opacity: 1 }}
+          exit={isCompactLayout ? { y: 24, opacity: 0 } : { x: "100%", opacity: 0 }}
           transition={{ duration: 0.2, ease: "easeOut" }}
+          className="study-side-panel-shell"
           style={{
-            position: "fixed",
-            right: "24px",
-            top: "calc(var(--nav-height) + 24px)",
-            width: "100%",
-            maxWidth: "380px",
-            maxHeight: "calc(100dvh - var(--nav-height) - 48px)",
             padding: "1.3rem",
             borderRadius: "24px",
-            backgroundColor: "var(--card)",
-            border: "1px solid var(--theme-border)",
-            boxShadow: "0 22px 60px var(--theme-shadow)",
-            overflowY: "auto",
-            zIndex: 120,
+            background:
+              "linear-gradient(180deg, color-mix(in srgb, var(--card) 98%, white), color-mix(in srgb, var(--card) 94%, var(--theme-soft)))",
+            border: "1px solid color-mix(in srgb, var(--theme-border) 58%, var(--border))",
+            boxShadow: "0 20px 52px color-mix(in srgb, var(--theme-shadow) 56%, transparent)",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1rem" }}>
             <div>
-              <p style={{ fontSize: "0.72rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--theme-primary)", marginBottom: "0.3rem" }}>
-                Message Bubble
+              <p className="study-meta-label" style={{ marginBottom: "0.3rem" }}>
+                Study Panel
               </p>
-              <h3 style={{ color: "var(--foreground)" }}>Study tools</h3>
+              <h3 style={{ color: "var(--foreground)" }}>Notes and AI</h3>
             </div>
           </div>
 
@@ -89,15 +101,10 @@ export function StudySidePanel({
             <button
               type="button"
               onClick={() => onTabChange("notes")}
+              className="study-segmented-pill"
               style={{
-                minHeight: "40px",
-                paddingInline: "16px",
-                borderRadius: "999px",
-                border: "1px solid var(--theme-border)",
                 backgroundColor: activeTab === "notes" ? "var(--theme-primary)" : "var(--card)",
                 color: activeTab === "notes" ? "var(--theme-on-primary)" : "var(--foreground)",
-                fontWeight: 600,
-                cursor: "pointer",
               }}
             >
               Notes
@@ -105,15 +112,10 @@ export function StudySidePanel({
             <button
               type="button"
               onClick={() => onTabChange("ai")}
+              className="study-segmented-pill"
               style={{
-                minHeight: "40px",
-                paddingInline: "16px",
-                borderRadius: "999px",
-                border: "1px solid var(--theme-border)",
                 backgroundColor: activeTab === "ai" ? "var(--theme-primary)" : "var(--card)",
                 color: activeTab === "ai" ? "var(--theme-on-primary)" : "var(--foreground)",
-                fontWeight: 600,
-                cursor: "pointer",
               }}
             >
               AI

@@ -54,7 +54,7 @@ export function NotesPanel({
   return (
     <div style={{ display: "grid", gap: "1rem" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem" }}>
-        <p style={{ fontSize: "0.75rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--theme-primary)" }}>
+        <p className="study-meta-label">
           Notes
         </p>
         <div style={{ display: "flex", gap: "0.45rem" }}>
@@ -102,6 +102,7 @@ export function NotesPanel({
                 onClick={() => {
                   if (canJumpToText(note)) onJumpToText(note);
                 }}
+                className="study-interactive-card"
                 style={{
                   textAlign: "left",
                   padding: "1rem",
@@ -113,7 +114,7 @@ export function NotesPanel({
                 }}
               >
                 <p style={{ color: "var(--theme-primary)", marginBottom: "0.4rem" }}>{noteLabel(note)}</p>
-                <p style={{ color: "var(--foreground)", marginBottom: "0.65rem" }}>{note.content}</p>
+                <p style={{ color: "var(--foreground)", marginBottom: "0.65rem", lineHeight: 1.7 }}>{note.content}</p>
                 <p style={{ color: "var(--muted-foreground)", fontSize: "0.82rem", marginBottom: "0.7rem" }}>
                   Updated {new Date(note.updatedAt).toLocaleString()}
                 </p>
@@ -139,6 +140,7 @@ export function NotesPanel({
             deletedNotes.map((note) => (
               <div
                 key={note.id}
+                className="study-interactive-card"
                 style={{
                   padding: "1rem",
                   borderRadius: "18px",
@@ -147,7 +149,7 @@ export function NotesPanel({
                 }}
               >
                 <p style={{ color: "var(--theme-primary)", marginBottom: "0.4rem" }}>{noteLabel(note)}</p>
-                <p style={{ color: "var(--foreground)", marginBottom: "0.65rem" }}>{note.content}</p>
+                <p style={{ color: "var(--foreground)", marginBottom: "0.65rem", lineHeight: 1.7 }}>{note.content}</p>
                 <p style={{ color: "var(--muted-foreground)", fontSize: "0.82rem", marginBottom: "0.7rem" }}>
                   Deleted {note.deletedAt ? new Date(note.deletedAt).toLocaleString() : "recently"}
                 </p>
@@ -174,7 +176,7 @@ export function NotesPanel({
           gap: "0.6rem",
         }}
       >
-        <p style={{ fontSize: "0.82rem", color: "var(--muted-foreground)" }}>
+        <p style={{ fontSize: "0.82rem", color: "var(--muted-foreground)", lineHeight: 1.6 }}>
           {selectedTextContext
             ? `Write a note about: “${selectedTextContext}”`
             : "Write a note for this topic"}

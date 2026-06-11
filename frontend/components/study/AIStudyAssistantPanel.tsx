@@ -328,11 +328,9 @@ export function AIStudyAssistantPanel({
   return (
     <div style={{ display: "grid", gap: "1rem" }}>
       <div
+        className="study-support-surface"
         style={{
           padding: "1rem",
-          borderRadius: "18px",
-          backgroundColor: "var(--card)",
-          border: "1px solid var(--theme-border)",
         }}
       >
         <div
@@ -345,14 +343,7 @@ export function AIStudyAssistantPanel({
             flexWrap: "wrap",
           }}
         >
-          <p
-            style={{
-              fontSize: "0.75rem",
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              color: "var(--theme-primary)",
-            }}
-          >
+          <p className="study-meta-label">
             {loadedHistoryItem
               ? "Viewing saved AI session"
               : displayedContext.source === "note"
@@ -364,11 +355,7 @@ export function AIStudyAssistantPanel({
               variant="outline"
               size="sm"
               onClick={resetToNewQuestion}
-              style={{
-                minHeight: "34px",
-                paddingInline: "12px",
-                borderRadius: "12px",
-              }}
+              style={{ minHeight: "34px", paddingInline: "12px", borderRadius: "999px" }}
             >
               New question
             </Button>
@@ -386,18 +373,18 @@ export function AIStudyAssistantPanel({
         </p>
         {displayedContext.source === "note" ? (
           <div style={{ display: "grid", gap: "0.55rem" }}>
-            <p style={{ color: "var(--muted-foreground)", lineHeight: 1.6 }}>
+            <p className="study-body-copy" style={{ color: "var(--muted-foreground)" }}>
               <strong>Selected text:</strong>{" "}
               {displayedContext.selectedText
                 ? `“${displayedContext.selectedText}”`
                 : "General note"}
             </p>
-            <p style={{ color: "var(--muted-foreground)", lineHeight: 1.6 }}>
+            <p className="study-body-copy" style={{ color: "var(--muted-foreground)" }}>
               <strong>Your note:</strong> {displayedContext.noteContent}
             </p>
           </div>
         ) : (
-          <p style={{ color: "var(--muted-foreground)" }}>
+          <p className="study-body-copy" style={{ color: "var(--muted-foreground)" }}>
             {displayedContext.selectedText
               ? `“${displayedContext.selectedText}”`
               : "Select text in the reader to ask the AI tool."}
@@ -412,11 +399,7 @@ export function AIStudyAssistantPanel({
             submit(question || defaultQuestionForMode("ask-ai"), "ask-ai")
           }
           disabled={!hasContext || loading}
-          style={{
-            minHeight: "42px",
-            paddingInline: "16px",
-            borderRadius: "14px",
-          }}
+          className="study-utility-pill"
         >
           Ask AI
         </Button>
@@ -424,11 +407,7 @@ export function AIStudyAssistantPanel({
           variant={activeMode === "simplify" ? "default" : "outline"}
           onClick={() => submit(defaultQuestionForMode("simplify"), "simplify")}
           disabled={!hasContext || loading}
-          style={{
-            minHeight: "42px",
-            paddingInline: "16px",
-            borderRadius: "14px",
-          }}
+          className="study-utility-pill"
         >
           Simplify
         </Button>
@@ -438,25 +417,14 @@ export function AIStudyAssistantPanel({
             submit(defaultQuestionForMode("define-term"), "define-term")
           }
           disabled={!hasContext || loading}
-          style={{
-            minHeight: "42px",
-            paddingInline: "16px",
-            borderRadius: "14px",
-          }}
+          className="study-utility-pill"
         >
           Define Term
         </Button>
       </div>
 
       <label style={{ display: "grid", gap: "0.45rem" }}>
-        <span
-          style={{
-            fontSize: "0.75rem",
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
-            color: "var(--theme-primary)",
-          }}
-        >
+        <span className="study-meta-label">
           Ask your question
         </span>
         <textarea
@@ -479,7 +447,7 @@ export function AIStudyAssistantPanel({
       <Button
         onClick={() => submit(question)}
         disabled={!hasContext || loading}
-        style={{ minHeight: "42px", paddingInline: "18px", borderRadius: "14px" }}
+        className="study-utility-pill"
       >
         {loading ? "Running AI..." : "Run AI"}
       </Button>
@@ -491,54 +459,34 @@ export function AIStudyAssistantPanel({
       {response ? (
         <div style={{ display: "grid", gap: "1rem" }}>
           <div
+            className="study-support-surface"
             style={{
               padding: "1rem",
-              borderRadius: "18px",
-              backgroundColor: "var(--card)",
-              border: "1px solid var(--theme-border)",
             }}
           >
-            <p
-              style={{
-                fontSize: "0.75rem",
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                color: "var(--theme-primary)",
-                marginBottom: "0.45rem",
-              }}
-            >
+            <p className="study-meta-label" style={{ marginBottom: "0.45rem" }}>
               {activeMode === "define-term"
                 ? "Definition and Usage"
                 : activeMode === "simplify"
                   ? "Simplified Explanation"
                   : "Response"}
             </p>
-            <p style={{ color: "var(--foreground)", lineHeight: 1.8 }}>
+            <p className="study-body-copy" style={{ color: "var(--foreground)" }}>
               {response.simplifiedExplanation}
             </p>
           </div>
 
           {activeMode === "ask-ai" && response.example ? (
             <div
+              className="study-support-surface"
               style={{
                 padding: "1rem",
-                borderRadius: "18px",
-                backgroundColor: "var(--card)",
-                border: "1px solid var(--theme-border)",
               }}
             >
-              <p
-                style={{
-                  fontSize: "0.75rem",
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                  color: "var(--theme-primary)",
-                  marginBottom: "0.45rem",
-                }}
-              >
+              <p className="study-meta-label" style={{ marginBottom: "0.45rem" }}>
                 Example
               </p>
-              <p style={{ color: "var(--foreground)", lineHeight: 1.8 }}>
+              <p className="study-body-copy" style={{ color: "var(--foreground)" }}>
                 {response.example}
               </p>
             </div>
@@ -546,22 +494,14 @@ export function AIStudyAssistantPanel({
 
           {activeMode === "ask-ai" && response.relatedTerms.length > 0 ? (
             <div
+              className="study-support-surface"
               style={{
                 padding: "1rem",
-                borderRadius: "18px",
-                backgroundColor: "var(--theme-soft)",
-                border: "1px solid var(--theme-border)",
+                background:
+                  "linear-gradient(180deg, color-mix(in srgb, var(--theme-soft) 88%, white), var(--card))",
               }}
             >
-              <p
-                style={{
-                  fontSize: "0.75rem",
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                  color: "var(--theme-primary)",
-                  marginBottom: "0.45rem",
-                }}
-              >
+              <p className="study-meta-label" style={{ marginBottom: "0.45rem" }}>
                 Related Terms
               </p>
               <ul
@@ -570,7 +510,7 @@ export function AIStudyAssistantPanel({
                 {response.relatedTerms.map((term, index) => (
                   <li
                     key={`related-${index}`}
-                    style={{ color: "var(--distill-text-secondary)" }}
+                    className="study-body-copy"
                   >
                     {term}
                   </li>
@@ -598,14 +538,7 @@ export function AIStudyAssistantPanel({
             flexWrap: "wrap",
           }}
         >
-          <p
-            style={{
-              fontSize: "0.75rem",
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              color: "var(--theme-primary)",
-            }}
-          >
+          <p className="study-meta-label">
             Recent AI History {safeHistory.length > 0 ? `(${safeHistory.length})` : ""}
           </p>
           <input
@@ -637,12 +570,7 @@ export function AIStudyAssistantPanel({
           </p>
         ) : safeHistory.length === 0 ? (
           <div
-            style={{
-              padding: "1rem",
-              borderRadius: "16px",
-              border: "1px solid var(--theme-border)",
-              backgroundColor: "var(--card)",
-            }}
+            className="study-empty-state"
           >
             <p style={{ color: "var(--muted-foreground)", fontSize: "0.9rem" }}>
               No AI history yet.
@@ -661,12 +589,7 @@ export function AIStudyAssistantPanel({
           </div>
         ) : filteredHistory.length === 0 ? (
           <div
-            style={{
-              padding: "1rem",
-              borderRadius: "16px",
-              border: "1px solid var(--theme-border)",
-              backgroundColor: "var(--card)",
-            }}
+            className="study-empty-state"
           >
             <p style={{ color: "var(--muted-foreground)", fontSize: "0.9rem" }}>
               No saved AI sessions match that search.
@@ -692,6 +615,7 @@ export function AIStudyAssistantPanel({
                   key={item.id}
                   role="button"
                   tabIndex={0}
+                  className="study-interactive-card"
                   onClick={() => loadHistoryItem(item)}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" || event.key === " ") {
@@ -719,14 +643,7 @@ export function AIStudyAssistantPanel({
                     }}
                   >
                     <div style={{ display: "grid", gap: "0.35rem", flex: 1 }}>
-                      <p
-                        style={{
-                          color: "var(--theme-primary)",
-                          fontSize: "0.74rem",
-                          letterSpacing: "0.08em",
-                          textTransform: "uppercase",
-                        }}
-                      >
+                      <p className="study-meta-label">
                         {SOURCE_LABELS[item.source]}
                       </p>
                       {contextPreview ? (

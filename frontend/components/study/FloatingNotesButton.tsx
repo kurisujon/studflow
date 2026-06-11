@@ -15,6 +15,7 @@ export function FloatingNotesButton({
 }) {
   return (
     <Button
+      className="study-floating-tool-button"
       onClick={(event) => {
         event.preventDefault();
         event.stopPropagation();
@@ -22,19 +23,12 @@ export function FloatingNotesButton({
       }}
       data-study-bubble-head="true"
       style={{
-        position: "fixed",
-        right: "20px",
-        top: "128px",
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
-        width: "52px",
-        height: "52px",
-        borderRadius: "18px",
-        boxShadow: "0 16px 38px var(--theme-shadow)",
         zIndex: behindDrawer ? 60 : 79,
-        background: "linear-gradient(180deg, var(--card), var(--theme-soft))",
-        border: "1px solid var(--theme-border)",
+        background: "linear-gradient(180deg, color-mix(in srgb, var(--card) 96%, white), var(--card))",
+        border: "1px solid color-mix(in srgb, var(--theme-border) 58%, var(--border))",
         color: "var(--foreground)",
       }}
       aria-label="Open study tools"

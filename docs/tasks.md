@@ -1,32 +1,94 @@
-# The Development Roadmap
+# Studflow Execution Checklist
 
-## Phase 1: Foundation
-- [ ] Initialize Next.js (App Router) project with TypeScript, TailwindCSS, and shadcn/ui.
-- [ ] Initialize FastAPI project with Python 3.11+.
-- [ ] Setup PostgreSQL database and define core SQLAlchemy/SQLModel schemas.
-- [ ] Implement basic Authentication (frontend & backend).
+This file tracks the current implementation state and the next practical work to ship.
 
-## Phase 2: Document Processing
-- [ ] Configure AWS S3 or Supabase Storage for raw file persistence.
-- [ ] Build FastAPI file upload endpoint.
-- [ ] Setup Redis and Celery for background task management.
-- [ ] Implement PDF/DOCX parsing logic (e.g., using PyMuPDF).
-- [ ] Implement document chunking logic.
+Read it alongside:
 
-## Phase 3: AI Orchestration
-- [ ] Integrate Gemini API using the official SDK.
-- [ ] Develop optimized prompts and enforce strict JSON schemas for Summary, Flashcards, and Quizzes.
-- [ ] Implement database persistence logic for validated AI outputs.
-- [ ] Build frontend polling mechanism to check background job status.
+1. `docs/GUARDRAILS.md`
+2. `docs/architecture.md`
+3. `docs/agents.md`
+4. `docs/roadmap.md`
 
-## Phase 4: Study UI
-- [ ] Develop user Dashboard showing uploaded documents and study progress.
-- [ ] Build Document Summary View.
-- [ ] Build Interactive Flashcard UI (with flip animations and progress tracking).
-- [ ] Build Multiple-Choice Quiz UI (with instant feedback and scoring).
+## Implemented Foundation
 
-## Future History Enhancements
-- [ ] Quiz Attempt History: score, date/time, incorrect answers, and retake result.
-- [ ] Document Processing History: uploaded date, processing status, retry attempts, and AI failure reason.
-- [ ] Note Edit History: previous note content, updated note content, and timestamp.
-- [ ] Study Activity History: viewed document, completed quiz, reviewed flashcards, and asked AI.
+### Frontend
+- [x] Next.js App Router project with TypeScript, TailwindCSS, and shadcn/ui patterns
+- [x] Clerk authentication and route protection
+- [x] Homepage, upload flow, dashboard, and study workspace routes
+- [x] Dashboard document listing
+- [x] Processing-status polling and upload completion flow
+
+### Backend
+- [x] FastAPI application bootstrapped and routed from `backend/main.py`
+- [x] PostgreSQL-backed persistence with SQLModel and Alembic
+- [x] Redis and Celery async document processing
+- [x] Supabase Storage upload and download pipeline
+- [x] PDF/DOCX extraction and chunking
+
+### AI Study Flow
+- [x] Gemini integration with structured schema validation
+- [x] Summary generation
+- [x] Flashcard generation
+- [x] Quiz generation
+- [x] Study payload persistence and retrieval
+
+### Study Workspace
+- [x] Summary tab
+- [x] Interactive flashcard UI
+- [x] Multiple-choice quiz UI with instant scoring
+- [x] Annotations and highlights
+- [x] Notes and note restore/delete flow
+- [x] AI explain-selection flow
+- [x] AI history
+- [x] Related learning videos
+- [x] Theme settings
+
+## Current Priority
+
+### Study Workspace UI Refinement
+
+Goal: make Studflow feel calmer, more editorial, and more focused for long-form reading before adding new backend scope.
+
+#### Reading Surface
+- [x] Constrain summary reading width so long-form content feels document-like instead of dashboard-wide
+- [x] Define a dedicated typography scale for study content: headings, section labels, paragraph text, terms, and helper copy
+- [x] Reduce visual noise in the study workspace background and keep the reading surface visually primary
+- [x] Standardize spacing between topic sections, notes, AI panels, and related-video areas
+
+#### Workspace Hierarchy
+- [x] Make the summary pane the main visual anchor of the study screen
+- [x] Demote secondary tools so notes, AI, and videos support reading instead of competing with it
+- [x] Standardize meta labels, tab labels, empty states, and utility actions across the workspace
+- [x] Review mobile behavior so side panels and tool surfaces collapse cleanly without clutter
+
+#### Interaction Polish
+- [x] Add a focused reading mode that reduces non-essential chrome while studying
+- [x] Tighten hover, focus, and selected states for annotations, tabs, and study controls
+- [x] Ensure transitions stay subtle and purposeful inside the study workspace
+- [x] Audit keyboard interaction affordances so shortcuts still feel intentional after layout cleanup
+
+#### Component Cleanup
+- [x] Replace repeated inline visual patterns with reusable workspace presentation primitives where practical
+- [x] Align summary, flashcard, and quiz containers to one visual system
+- [x] Keep homepage styling decisions from leaking into the actual study-reading experience
+
+#### Validation
+- [ ] Verify desktop reading comfort on long summaries
+- [ ] Verify mobile layout for `/dashboard/study/[id]`
+- [x] Confirm no backend API contract changes are introduced by UI refinement
+- [x] Run frontend lint/validation after each meaningful UI batch
+
+## Next Features After UI
+
+These are intentionally sequenced after the UI refinement workstream:
+
+- [ ] Save AI answer as flashcard
+- [ ] Quiz attempt history with weak-topic review
+- [ ] Document-level Q&A grounded in extracted document chunks
+
+## Explicit Non-Goals For This Workstream
+
+- [ ] Do not turn Studflow into a general-purpose AI toolbox
+- [ ] Do not add image, voice, slide, or generic writing tools
+- [ ] Do not broaden upload contracts beyond PDF and DOCX without explicit approval
+- [ ] Do not introduce new dependencies or architecture layers without explicit approval

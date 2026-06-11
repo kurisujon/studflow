@@ -24,7 +24,7 @@ export default async function StudyPage({
         minHeight: "calc(100dvh - var(--nav-height))",
         padding: "2rem 1.5rem 3rem",
         background:
-          "radial-gradient(circle at top left, var(--theme-shadow), transparent 24%), radial-gradient(circle at top right, color-mix(in srgb, var(--theme-primary) 10%, transparent), transparent 20%), linear-gradient(180deg, var(--background), var(--theme-soft))",
+          "linear-gradient(180deg, color-mix(in srgb, var(--background) 98%, white), color-mix(in srgb, var(--background) 94%, var(--theme-soft)))",
       }}
     >
       <div className="container">
@@ -32,9 +32,9 @@ export default async function StudyPage({
           style={{
             display: "flex",
             flexWrap: "wrap",
-            alignItems: "flex-end",
+            alignItems: "center",
             gap: "1rem",
-            marginBottom: "1.5rem",
+            marginBottom: "1.75rem",
           }}
         >
           <div>
@@ -49,8 +49,10 @@ export default async function StudyPage({
             >
               Study View
             </p>
-            <h1 style={{ marginBottom: "0.35rem" }}>{document.filename}</h1>
-            <p style={{ color: "var(--muted-foreground)" }}>Status: {document.status}</p>
+            <h1 style={{ marginBottom: "0.35rem", maxWidth: "20ch" }}>{document.filename}</h1>
+            <p style={{ color: "var(--muted-foreground)", maxWidth: "56ch" }}>
+              Status: {document.status}. Read, annotate, and review in one workspace.
+            </p>
           </div>
         </div>
 
