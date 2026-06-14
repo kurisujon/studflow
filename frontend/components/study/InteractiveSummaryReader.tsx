@@ -162,7 +162,6 @@ export function InteractiveSummaryReader({
   const [focusedNoteId, setFocusedNoteId] = useState<string | null>(null);
   const [pulseAnnotationId, setPulseAnnotationId] = useState<string | null>(null);
   const [annotationError, setAnnotationError] = useState<string | null>(null);
-  const [readingMode, setReadingMode] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const selectionPopoverRef = useRef<HTMLDivElement | null>(null);
 
@@ -778,8 +777,6 @@ export function InteractiveSummaryReader({
     });
   }
 
-  const supportContentVisible = !readingMode;
-
   return (
     <section style={{ width: "100%", display: "block" }}>
       <div
@@ -787,7 +784,7 @@ export function InteractiveSummaryReader({
         style={{
           cursor: "text",
           width: "100%",
-          maxWidth: readingMode ? "900px" : "1080px",
+          maxWidth: "1080px",
           marginInline: "auto",
         }}
       >
@@ -802,45 +799,13 @@ export function InteractiveSummaryReader({
             <div
               style={{
                 display: "flex",
-                alignItems: "flex-start",
-                justifyContent: "space-between",
+                alignItems: "center",
                 gap: "0.9rem",
                 flexWrap: "wrap",
                 marginBottom: "0.95rem",
               }}
             >
-              <div>
-                <p className="study-meta-label" style={{ marginBottom: "0.3rem" }}>
-                  Study Summary
-                </p>
-                <p style={{ fontSize: "0.95rem", color: "var(--distill-text-secondary)", lineHeight: 1.6 }}>
-                  Topic {activeIndex + 1} of {sections.length}. Read first, then use notes and AI only when needed.
-                </p>
-                <p className="study-body-copy" style={{ fontSize: "0.86rem", marginTop: "0.35rem" }}>
-                  Select text to highlight, underline, attach a note, or ask AI.
-                </p>
-              </div>
-              <Button
-                variant={readingMode ? "default" : "outline"}
-                size="sm"
-                onClick={() => {
-                  setReadingMode((current) => {
-                    const next = !current;
-                    if (next) {
-                      setDrawerOpen(false);
-                    }
-                    return next;
-                  });
-                }}
-                style={{
-                  minHeight: "40px",
-                  paddingInline: "16px",
-                  borderRadius: "999px",
-                  color: readingMode ? "var(--theme-on-primary)" : "var(--foreground)",
-                }}
-              >
-                {readingMode ? "Exit Focused Reading" : "Focused Reading"}
-              </Button>
+              <p className="study-meta-label">Summary</p>
             </div>
 
             <div
@@ -888,44 +853,37 @@ export function InteractiveSummaryReader({
             </p>
           ) : null}
 
-          {supportContentVisible ? (
-            <div
-              className="study-support-surface"
+          <div
+            className="study-support-surface"
+            style={{
+              maxWidth: "820px",
+              marginInline: "auto",
+            }}
+          >
+            <p className="study-meta-label" style={{ marginBottom: "0.55rem" }}>
+              Overall Overview
+            </p>
+            <AnnotatableTextBlock
+              as="p"
+              blockId={overviewBlockId}
+              text={summary.overall_overview}
+              annotations={topicAnnotations.filter(
+                (annotation) => annotation.blockId === overviewBlockId,
+              )}
+              pendingSelection={pendingSelectionForBlock(overviewBlockId)}
+              onSelection={handleTextSelection}
+              onNoteClick={handleNoteMarkerClick}
               style={{
-                maxWidth: "820px",
-                marginInline: "auto",
+                fontSize: "1.02rem",
+                lineHeight: 1.82,
+                color: "var(--distill-text-secondary)",
               }}
-            >
-              <p className="study-meta-label" style={{ marginBottom: "0.55rem" }}>
-                Overall Overview
-              </p>
-              <AnnotatableTextBlock
-                as="p"
-                blockId={overviewBlockId}
-                text={summary.overall_overview}
-                annotations={topicAnnotations.filter(
-                  (annotation) => annotation.blockId === overviewBlockId,
-                )}
-                pendingSelection={pendingSelectionForBlock(overviewBlockId)}
-                onSelection={handleTextSelection}
-                onNoteClick={handleNoteMarkerClick}
-                style={{
-                  fontSize: "1.02rem",
-                  lineHeight: 1.82,
-                  color: "var(--distill-text-secondary)",
-                }}
-              />
-            </div>
-          ) : null}
+            />
+          </div>
         </div>
 
         <article
           className="study-reading-surface"
-          style={{
-            background: readingMode
-              ? "linear-gradient(180deg, color-mix(in srgb, var(--card) 99%, white), var(--card))"
-              : undefined,
-          }}
         >
           <p className="study-meta-label" style={{ marginBottom: "0.7rem" }}>
             Detailed Topic
@@ -1050,9 +1008,7 @@ export function InteractiveSummaryReader({
           />
         </div>
 
-        {supportContentVisible ? (
-          <RelatedLearningVideos documentId={documentId} />
-        ) : null}
+        <RelatedLearningVideos documentId={documentId} />
 
         <AnimatePresence>
           {pendingSelection ? (

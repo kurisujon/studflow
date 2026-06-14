@@ -27,6 +27,7 @@ export async function askAIAboutSelection(
     noteContent?: string;
     source?: AIContextSource;
     mode?: AIToolMode;
+    signal?: AbortSignal;
   },
 ): Promise<AIExplanation> {
   const headers: HeadersInit = {
@@ -40,6 +41,7 @@ export async function askAIAboutSelection(
   const response = await fetch(`${API_BASE_URL}/api/ai/explain-selection`, {
     method: "POST",
     headers,
+    signal: options?.signal,
     body: JSON.stringify({
       documentId,
       highlighted_text: selectedText,
@@ -69,6 +71,7 @@ export async function askAIAboutDocument(
   authToken: string | null,
   options?: {
     mode?: AIToolMode;
+    signal?: AbortSignal;
   },
 ): Promise<AIExplanation> {
   const headers: HeadersInit = {
@@ -82,6 +85,7 @@ export async function askAIAboutDocument(
   const response = await fetch(`${API_BASE_URL}/api/documents/${documentId}/ask-ai`, {
     method: "POST",
     headers,
+    signal: options?.signal,
     body: JSON.stringify({
       question,
       source: "general",

@@ -121,6 +121,7 @@ export function AIStudyAssistantPanel({
   const [loadedHistoryItem, setLoadedHistoryItem] = useState<AIHistoryItem | null>(null);
   const [activeMode, setActiveMode] = useState<AIToolMode>(mode);
   const questionRef = useRef<HTMLTextAreaElement | null>(null);
+  const activeRequestRef = useRef<AbortController | null>(null);
   const { getToken } = useAuth();
   const router = useRouter();
 
@@ -133,6 +134,8 @@ export function AIStudyAssistantPanel({
     setFlashcardSaveError(null);
     setFlashcardSaved(false);
     setActiveMode(mode);
+    activeRequestRef.current?.abort();
+    activeRequestRef.current = null;
   });
 
   useEffect(() => {
@@ -253,6 +256,9 @@ export function AIStudyAssistantPanel({
     setLoading(true);
     setError(null);
     setHistoryActionError(null);
+    activeRequestRef.current?.abort();
+    const controller = new AbortController();
+    activeRequestRef.current = controller;
 
     try {
       const token = await getToken({ skipCache: true });
@@ -264,6 +270,7 @@ export function AIStudyAssistantPanel({
               token,
               {
                 mode: requestedMode,
+                signal: controller.signal,
               },
             )
           : await askAIAboutSelection(
@@ -275,6 +282,7 @@ export function AIStudyAssistantPanel({
                 noteContent: requestContext.noteContent,
                 source: requestContext.source,
                 mode: requestedMode,
+                signal: controller.signal,
               },
             );
 
@@ -309,14 +317,26 @@ export function AIStudyAssistantPanel({
         console.warn("AI history could not be saved.", historySaveError);
       }
     } catch (submitError) {
+      if (submitError instanceof Error && submitError.name === "AbortError") {
+        setError(null);
+        return;
+      }
       setError(
         submitError instanceof Error
           ? submitError.message
           : "AI explanation failed.",
       );
     } finally {
+      activeRequestRef.current = null;
       setLoading(false);
     }
+  }
+
+  function handleCancelRun() {
+    activeRequestRef.current?.abort();
+    activeRequestRef.current = null;
+    setLoading(false);
+    setError(null);
   }
 
   function loadHistoryItem(item: AIHistoryItem) {
@@ -471,6 +491,7 @@ export function AIStudyAssistantPanel({
           onClick={() => submit(defaultQuestionForMode("simplify"), "simplify")}
           disabled={!hasContext || loading}
           className="study-utility-pill"
+          style={activeMode === "simplify" ? { color: "#ffffff" } : undefined}
         >
           Simplify
         </Button>
@@ -481,6 +502,7 @@ export function AIStudyAssistantPanel({
           }
           disabled={!hasContext || loading}
           className="study-utility-pill"
+          style={activeMode === "define-term" ? { color: "#ffffff" } : undefined}
         >
           Define Term
         </Button>
@@ -507,14 +529,25 @@ export function AIStudyAssistantPanel({
         />
       </label>
 
-      <Button
-        onClick={() => submit(question)}
-        disabled={!hasContext || loading}
-        className="study-utility-pill"
-        style={{ color: "#ffffff" }}
-      >
-        {loading ? "Running AI..." : "Run AI"}
-      </Button>
+      <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+        <Button
+          onClick={() => submit(question)}
+          disabled={!hasContext || loading}
+          className="study-utility-pill"
+          style={{ color: "#ffffff", flex: 1 }}
+        >
+          {loading ? "Running AI..." : "Run AI"}
+        </Button>
+        {loading ? (
+          <Button
+            variant="outline"
+            onClick={handleCancelRun}
+            className="study-utility-pill"
+          >
+            Cancel
+          </Button>
+        ) : null}
+      </div>
 
       {error ? (
         <p style={{ color: "#b42318", fontSize: "0.92rem" }}>{error}</p>
@@ -668,6 +701,7 @@ export function AIStudyAssistantPanel({
                   onClick={() => void handleSaveSuggestedFlashcard()}
                   disabled={savingFlashcard || flashcardSaved}
                   className="study-utility-pill"
+                  style={{ color: "#ffffff" }}
                 >
                   {savingFlashcard
                     ? "Saving..."
