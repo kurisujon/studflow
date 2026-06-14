@@ -150,6 +150,12 @@ Workstream constraints:
 
 Most recent implemented changes:
 
+- New dedicated homepage motion components were added in `frontend/components/home/`:
+  - `FloatingStudyIcons.tsx`
+  - `AnimatedWorkflowLine.tsx`
+  - `AnimatedHeroUploadCard.tsx`
+  - `AnimatedStudyPreview.tsx`
+  - `icon-registry.tsx`
 - Homepage landing page was enhanced in `frontend/app/page.tsx` with:
   - stronger product hero upload preview
   - animated `Upload -> Generate -> Study` workflow section
@@ -219,6 +225,9 @@ Most recent implemented changes:
 
 Behavior of those changes:
 
+- The hero now feels more alive through floating study icons and animated product-state previews instead of static blocks only.
+- The workflow section now explains the upload-to-study path more clearly with motion tied to the product flow.
+- The workspace preview now stages summary, note, AI, and related-video elements more intentionally.
 - The homepage now feels more alive through product-based motion instead of generic decorative animation.
 - The upload flow, generated outputs, and study workflow are more legible on the landing page.
 - The feature section now reads more like a product capability system than a flat card grid.
@@ -317,6 +326,7 @@ Homepage and dashboard enhancement guidance now completed:
 - avoid heavy animation libraries
 - avoid fake testimonials, fake social proof, and generic AI landing-page tropes
 - prefer product previews and useful widgets over decorative effects
+- keep motion tied to product states such as upload, processing, study, notes, and review
 
 Study-workspace UI refinement progress so far:
 
@@ -442,6 +452,7 @@ Validation completed for the homepage and dashboard enhancement:
 - `git diff --check` passed
 - frontend TypeScript check passed with `tsc --noEmit`
 - targeted ESLint check passed for `frontend/app/page.tsx` and `frontend/app/dashboard/page.tsx`
+- targeted ESLint check passed for the new `frontend/components/home/*` motion components
 
 Validation still not fully completed:
 

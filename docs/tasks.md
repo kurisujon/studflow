@@ -100,6 +100,8 @@ These are intentionally sequenced after the UI refinement workstream:
 - [x] Enhance homepage hero with a more product-like upload preview
 - [x] Add animated `Upload -> Generate -> Study` workflow section using the current motion stack
 - [x] Upgrade homepage feature cards into a stronger bento-style layout
+- [x] Add floating study icons around the hero section
+- [x] Add staged motion to the study workspace preview section
 - [x] Add a richer homepage dashboard preview section
 - [x] Improve dashboard empty state with clearer upload guidance
 - [x] Add useful dashboard summary widgets without changing backend contracts
