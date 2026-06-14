@@ -150,6 +150,15 @@ Workstream constraints:
 
 Most recent implemented changes:
 
+- Homepage landing page was enhanced in `frontend/app/page.tsx` with:
+  - stronger product hero upload preview
+  - animated `Upload -> Generate -> Study` workflow section
+  - richer bento-style feature layout
+  - upgraded study-workspace preview
+  - dashboard preview strip
+- Dashboard page was enhanced in `frontend/app/dashboard/page.tsx` with:
+  - top-level summary widgets
+  - clearer empty state with upload CTAs
 - Grounded document-level Q&A was added through:
   - `backend/services/ai_service.py`
   - `backend/api/routes/documents.py`
@@ -210,6 +219,10 @@ Most recent implemented changes:
 
 Behavior of those changes:
 
+- The homepage now feels more alive through product-based motion instead of generic decorative animation.
+- The upload flow, generated outputs, and study workflow are more legible on the landing page.
+- The feature section now reads more like a product capability system than a flat card grid.
+- The dashboard now gives stronger guidance when empty and more useful at-a-glance information when populated.
 - The AI panel can now answer questions about the full uploaded document even when no text is selected.
 - Document-level answers are grounded in extracted document chunks and return supporting chunk references to show where the answer came from.
 - Grounded document answers still flow through the existing AI panel and history experience instead of creating a separate chat surface.
@@ -297,6 +310,13 @@ Current guidance for this workstream:
 - Do not change backend logic for marketing-page work.
 - Preserve current auth and upload behavior.
 - Stay minimalist and consistent with the existing visual language.
+
+Homepage and dashboard enhancement guidance now completed:
+
+- use existing stack only: shadcn-style patterns, Tailwind, Lucide-style iconography, and Motion
+- avoid heavy animation libraries
+- avoid fake testimonials, fake social proof, and generic AI landing-page tropes
+- prefer product previews and useful widgets over decorative effects
 
 Study-workspace UI refinement progress so far:
 
@@ -386,6 +406,7 @@ Latest documentation update completed on 2026-06-11:
 
 Latest product update completed on 2026-06-11:
 
+- homepage and dashboard enhancement pass shipped using the current frontend stack only
 - first study-workspace UI refinement batch shipped in the frontend
 - second study-workspace UI refinement batch extended the shared visual system to flashcards, quiz, and AI panel
 - first post-UI product feature shipped: save AI answer as flashcard
@@ -415,6 +436,12 @@ Validation completed for the grounded document-Q&A feature:
 - `git diff --check` passed
 - backend syntax check passed with `python3 -m py_compile`
 - frontend TypeScript check passed with `tsc --noEmit`
+
+Validation completed for the homepage and dashboard enhancement:
+
+- `git diff --check` passed
+- frontend TypeScript check passed with `tsc --noEmit`
+- targeted ESLint check passed for `frontend/app/page.tsx` and `frontend/app/dashboard/page.tsx`
 
 Validation still not fully completed:
 

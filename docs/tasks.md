@@ -92,3 +92,14 @@ These are intentionally sequenced after the UI refinement workstream:
 - [ ] Do not add image, voice, slide, or generic writing tools
 - [ ] Do not broaden upload contracts beyond PDF and DOCX without explicit approval
 - [ ] Do not introduce new dependencies or architecture layers without explicit approval
+
+## Recent Frontend Enhancement
+
+### Homepage and Dashboard Enhancement
+
+- [x] Enhance homepage hero with a more product-like upload preview
+- [x] Add animated `Upload -> Generate -> Study` workflow section using the current motion stack
+- [x] Upgrade homepage feature cards into a stronger bento-style layout
+- [x] Add a richer homepage dashboard preview section
+- [x] Improve dashboard empty state with clearer upload guidance
+- [x] Add useful dashboard summary widgets without changing backend contracts
