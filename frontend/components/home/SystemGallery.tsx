@@ -1,7 +1,6 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Image as ImageIcon } from "lucide-react";
 import {
   FileTextIcon,
   LayersIcon,
@@ -122,7 +121,7 @@ export function SystemGallery() {
                   marginBottom: "0.5rem",
                   boxShadow: "0 8px 16px color-mix(in srgb, var(--theme-shadow) 20%, transparent)"
                }}>
-                 <ImageIcon size={40} style={{ color: "var(--theme-primary)", opacity: 0.8 }} />
+                 <item.icon size={40} style={{ color: "var(--theme-primary)", opacity: 0.8 }} />
                </div>
                
               <h4 style={{ fontSize: "1.35rem", color: "var(--distill-text-primary)", fontWeight: 600 }}>
