@@ -3,7 +3,7 @@ import Link from "next/link";
 import { AnimatedHeroUploadCard } from "@/components/home/AnimatedHeroUploadCard";
 import { SystemGallery } from "@/components/home/SystemGallery";
 import { AnimatedStudyPreview } from "@/components/home/AnimatedStudyPreview";
-import { AnimatedWorkflowLine } from "@/components/home/AnimatedWorkflowLine";
+
 import { FloatingStudyIcons } from "@/components/home/FloatingStudyIcons";
 import {
   BotIcon,
@@ -627,70 +627,101 @@ export default function HomePage() {
             "A study flow with motion that actually explains the product",
             "Studflow should feel alive because the product is moving, not because the page is overloaded with decoration.",
           )}
-          <AnimatedWorkflowLine />
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-              gap: "1rem",
-            }}
-          >
-            {WORKFLOW_STEPS.map(({ step, title, description, icon: Icon }) => (
-              <article
-                key={step}
+          <div style={{ display: "flex", gap: "3rem", flexWrap: "wrap", alignItems: "center", paddingTop: "1rem" }}>
+            <div style={{ flex: "1 1 350px", display: "grid", gap: "1.5rem" }}>
+              {WORKFLOW_STEPS.map(({ step, title, description, icon: Icon }) => (
+                <article
+                  key={step}
+                  style={{
+                    padding: "1.5rem",
+                    borderRadius: "24px",
+                    border: "1px solid color-mix(in srgb, var(--theme-border) 65%, var(--border))",
+                    background: "color-mix(in srgb, var(--card) 98%, white)",
+                    boxShadow: "0 12px 30px color-mix(in srgb, var(--theme-shadow) 20%, transparent)",
+                    display: "flex",
+                    gap: "1rem",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: "3rem",
+                      height: "3rem",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      borderRadius: "16px",
+                      border: "1px solid color-mix(in srgb, var(--theme-border) 80%, var(--border))",
+                      backgroundColor: "color-mix(in srgb, var(--theme-soft) 88%, var(--card))",
+                      color: "var(--theme-primary)",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Icon size={20} strokeWidth={1.8} />
+                  </div>
+                  <div>
+                    <p className="study-meta-label" style={{ marginBottom: "0.2rem" }}>
+                      Step {step}
+                    </p>
+                    <h3 style={{ fontSize: "1.1rem", marginBottom: "0.4rem", color: "var(--distill-text-primary)" }}>
+                      {title}
+                    </h3>
+                    <p style={{ fontSize: "0.95rem", color: "var(--distill-text-secondary)" }}>
+                      {description}
+                    </p>
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            <div style={{ flex: "1 1 450px", position: "relative" }}>
+               {/* Background Glow */}
+               <div style={{
+                  position: "absolute",
+                  top: "50%",
+                  left: "50%",
+                  transform: "translate(-50%, -50%)",
+                  width: "80%",
+                  height: "80%",
+                  background: "radial-gradient(circle, color-mix(in srgb, var(--theme-primary) 15%, transparent) 0%, transparent 60%)",
+                  zIndex: 0,
+                  pointerEvents: "none"
+                }} />
+
+              <div
                 style={{
-                  padding: "1.35rem",
-                  borderRadius: "24px",
-                  border: "1px solid color-mix(in srgb, var(--theme-border) 65%, var(--border))",
-                  background:
-                    "linear-gradient(180deg, color-mix(in srgb, var(--card) 95%, var(--theme-soft)), var(--card))",
-                  boxShadow: "0 12px 30px color-mix(in srgb, var(--theme-shadow) 70%, transparent)",
+                  width: "100%",
+                  aspectRatio: "4/3",
+                  borderRadius: "28px",
+                  border: "1px dashed color-mix(in srgb, var(--theme-border) 80%, var(--border))",
+                  background: "color-mix(in srgb, var(--card) 60%, var(--background))",
+                  boxShadow: "0 20px 50px color-mix(in srgb, var(--theme-shadow) 30%, transparent)",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
                   position: "relative",
+                  zIndex: 1,
+                  backdropFilter: "blur(12px)"
                 }}
               >
                 <div
                   style={{
-                    width: "2.8rem",
-                    height: "2.8rem",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    borderRadius: "999px",
-                    marginBottom: "1rem",
-                    border: "1px solid color-mix(in srgb, var(--theme-border) 80%, var(--border))",
-                    backgroundColor: "color-mix(in srgb, var(--theme-soft) 88%, var(--card))",
-                    color: "var(--theme-primary)",
+                    padding: "0.6rem 1.25rem",
+                    borderRadius: "99px",
+                    backgroundColor: "color-mix(in srgb, var(--theme-soft) 80%, var(--card))",
+                    border: "1px solid color-mix(in srgb, var(--theme-border) 60%, var(--border))",
                     fontSize: "0.9rem",
                     fontWeight: 600,
-                    letterSpacing: "0.04em",
+                    color: "var(--theme-primary)",
                   }}
                 >
-                  <Icon size={16} strokeWidth={1.8} />
+                  [Screenshot 1512.png]
                 </div>
-
-                <p className="study-meta-label" style={{ marginBottom: "0.55rem" }}>
-                  Step {step}
+                <p style={{ marginTop: "1rem", color: "var(--distill-text-muted)", fontSize: "0.85rem" }}>
+                  Workflow Process Image
                 </p>
-                <h3
-                  style={{
-                    fontSize: "1.05rem",
-                    marginBottom: "0.55rem",
-                    color: "var(--distill-text-primary)",
-                  }}
-                >
-                  {title}
-                </h3>
-
-                <p
-                  style={{
-                    fontSize: "0.95rem",
-                    color: "var(--distill-text-secondary)",
-                  }}
-                >
-                  {description}
-                </p>
-              </article>
-            ))}
+              </div>
+            </div>
           </div>
         </section>
 
