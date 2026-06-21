@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { AnimatedHeroUploadCard } from "@/components/home/AnimatedHeroUploadCard";
+import { SystemGallery } from "@/components/home/SystemGallery";
 import { AnimatedStudyPreview } from "@/components/home/AnimatedStudyPreview";
 import { AnimatedWorkflowLine } from "@/components/home/AnimatedWorkflowLine";
 import { FloatingStudyIcons } from "@/components/home/FloatingStudyIcons";
@@ -610,6 +611,15 @@ export default function HomePage() {
             Supports PDF and DOCX. More formats can wait until the current study flow is stronger.
           </p>
         </div>
+
+        <section aria-labelledby="homepage-gallery-title" style={{ paddingTop: "1.25rem" }}>
+          {sectionHeading(
+            "System Preview",
+            "A seamless end-to-end study experience",
+            "Everything you need to master your material, integrated into one unified workflow."
+          )}
+          <SystemGallery />
+        </section>
 
         <section aria-labelledby="homepage-workflow-title" style={{ paddingTop: "1.25rem", position: "relative" }}>
           {sectionHeading(
