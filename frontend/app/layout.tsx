@@ -5,7 +5,7 @@ import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { ClerkProvider } from "@clerk/nextjs";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://studflow.com"), // Replace with your actual production URL
+  metadataBase: new URL("https://studflow.webcris.dev"), // Verified production URL
   title: {
     default: "Studflow — Best AI Note Taker & Study Workflow",
     template: "%s | Studflow",
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://studflow.com",
+    url: "https://studflow.webcris.dev",
     title: "Studflow — Best AI Note Taker & Study Workflow",
     description: "Transform any document into a smart study session. Automatically generate summaries, flashcards, and quizzes from your PDFs.",
     siteName: "Studflow",

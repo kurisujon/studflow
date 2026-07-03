@@ -1,8 +1,7 @@
 import { MetadataRoute } from 'next'
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  // Replace with your actual production URL when deployed
-  const baseUrl = 'https://studflow.com'
+  const baseUrl = 'https://studflow.webcris.dev'
 
   return [
     {

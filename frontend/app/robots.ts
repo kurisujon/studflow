@@ -1,8 +1,7 @@
 import { MetadataRoute } from 'next'
 
 export default function robots(): MetadataRoute.Robots {
-  // Replace with your actual production URL when deployed
-  const baseUrl = 'https://studflow.com'
+  const baseUrl = 'https://studflow.webcris.dev'
 
   return {
     rules: {
