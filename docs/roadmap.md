@@ -353,7 +353,7 @@ Future agents should not silently change these without explicit approval:
 - Main upload flow implementation: `/upload`
 - Homepage upload entry path: `/dashboard/upload` alias is now part of the current frontend behavior
 - Auth provider: Clerk
-- Frontend stack: Next.js App Router + TypeScript + Tailwind
+- Frontend stack: Next.js App Router + TypeScript + Tailwind + `tw-animate-css` (animation utilities) + `@base-ui/react` (button primitive) + `canvas-confetti` (quiz delight)
 - Backend stack: FastAPI + Celery + Redis + SQLModel + Alembic
 - Storage/AI integrations: Supabase Storage, Gemini, YouTube enrichment
 

@@ -7,7 +7,9 @@ The AI Study Workflow System is architected as a Decoupled Fullstack application
 - **Framework:** Next.js (App Router)
 - **Language:** TypeScript
 - **Styling:** TailwindCSS
-- **UI Components:** shadcn/ui (Radix UI primitives)
+- **Animation Utilities:** `tw-animate-css` — imported globally in `app/globals.css`; provides Tailwind-compatible CSS animation classes used across the app
+- **UI Components:** shadcn/ui built on `@base-ui/react` primitives (replaces Radix UI as the headless button primitive in `components/ui/button.tsx`)
+- **Delight Interactions:** `canvas-confetti` — lazy-loaded in `components/quiz-study.tsx` to fire a confetti burst on quiz completion
 - **State Management:** Zustand (for global state, study sessions, and user preferences)
 
 ## Backend Specifications
