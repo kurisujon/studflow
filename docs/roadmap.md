@@ -141,10 +141,11 @@ Current implementation checklist lives in `docs/tasks.md`, but the active themes
 
 Workstream constraints:
 
-- do not change API contracts just to support visual cleanup
+- do not change API contracts just to support visual changes
 - do not redesign the whole product around the homepage
-- do not add new third-party UI libraries without explicit approval
-- keep shadcn/ui and Tailwind as the frontend system
+- keep shadcn/ui and Tailwind as the frontend system foundation
+- follow the approved design direction defined in `docs/ui-design-direction.md`
+- color, motion, and data surfaces are approved — use them purposefully
 
 ## Latest Completed Update
 

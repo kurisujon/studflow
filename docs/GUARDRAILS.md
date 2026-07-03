@@ -27,7 +27,14 @@ This document serves as the strict guardrails for the entire development lifecyc
 - **No Direct DB Access for AI:** The LLM never touches the database directly.
 - **Validation is Mandatory:** The backend must parse and validate all JSON outputs from Gemini using Pydantic before saving to the database. Never trust raw AI output.
 
-## 6. UI/UX Boundaries
-- **Minimalist Aesthetic:** Stick strictly to clean, modern, minimalist design.
-- **Components:** Rely exclusively on `shadcn/ui` and Tailwind utility classes.
-- **No Excessive Animations:** Motion should be purposeful (e.g., subtle state changes) and never distracting.
+## 6. UI/UX Design Direction
+- **Design Language:** Clean, informational, and lively. The UI must feel alive and purposeful without being distracting. Think structured clarity with warm, purposeful color accents.
+- **Color Usage:** Use accent colors intentionally to communicate state, category, and hierarchy (e.g., orange for summary/AI, purple/indigo for flashcards and interactive elements, green for correct states, red for incorrect). Avoid flat, colorless UIs.
+- **Typography:** Use bold, high-contrast headings paired with lighter body text. Section labels and meta-information should use smaller, muted helper copy to create clear visual hierarchy.
+- **Cards & Surfaces:** Use rounded cards with subtle shadows and gentle borders. Cards should feel elevated but not heavy. Use soft background fills (e.g., light lavender, off-white) to separate surfaces.
+- **Icons:** Use icons consistently as visual anchors alongside labels. Icons should be colored to match their context (e.g., orange for document, purple for flashcards, green for progress).
+- **Motion & Liveliness:** Purposeful, light animations are approved and encouraged (e.g., progress bars, card reveals, state transitions). Motion should feel natural and tied to product states — not purely decorative.
+- **Components:** Rely on `shadcn/ui` and Tailwind utility classes as the component foundation. Custom styling is allowed when it serves the approved design direction.
+- **Data & Progress Surfaces:** Widgets, stats, progress indicators, streaks, and review queues are first-class UI elements. Dashboards should feel informational and motivating, not sparse.
+- **Feedback States:** Correct/incorrect states, scoring, streaks, and completion indicators must use clear visual feedback with color and iconography (checkmarks, X marks, progress fills).
+- **Avoid:** Generic gray-on-white layouts, excessive whitespace that feels empty, animation purely for decoration with no product meaning, and inconsistent icon or color usage across surfaces.

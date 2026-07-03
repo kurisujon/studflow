@@ -18,9 +18,12 @@ Before writing any code or proposing any architectural changes, you MUST:
 - **Types & Validation:** Ensure strict typing on the frontend (TypeScript interfaces) and robust data validation on the backend (Pydantic models).
 
 ## UI/UX Directives
-- **Enforce Minimalism:** Strictly adhere to a clean, distraction-free design.
-- **Use the System:** Rely on `shadcn/ui` components and Tailwind. Do not invent custom CSS solutions unless absolutely necessary.
-- **Focus on Flow:** Ensure the user experience feels instantaneous and zero-friction. 
+- **Design Language:** Clean, informational, and lively. The interface should feel alive and structured — not sparse or flat. Reference the approved design samples in `docs/ui-design-direction.md`.
+- **Color is Intentional:** Use accent colors to communicate meaning and hierarchy. Purple/indigo for interactive study elements, orange for AI/summary features, green for correct states, red for incorrect states.
+- **Liveliness is Approved:** Progress bars, card transitions, state-based animations, and feedback indicators are encouraged. Motion must be tied to product meaning, not decoration.
+- **Use the System:** Rely on `shadcn/ui` components and Tailwind. Custom styling is permitted when it serves the approved design direction and is not achievable with utilities alone.
+- **Dashboard is a Product Surface:** Stats, streaks, progress widgets, review queues, and activity feeds are all valid and expected UI elements. Do not strip them out in the name of minimalism.
+- **Focus on Flow:** Ensure the user experience feels instantaneous and zero-friction.
 
 ## System Fidelity
 Never introduce new dependencies, libraries, or architectural layers without explicit approval from the USER. Protect the monolith and respect the defined technology stack.
