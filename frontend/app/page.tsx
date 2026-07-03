@@ -477,27 +477,36 @@ export default function HomePage() {
           <FloatingStudyIcons />
 
           <div style={{ textAlign: "left", position: "relative", zIndex: 1 }}>
-            <span
-              style={{
-                display: "inline-block",
-                padding: "0.25rem 0.875rem",
-                borderRadius: "99px",
-                border: "1px solid var(--distill-border)",
-                fontSize: "0.75rem",
-                fontWeight: 500,
-                color: "var(--distill-text-muted)",
-                letterSpacing: "0.05em",
-                textTransform: "uppercase",
-                marginBottom: "1.75rem",
-              }}
-            >
-              Powered by Gemini AI
-            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1.75rem" }}>
+              <img src="/studflow_logo.png" alt="Studflow Logo" style={{ width: "48px", height: "48px" }} />
+              <span
+                style={{
+                  display: "inline-block",
+                  padding: "0.35rem 0.875rem",
+                  borderRadius: "99px",
+                  border: "1px solid var(--theme-border)",
+                  backgroundColor: "color-mix(in srgb, var(--theme-soft) 40%, transparent)",
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                  color: "var(--theme-primary)",
+                  letterSpacing: "0.05em",
+                  textTransform: "uppercase",
+                }}
+              >
+                Powered by Gemini AI
+              </span>
+            </div>
 
-            <h1 style={{ maxWidth: "720px", marginBottom: "1.25rem" }}>
+            <h1 style={{ maxWidth: "720px", marginBottom: "1.25rem", fontSize: "3.5rem", lineHeight: 1.1 }}>
               Turn any document into a{" "}
-              <span style={{ color: "var(--distill-text-muted)" }}>
-                calmer study workflow.
+              <span style={{ 
+                background: "linear-gradient(90deg, #007BFF 0%, #8A2BE2 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+                color: "transparent"
+              }}>
+                smart study workflow.
               </span>
             </h1>
 

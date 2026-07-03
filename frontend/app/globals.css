@@ -23,11 +23,11 @@
   --input: #e8e8e6;
   --ring: var(--theme-primary);
 
-  --theme-primary: #111110;
-  --theme-primary-hover: #333330;
-  --theme-soft: #fff7ed;
-  --theme-border: #fed7aa;
-  --theme-shadow: rgba(249, 115, 22, 0.14);
+  --theme-primary: #4f46e5;
+  --theme-primary-hover: #4338ca;
+  --theme-soft: #e0e7ff;
+  --theme-border: #c7d2fe;
+  --theme-shadow: rgba(79, 70, 229, 0.14);
   --theme-on-primary: #ffffff;
 
   /* ── Distill Design Tokens (prefixed to avoid shadcn collisions) ── */
@@ -72,11 +72,11 @@
 }
 
 [data-theme-color="system"] {
-  --theme-primary: #111110;
-  --theme-primary-hover: #333330;
-  --theme-soft: #fff7ed;
-  --theme-border: #fed7aa;
-  --theme-shadow: rgba(249, 115, 22, 0.14);
+  --theme-primary: #4f46e5;
+  --theme-primary-hover: #4338ca;
+  --theme-soft: #e0e7ff;
+  --theme-border: #c7d2fe;
+  --theme-shadow: rgba(79, 70, 229, 0.14);
   --theme-on-primary: #ffffff;
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { UserButton, useUser } from "@clerk/nextjs";
 
@@ -44,12 +45,16 @@ export function Navbar() {
         <Link
           href="/"
           style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
             fontWeight: 700,
-            fontSize: "1.0625rem",
-            letterSpacing: "-0.03em",
+            fontSize: "1.125rem",
+            letterSpacing: "-0.02em",
             color: "var(--distill-text-primary)",
           }}
         >
+          <Image src="/studflow_logo.png" alt="Studflow Logo" width={28} height={28} priority />
           Studflow
         </Link>
 
