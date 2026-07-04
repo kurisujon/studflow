@@ -24,3 +24,4 @@ export const BotIcon = icons.Bot;
 export const FolderOpenIcon = icons.FolderOpen;
 export const HighlighterIcon = icons.Highlighter;
 export const FolderPlusIcon = icons.FolderPlus;
+export const ChevronLeftIcon = icons.ChevronLeft;

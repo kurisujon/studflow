@@ -779,6 +779,13 @@ export function InteractiveSummaryReader({
 
   return (
     <section style={{ width: "100%", display: "block" }}>
+      {/* Floating Notes Button — fixed top-right */}
+      <FloatingNotesButton
+        count={notes.length}
+        behindDrawer={drawerOpen}
+        onClick={handleBubbleHeadClick}
+      />
+
       <div
         ref={rootRef}
         style={{
@@ -792,7 +799,7 @@ export function InteractiveSummaryReader({
           <div
             className="study-support-surface"
             style={{
-              maxWidth: "820px",
+              maxWidth: "1080px",
               marginInline: "auto",
             }}
           >
@@ -817,25 +824,43 @@ export function InteractiveSummaryReader({
               }}
             >
               <p className="study-meta-label" style={{ minWidth: "fit-content" }}>
-                Progress
+                {activeIndex + 1} / {sections.length}
               </p>
+              {/* Segmented progress bar — one dash per section */}
               <div
                 style={{
                   flex: 1,
                   minWidth: "180px",
-                  height: "8px",
-                  borderRadius: "999px",
-                  backgroundColor: "color-mix(in srgb, var(--theme-soft) 72%, var(--border))",
-                  overflow: "hidden",
+                  display: "flex",
+                  gap: "4px",
+                  alignItems: "center",
                 }}
               >
-                <div
-                  style={{
-                    width: `${progress}%`,
-                    height: "100%",
-                    background: "linear-gradient(90deg, var(--theme-primary), var(--theme-primary-hover))",
-                  }}
-                />
+                {sections.map((_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    aria-label={`Go to topic ${i + 1}`}
+                    onClick={() => setActiveIndex(i)}
+                    style={{
+                      flex: 1,
+                      height: "5px",
+                      borderRadius: "999px",
+                      border: "none",
+                      cursor: "pointer",
+                      padding: 0,
+                      background:
+                        i < activeIndex
+                          ? "var(--theme-primary)"
+                          : i === activeIndex
+                          ? "linear-gradient(90deg, var(--theme-primary), color-mix(in srgb, var(--theme-primary) 60%, var(--theme-soft)))"
+                          : "color-mix(in srgb, var(--theme-soft) 72%, var(--border))",
+                      opacity: i === activeIndex ? 1 : i < activeIndex ? 0.85 : 0.45,
+                      transform: i === activeIndex ? "scaleY(1.5)" : "scaleY(1)",
+                      transition: "background 250ms ease, opacity 250ms ease, transform 200ms ease",
+                    }}
+                  />
+                ))}
               </div>
             </div>
           </div>
@@ -856,7 +881,7 @@ export function InteractiveSummaryReader({
           <div
             className="study-support-surface"
             style={{
-              maxWidth: "820px",
+              maxWidth: "1080px",
               marginInline: "auto",
             }}
           >
@@ -884,6 +909,7 @@ export function InteractiveSummaryReader({
 
         <article
           className="study-reading-surface"
+          style={{ maxWidth: "1080px" }}
         >
           <p className="study-meta-label" style={{ marginBottom: "0.7rem" }}>
             Detailed Topic
@@ -968,7 +994,7 @@ export function InteractiveSummaryReader({
           style={{
             display: "flex",
             gap: "0.75rem",
-            maxWidth: "820px",
+            maxWidth: "1080px",
             margin: "1rem auto 0",
             justifyContent: "space-between",
             alignItems: "center",
@@ -1000,12 +1026,6 @@ export function InteractiveSummaryReader({
               Next Topic
             </Button>
           </div>
-
-          <FloatingNotesButton
-            count={notes.length}
-            behindDrawer={drawerOpen}
-            onClick={handleBubbleHeadClick}
-          />
         </div>
 
         <RelatedLearningVideos documentId={documentId} />
