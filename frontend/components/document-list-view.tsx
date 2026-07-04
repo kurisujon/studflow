@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { FolderOpenIcon, FileTextIcon, FolderPlusIcon } from "lucide-react";
+import { FolderOpen, FileText, FolderPlus } from "lucide-react";
 
 import type { DocumentListItem } from "@/lib/types";
 
@@ -86,7 +86,7 @@ export function DocumentListView({
               onClick={handleCreateFolder}
               style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.5rem 1rem", backgroundColor: "var(--theme-primary)", color: "white", borderRadius: "8px", fontWeight: 600 }}
             >
-              <FolderPlusIcon size={18} /> Add Folder
+              <FolderPlus size={18} /> Add Folder
             </button>
           </div>
         </div>
@@ -99,7 +99,7 @@ export function DocumentListView({
             return (
               <div key={folderName} style={{ backgroundColor: "var(--card)", border: "1px solid var(--theme-border)", borderRadius: "16px", padding: "1.5rem" }}>
                 <h2 style={{ fontSize: "1.25rem", fontWeight: 600, display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1rem" }}>
-                  <FolderOpenIcon size={20} color="var(--theme-primary)" /> {folderName}
+                  <FolderOpen size={20} color="var(--theme-primary)" /> {folderName}
                 </h2>
                 
                 {folderDocs.length === 0 ? (
@@ -110,7 +110,7 @@ export function DocumentListView({
                       <div key={doc.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "1rem", backgroundColor: "var(--background)", borderRadius: "12px", border: "1px solid var(--border)" }}>
                         <Link href={`/dashboard/study/${doc.id}?tab=${targetTab}`} style={{ display: "flex", alignItems: "center", gap: "1rem", flex: 1, textDecoration: "none", color: "inherit" }}>
                           <div style={{ padding: "0.5rem", backgroundColor: "color-mix(in srgb, var(--theme-soft) 40%, transparent)", borderRadius: "8px" }}>
-                            <FileTextIcon size={20} color="var(--theme-primary)" />
+                            <FileText size={20} color="var(--theme-primary)" />
                           </div>
                           <div>
                             <p style={{ fontWeight: 600, marginBottom: "0.25rem" }}>{doc.filename}</p>
