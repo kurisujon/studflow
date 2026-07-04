@@ -1,16 +1,13 @@
 import Link from "next/link";
 
-import { DashboardDocumentCard } from "@/components/dashboard-document-card";
 import { fetchDocuments } from "@/lib/server-api";
 
 export default async function DashboardPage() {
   const documents = await fetchDocuments();
-  const completedDocuments = documents.filter((document) => document.status === "COMPLETED");
   const flashcardCount = documents.reduce(
     (total, document) => total + document.flashcard_count,
     0,
   );
-  const readyQuizzes = documents.filter((document) => document.quiz_ready).length;
 
   return (
     <section

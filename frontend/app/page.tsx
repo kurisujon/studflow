@@ -478,6 +478,7 @@ export default function HomePage() {
 
           <div style={{ textAlign: "left", position: "relative", zIndex: 1 }}>
             <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1.75rem" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/studflow_logo.png" alt="Studflow Logo" style={{ width: "48px", height: "48px" }} />
               <span
                 style={{

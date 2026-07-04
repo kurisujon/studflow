@@ -1,13 +1,10 @@
 "use client";
 
-import { motion } from "framer-motion";
 import Image from "next/image";
 import {
   FileTextIcon,
   LayersIcon,
-  CircleHelpIcon,
   BotIcon,
-  StickyNoteIcon,
   FolderOpenIcon,
 } from "@/components/home/icon-registry";
 

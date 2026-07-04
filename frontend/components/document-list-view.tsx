@@ -34,9 +34,13 @@ export function DocumentListView({
         });
         
         parsed["Unorganized"] = [...(parsed["Unorganized"] || []), ...unorganized];
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setFolders(parsed);
-      } catch (e) {}
+      } catch {
+        // Ignored
+      }
     } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFolders({ "Unorganized": documents.map(d => d.id) });
     }
   }, [documents]);
