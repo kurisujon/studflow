@@ -61,6 +61,14 @@ function PdfIcon() {
     </svg>
   );
 }
+function PencilIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+    </svg>
+  );
+}
 
 /* ─── Types ─── */
 type Folders = Record<string, string[]>;
@@ -83,8 +91,12 @@ export function DocumentListView({
   const [openFolder, setOpenFolder] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<ConfirmPayload>(null);
   const [hoveredFolder, setHoveredFolder] = useState<string | null>(null);
+  const [editingFolder, setEditingFolder] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [showAllFolders, setShowAllFolders] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const renameInputRef = useRef<HTMLInputElement>(null);
 
   /* ── Persist folders in localStorage ── */
   useEffect(() => {
@@ -154,6 +166,28 @@ export function DocumentListView({
     Object.keys(next).forEach((f) => { next[f] = next[f].filter((id) => id !== docId); });
     saveFolders(next);
     setConfirmDelete(null);
+  };
+
+  const handleStartRename = (name: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingFolder(name);
+    setRenameValue(name);
+    setTimeout(() => renameInputRef.current?.focus(), 50);
+  };
+
+  const handleRenameFolder = (oldName: string) => {
+    const newName = renameValue.trim();
+    if (!newName || newName === oldName || folders[newName]) {
+      setEditingFolder(null);
+      return;
+    }
+    const next: Folders = {};
+    Object.keys(folders).forEach((k) => {
+      next[k === oldName ? newName : k] = folders[k];
+    });
+    saveFolders(next);
+    if (openFolder === oldName) setOpenFolder(newName);
+    setEditingFolder(null);
   };
 
   /* ── Derived data ── */
@@ -286,6 +320,7 @@ export function DocumentListView({
         }
         .recent-file-card {
           transition: background-color 0.15s, box-shadow 0.15s, transform 0.15s;
+          text-decoration: none;
         }
         .recent-file-card:hover {
           background-color: color-mix(in srgb, var(--theme-soft) 50%, var(--card)) !important;
@@ -304,6 +339,23 @@ export function DocumentListView({
         }
         .add-folder-btn:active {
           transform: scale(0.97);
+        }
+        .rename-input {
+          font-weight: 600;
+          font-size: 0.9rem;
+          background: transparent;
+          border: none;
+          border-bottom: 1.5px solid var(--theme-primary);
+          outline: none;
+          width: 100%;
+          padding: 0 0 2px 0;
+          color: inherit;
+        }
+        .show-all-btn {
+          transition: background-color 0.15s, color 0.15s;
+        }
+        .show-all-btn:hover {
+          background-color: color-mix(in srgb, var(--theme-soft) 70%, transparent) !important;
         }
       `}</style>
 
@@ -356,24 +408,36 @@ export function DocumentListView({
             {namedFolders.length > 0 && (
               <div style={{ marginBottom: "2.5rem" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-                  <p style={{ fontSize: "0.78rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--distill-text-secondary)" }}>Folders</p>
+                  <p style={{ fontSize: "0.78rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--distill-text-secondary)" }}>
+                    Folders <span style={{ fontWeight: 400, opacity: 0.6 }}>({namedFolders.length})</span>
+                  </p>
+                  {namedFolders.length > 8 && (
+                    <button
+                      className="show-all-btn"
+                      onClick={() => setShowAllFolders((v) => !v)}
+                      style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--theme-primary)", background: "none", border: "1px solid var(--theme-border)", borderRadius: "6px", padding: "0.25rem 0.75rem", cursor: "pointer" }}
+                    >
+                      {showAllFolders ? "Show less" : `Show all (${namedFolders.length})`}
+                    </button>
+                  )}
                 </div>
 
-                {/* Folder tiles — horizontal grid like reference */}
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "0.75rem", marginBottom: openFolder ? "0" : "0" }}>
-                  {namedFolders.map(([folderName, docIds], index) => {
+                {/* Folder tiles — horizontal grid, max 8 visible */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "0.75rem" }}>
+                  {(showAllFolders ? namedFolders : namedFolders.slice(0, 8)).map(([folderName, docIds], index) => {
                     const count = docIds.filter((id) => documents.find((d) => d.id === id)).length;
                     const isOpen = openFolder === folderName;
+                    const isEditing = editingFolder === folderName;
                     return (
                       <div
                         key={folderName}
                         className="folder-tile"
-                        onClick={() => setOpenFolder(isOpen ? null : folderName)}
+                        onClick={() => !isEditing && setOpenFolder(isOpen ? null : folderName)}
                         onMouseEnter={() => setHoveredFolder(folderName)}
                         onMouseLeave={() => setHoveredFolder(null)}
                         style={{
                           backgroundColor: isOpen ? "color-mix(in srgb, var(--theme-soft) 70%, transparent)" : "var(--card)",
-                          border: `1.5px solid ${isOpen ? "var(--theme-primary)" : "var(--theme-border)"}`,
+                          border: `1.5px solid ${isOpen ? "var(--theme-primary)" : isEditing ? "var(--theme-primary)" : "var(--theme-border)"}`,
                           borderRadius: "12px",
                           padding: "0.875rem 1rem",
                           display: "flex",
@@ -386,10 +450,34 @@ export function DocumentListView({
                       >
                         <FolderSolidIcon color={isOpen ? "var(--theme-primary)" : "#f59e0b"} />
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{ fontWeight: 600, fontSize: "0.9rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{folderName}</p>
+                          {isEditing ? (
+                            <input
+                              ref={renameInputRef}
+                              className="rename-input"
+                              value={renameValue}
+                              onChange={(e) => setRenameValue(e.target.value)}
+                              onKeyDown={(e) => {
+                                e.stopPropagation();
+                                if (e.key === "Enter") handleRenameFolder(folderName);
+                                if (e.key === "Escape") setEditingFolder(null);
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                              onBlur={() => handleRenameFolder(folderName)}
+                            />
+                          ) : (
+                            <p style={{ fontWeight: 600, fontSize: "0.9rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{folderName}</p>
+                          )}
                           <p style={{ fontSize: "0.75rem", color: "var(--distill-text-secondary)", marginTop: "0.1rem" }}>{count} file{count !== 1 ? "s" : ""}</p>
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                          <button
+                            className="icon-btn"
+                            onClick={(e) => handleStartRename(folderName, e)}
+                            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--theme-primary)", padding: "0.25rem", borderRadius: "4px" }}
+                            title="Rename folder"
+                          >
+                            <PencilIcon />
+                          </button>
                           <button
                             className="icon-btn"
                             onClick={(e) => { e.stopPropagation(); setConfirmDelete({ type: "folder", id: folderName, label: folderName }); }}
@@ -402,8 +490,7 @@ export function DocumentListView({
                             <ChevronRightIcon />
                           </span>
                         </div>
-                        {/* Hover indicator */}
-                        {hoveredFolder === folderName && !isOpen && (
+                        {hoveredFolder === folderName && !isOpen && !isEditing && (
                           <span style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "2px", backgroundColor: "var(--theme-primary)", borderRadius: "0 0 10px 10px", opacity: 0.5 }} />
                         )}
                       </div>
