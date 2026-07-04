@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import {
-  FolderOpenIcon,
   FileTextIcon,
   FolderPlusIcon,
 } from "@/components/home/icon-registry";
@@ -86,22 +85,26 @@ export function DocumentListView({
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setFolders({ Unorganized: documents.map((d) => d.id) });
     }
+
   }, [documents]);
 
-  // Auto-focus input when modal opens
+  // Auto-focus input when modal opens (reset is handled in closeAddFolder)
   useEffect(() => {
     if (showAddFolder) {
       setTimeout(() => inputRef.current?.focus(), 50);
-    } else {
-      setNewFolderName("");
     }
   }, [showAddFolder]);
+
+  const closeAddFolder = () => {
+    setShowAddFolder(false);
+    setNewFolderName("");
+  };
 
   // Close modal on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (showAddFolder && modalRef.current && !modalRef.current.contains(e.target as Node)) {
-        setShowAddFolder(false);
+        closeAddFolder();
       }
     }
     document.addEventListener("mousedown", handleClick);
@@ -117,7 +120,7 @@ export function DocumentListView({
     const name = newFolderName.trim();
     if (name && !folders[name]) {
       saveFolders({ ...folders, [name]: [] });
-      setShowAddFolder(false);
+      closeAddFolder();
     }
   };
 
@@ -205,7 +208,7 @@ export function DocumentListView({
               <h3 style={{ fontSize: "1.15rem", fontWeight: 700, display: "flex", alignItems: "center", gap: "0.5rem" }}>
                 <span style={{ color: "var(--theme-primary)" }}><FolderPlusIcon size={20} /></span> New Folder
               </h3>
-              <button onClick={() => setShowAddFolder(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--distill-text-secondary)", padding: "0.25rem" }}>
+              <button onClick={() => closeAddFolder()} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--distill-text-secondary)", padding: "0.25rem" }}>
                 <XIcon />
               </button>
             </div>
@@ -222,7 +225,7 @@ export function DocumentListView({
               style={{ width: "100%", padding: "0.75rem 1rem", borderRadius: "10px", border: "1.5px solid var(--border)", backgroundColor: "var(--background)", fontSize: "0.95rem", outline: "none", boxSizing: "border-box" }}
             />
             <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.25rem" }}>
-              <button onClick={() => setShowAddFolder(false)} style={{ flex: 1, padding: "0.65rem", borderRadius: "10px", border: "1px solid var(--border)", backgroundColor: "transparent", cursor: "pointer", fontWeight: 500 }}>
+              <button onClick={() => closeAddFolder()} style={{ flex: 1, padding: "0.65rem", borderRadius: "10px", border: "1px solid var(--border)", backgroundColor: "transparent", cursor: "pointer", fontWeight: 500 }}>
                 Cancel
               </button>
               <button
