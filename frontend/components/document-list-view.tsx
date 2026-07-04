@@ -112,7 +112,6 @@ export function DocumentListView({
         setFolders(parsed);
       } catch { /* ignored */ }
     } else {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFolders({ Unorganized: documents.map((d) => d.id) });
     }
   }, [documents]);
@@ -121,6 +120,8 @@ export function DocumentListView({
   useEffect(() => {
     if (showAddFolder) setTimeout(() => inputRef.current?.focus(), 50);
   }, [showAddFolder]);
+
+  const closeAddFolder = () => { setShowAddFolder(false); setNewFolderName(""); };
 
   /* ── Close modal on outside click ── */
   useEffect(() => {
@@ -131,10 +132,7 @@ export function DocumentListView({
     }
     document.addEventListener("mousedown", onClickOutside);
     return () => document.removeEventListener("mousedown", onClickOutside);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showAddFolder]);
-
-  const closeAddFolder = () => { setShowAddFolder(false); setNewFolderName(""); };
 
   const saveFolders = (next: Folders) => { setFolders(next); localStorage.setItem("studflow-folders", JSON.stringify(next)); };
 

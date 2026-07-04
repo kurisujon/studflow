@@ -325,7 +325,6 @@ export function InteractiveSummaryReader({
   const activeSummary = summary;
   const sections = summary.detailed_sections;
   const activeSection = sections[activeIndex];
-  const progress = ((activeIndex + 1) / sections.length) * 100;
   const overviewBlockId = "overview";
   const titleBlockId = `topic-${activeIndex}-title`;
   const pendingSelectionForBlock = (blockId: string) =>
