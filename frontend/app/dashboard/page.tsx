@@ -58,7 +58,7 @@ export default async function DashboardPage() {
                 </div>
 
                 <div>
-                  <h3 style={{ fontSize: "1.1rem", marginBottom: "0.25rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{doc.file_name.replace(/\.[^/.]+$/, "")}</h3>
+                  <h3 style={{ fontSize: "1.1rem", marginBottom: "0.25rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{doc.filename.replace(/\.[^/.]+$/, "")}</h3>
                   <p style={{ fontSize: "0.85rem", color: "var(--distill-text-secondary)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
                     {doc.summary ? doc.summary.substring(0, 80) + "..." : "Content summary and key concepts ready for review."}
                   </p>
