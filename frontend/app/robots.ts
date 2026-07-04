@@ -7,7 +7,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: '*',
       allow: '/',
-      disallow: ['/dashboard/', '/api/'], // Prevent crawling of private/dynamic routes
+      disallow: ['/dashboard', '/upload', '/api/'], // Prevent crawling of private/dynamic routes
     },
     sitemap: `${baseUrl}/sitemap.xml`,
   }

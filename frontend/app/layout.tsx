@@ -6,6 +6,9 @@ import { ClerkProvider } from "@clerk/nextjs";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://studflow.webcris.dev"), // Verified production URL
+  alternates: {
+    canonical: '/',
+  },
   title: {
     default: "Studflow — Best AI Note Taker & Study Workflow",
     template: "%s | Studflow",

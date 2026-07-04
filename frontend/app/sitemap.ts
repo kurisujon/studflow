@@ -6,21 +6,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return [
     {
       url: baseUrl,
-      lastModified: new Date(),
+      lastModified: new Date('2024-03-01'), // Use a static or DB-driven date, never new Date() per request
       changeFrequency: 'weekly',
       priority: 1,
     },
-    {
-      url: `${baseUrl}/upload`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.8,
-    },
-    {
-      url: `${baseUrl}/dashboard`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.8,
-    },
+    // Authenticated routes like /dashboard and /upload are omitted.
+    // Sitemaps should only contain public, indexable pages.
   ]
 }
