@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import Image from "next/image";
 import {
   FileTextIcon,
   LayersIcon,
@@ -16,24 +17,28 @@ const SYSTEM_FEATURES = [
     title: "AI-Powered Summary",
     description: "Get the main ideas instantly before deep reading. The AI distills complex documents into easy-to-read summaries, saving you hours of reading time and giving you a clear overview of the material.",
     icon: FileTextIcon,
+    image: "/feature-summary.jpg",
   },
   {
     id: 2,
     title: "Interactive Flashcards & Quizzes",
     description: "Active recall embedded right into your study flow. Automatically generate flashcards and quizzes from your notes to test your knowledge, track your attempts, and easily retry missed questions.",
     icon: LayersIcon,
+    image: "/feature-flashcards.jpg",
   },
   {
     id: 3,
     title: "Contextual AI Chat",
     description: "Ask questions and get grounded answers directly from your document. The AI acts as your personal tutor, explaining concepts clearly and helping you understand difficult topics without leaving the page.",
     icon: BotIcon,
+    image: "/feature-chat.jpg",
   },
   {
     id: 4,
     title: "Dashboard & Review Workflow",
     description: "Manage your documents, saved notes, and review sessions effectively. Track your progress, organize your materials, and never lose context of what you need to study next.",
     icon: FolderOpenIcon,
+    image: "/feature-dashboard.jpg",
   }
 ];
 
@@ -109,43 +114,23 @@ export function SystemGallery() {
               <div
                 style={{
                   width: "100%",
-                  aspectRatio: "16/10",
+                  aspectRatio: "4/3",
                   borderRadius: "24px",
-                  border: "1px dashed color-mix(in srgb, var(--theme-border) 80%, var(--border))",
-                  background: "color-mix(in srgb, var(--card) 60%, var(--background))",
-                  boxShadow: "0 20px 40px color-mix(in srgb, var(--theme-shadow) 20%, transparent), 0 0 0 1px color-mix(in srgb, var(--theme-border) 30%, transparent)",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
+                  border: "1px solid color-mix(in srgb, var(--theme-border) 40%, var(--border))",
+                  backgroundColor: "var(--card)",
+                  boxShadow: "0 20px 40px color-mix(in srgb, var(--theme-shadow) 20%, transparent)",
                   position: "relative",
                   overflow: "hidden",
                   zIndex: 1,
-                  backdropFilter: "blur(12px)"
                 }}
               >
-                <div
-                  style={{
-                    padding: "0.5rem 1.25rem",
-                    borderRadius: "99px",
-                    backgroundColor: "color-mix(in srgb, var(--theme-soft) 80%, var(--card))",
-                    border: "1px solid color-mix(in srgb, var(--theme-border) 60%, var(--border))",
-                    fontSize: "0.9rem",
-                    fontWeight: 600,
-                    color: "var(--theme-primary)",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.5rem",
-                    boxShadow: "0 4px 12px color-mix(in srgb, var(--theme-shadow) 10%, transparent)"
-                  }}
-                >
-                  <feature.icon size={16} />
-                  [Screenshot 151{3 + feature.id}.png]
-                </div>
-                
-                <p style={{ marginTop: "1rem", color: "var(--distill-text-muted)", fontSize: "0.85rem" }}>
-                  Image Placeholder #{feature.id}
-                </p>
+                <Image 
+                  src={feature.image} 
+                  alt={feature.title} 
+                  fill 
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                  style={{ objectFit: "cover" }}
+                />
               </div>
             </div>
           </div>
