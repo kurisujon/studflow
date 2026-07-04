@@ -42,21 +42,25 @@ export function Navbar() {
         }}
       >
         {/* Logo */}
-        <Link
-          href="/"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem",
-            fontWeight: 700,
-            fontSize: "1.125rem",
-            letterSpacing: "-0.02em",
-            color: "var(--distill-text-primary)",
-          }}
-        >
-          <Image src="/studflow_logo.png" alt="Studflow Logo" width={28} height={28} priority />
-          Studflow
-        </Link>
+        {!pathname.startsWith("/dashboard") ? (
+          <Link
+            href="/"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              fontWeight: 700,
+              fontSize: "1.125rem",
+              letterSpacing: "-0.02em",
+              color: "var(--distill-text-primary)",
+            }}
+          >
+            <Image src="/studflow_logo.png" alt="Studflow Logo" width={28} height={28} priority />
+            Studflow
+          </Link>
+        ) : (
+          <div /> // Placeholder to keep flex-between spacing
+        )}
 
         {/* Nav links */}
         <nav

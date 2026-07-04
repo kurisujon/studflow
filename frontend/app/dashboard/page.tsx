@@ -28,7 +28,7 @@ export default async function DashboardPage() {
 
         {/* Top Row: Continue Studying Cards */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "1.5rem", marginBottom: "1.5rem" }}>
-          {documents.slice(0, 3).map((doc) => {
+          {documents.filter(doc => doc.status !== "COMPLETED").slice(0, 3).map((doc) => {
             const progress = doc.quiz_ready ? 85 : 40; // Mock progress for visual consistency
             return (
               <div key={doc.id} style={{ 
