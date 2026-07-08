@@ -45,6 +45,22 @@ Read it alongside:
 
 ## Current Priority
 
+### Active Learning Hubs (Global Study Center)
+
+Goal: Evolve the global sidebar pages (Flashcards and Quizzes) from static, redundant lists into dynamic, spaced-repetition and mixed-practice hubs.
+
+#### Backend: Spaced Repetition & Mixed Practice
+- [ ] Add SRS (Spaced Repetition System) fields to the Flashcard model (`interval`, `repetition`, `easiness_factor`, `next_review_date`)
+- [ ] Create `GET /api/study/flashcards/due` endpoint to fetch global flashcards due for review across all documents
+- [ ] Create `POST /api/study/flashcards/{id}/review` endpoint to update SRS stats based on user rating (Again, Hard, Good, Easy)
+- [ ] Create `GET /api/study/quizzes/mixed` endpoint to generate a cross-document quiz (prioritizing weakest topics from past attempts)
+
+#### Frontend: Daily Review & Challenge Mode
+- [ ] Redesign `/dashboard/flashcards/page.tsx` into a Daily Review Hub (showing cards due today)
+- [ ] Implement SRS review interface (flashcard flipper with rating buttons: Again, Hard, Good, Easy)
+- [ ] Redesign `/dashboard/quizzes/page.tsx` into a Challenge Mode Hub
+- [ ] Implement multi-document mixed quiz UI leveraging the weakest-topic history
+
 ### Study Workspace UI Refinement
 
 Goal: make Studflow feel calmer, more editorial, and more focused for long-form reading before adding new backend scope.

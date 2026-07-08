@@ -124,10 +124,20 @@ Current emphasis in `docs/tasks.md`:
 
 ## Current Priority Workstream
 
+### Active Learning Hubs (Global Study Center)
+
+Current product decision:
+- Evolve the global sidebar pages (Flashcards and Quizzes) from static, redundant lists into dynamic, spaced-repetition and mixed-practice hubs.
+- Flashcards will become a Daily Review Hub powered by a Spaced Repetition System (SRS).
+- Quizzes will become a Challenge Mode Hub that targets a user's weakest topics across all documents.
+
+Workstream constraints:
+- Backend needs to support SRS metrics (interval, easiness factor, next review date) on the existing Flashcard model.
+- Frontend needs a new Daily Review UI and a Multi-Document Quiz UI.
+
 ### Study Workspace UI Refinement
 
 Current product decision:
-
 - prioritize study-workspace UI refinement before starting the next backend-heavy feature
 - improve reading comfort, workspace hierarchy, and visual consistency
 - keep the work inside the frontend unless a task explicitly requires backend support
