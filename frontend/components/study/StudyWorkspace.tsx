@@ -117,25 +117,7 @@ export function StudyWorkspace({
         Shortcuts: 1 Summary, 2 Flashcards, 3 Quiz.
       </p>
 
-      <div
-        style={
-          currentTab === "summary"
-            ? {
-                padding: 0,
-                border: "none",
-                borderRadius: 0,
-                background: "transparent",
-                boxShadow: "none",
-              }
-            : {
-                padding: "2rem",
-                border: "1px solid var(--theme-border)",
-                borderRadius: "28px",
-                background: "color-mix(in srgb, var(--card) 92%, var(--theme-soft))",
-                boxShadow: "0 22px 60px var(--theme-shadow)",
-              }
-        }
-      >
+      <div>
         {currentTab === "flashcards" ? (
           <FlashcardStudy flashcards={document.flashcards} />
         ) : null}

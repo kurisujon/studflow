@@ -46,13 +46,13 @@ export default function DashboardLayout({
           left: 0,
           borderRight: "1px solid var(--border)",
           backgroundColor: "var(--background)",
-          padding: collapsed ? "1.5rem 0" : "1.5rem 1rem",
+          padding: "1.5rem 0.75rem",
           display: "flex",
           flexDirection: "column",
           gap: "0.5rem",
           zIndex: 100,
           overflow: "hidden",
-          transition: "width 240ms cubic-bezier(0.4, 0, 0.2, 1), padding 240ms cubic-bezier(0.4, 0, 0.2, 1)",
+          transition: "width 240ms cubic-bezier(0.4, 0, 0.2, 1)",
           willChange: "width",
         }}
       >
@@ -62,17 +62,17 @@ export default function DashboardLayout({
           style={{
             display: "flex",
             alignItems: "center",
-            justifyContent: collapsed ? "center" : "flex-start",
-            gap: "0.5rem",
+            justifyContent: "flex-start",
+            gap: "0.75rem",
             fontWeight: 700,
             fontSize: "1.125rem",
             letterSpacing: "-0.02em",
             color: "var(--distill-text-primary)",
             marginBottom: "1rem",
-            paddingLeft: collapsed ? 0 : "0.5rem",
+            paddingLeft: "0.5rem",
             overflow: "hidden",
             whiteSpace: "nowrap",
-            transition: "padding-left 240ms cubic-bezier(0.4, 0, 0.2, 1)",
+            transition: "opacity 240ms cubic-bezier(0.4, 0, 0.2, 1)",
           }}
         >
           <Image
@@ -108,9 +108,9 @@ export default function DashboardLayout({
               style={{
                 display: "flex",
                 alignItems: "center",
-                justifyContent: collapsed ? "center" : "flex-start",
+                justifyContent: "flex-start",
                 gap: "0.75rem",
-                padding: collapsed ? "0.75rem" : "0.75rem 1rem",
+                padding: "0.75rem",
                 borderRadius: "12px",
                 color: isActive ? "var(--theme-primary)" : "var(--distill-text-secondary)",
                 backgroundColor: isActive
@@ -118,8 +118,7 @@ export default function DashboardLayout({
                   : "transparent",
                 fontWeight: isActive ? 600 : 500,
                 fontSize: "0.92rem",
-                transition:
-                  "all var(--transition-fast), justify-content 240ms cubic-bezier(0.4, 0, 0.2, 1), padding 240ms cubic-bezier(0.4, 0, 0.2, 1)",
+                transition: "all var(--transition-fast)",
                 overflow: "hidden",
                 whiteSpace: "nowrap",
               }}
@@ -150,21 +149,15 @@ export default function DashboardLayout({
           style={{
             display: "flex",
             alignItems: "center",
-            justifyContent: collapsed ? "center" : "flex-start",
-            gap: "0.75rem",
-            padding: collapsed ? "0.75rem" : "0.75rem 1rem",
+            justifyContent: "center",
+            padding: "0.75rem",
             borderRadius: "12px",
             color: "var(--distill-text-muted)",
             backgroundColor: "transparent",
             border: "none",
             cursor: "pointer",
-            fontSize: "0.92rem",
-            fontWeight: 500,
             width: "100%",
-            overflow: "hidden",
-            whiteSpace: "nowrap",
-            transition:
-              "color var(--transition-fast), background-color var(--transition-fast), padding 240ms cubic-bezier(0.4, 0, 0.2, 1), justify-content 240ms cubic-bezier(0.4, 0, 0.2, 1)",
+            transition: "color var(--transition-fast), background-color var(--transition-fast)",
           }}
           onMouseEnter={(e) => {
             (e.currentTarget as HTMLButtonElement).style.color = "var(--distill-text-primary)";
@@ -185,18 +178,6 @@ export default function DashboardLayout({
               transition: "transform 240ms cubic-bezier(0.4, 0, 0.2, 1)",
             }}
           />
-          <span
-            style={{
-              opacity: collapsed ? 0 : 1,
-              maxWidth: collapsed ? 0 : "160px",
-              overflow: "hidden",
-              transition:
-                "opacity 180ms cubic-bezier(0.4, 0, 0.2, 1), max-width 240ms cubic-bezier(0.4, 0, 0.2, 1)",
-              whiteSpace: "nowrap",
-            }}
-          >
-            Collapse
-          </span>
         </button>
       </aside>
 
