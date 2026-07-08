@@ -68,6 +68,13 @@ class FlashcardResponse(BaseModel):
     front: str
     back: str
     order_index: int
+    next_review_date: datetime
+    interval: int
+    repetition: int
+    easiness_factor: float
+
+class ReviewFlashcardRequest(BaseModel):
+    rating: Literal["again", "hard", "good", "easy"]
 
 
 class QuizQuestionResponse(BaseModel):

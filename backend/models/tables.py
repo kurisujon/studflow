@@ -130,6 +130,13 @@ class Flashcard(SQLModel, table=True):
     front: str = Field(nullable=False)  # Question / concept
     back: str = Field(nullable=False)   # Answer / explanation
     order_index: int = Field(default=0, nullable=False)
+    
+    # Spaced Repetition System (SRS) fields
+    next_review_date: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    interval: int = Field(default=0, nullable=False)  # Days until next review
+    repetition: int = Field(default=0, nullable=False) # Number of consecutive successful reviews
+    easiness_factor: float = Field(default=2.5, nullable=False) # SM-2 easiness factor multiplier
+    
     created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
 
     # Relationships
