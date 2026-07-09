@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import type { StudyFlashcard } from "@/lib/types";
-import { reviewFlashcard } from "@/lib/server-api";
+import { reviewFlashcardAction } from "@/app/actions/study";
 import { useRouter } from "next/navigation";
 
 const CARD_FLIP_DURATION_MS = 500;
@@ -27,7 +27,7 @@ export function DailyReviewHub({
 
       setIsReviewing(true);
       try {
-        await reviewFlashcard(flashcards[0].id, rating);
+        await reviewFlashcardAction(flashcards[0].id, rating);
 
         setIsChangingCard(true);
         setIsFlipped(false);
