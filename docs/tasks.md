@@ -127,10 +127,10 @@ These are intentionally sequenced after the UI refinement workstream:
 Goal: Replace mock dashboard data with real user analytics, and give users control over their study experience.
 
 #### Backend: Analytics & Preferences
-- [ ] Create `GET /api/user/stats` endpoint to calculate real study streaks, average quiz scores, and total completed reviews
-- [ ] Create `GET /api/user/queue` endpoint to fetch the actual pending review tasks (due flashcards and weak quizzes)
-- [ ] Create `UserPreferences` model to store custom study settings (e.g., SM-2 aggressiveness, dark mode preference, daily goals)
-- [ ] Create `GET` and `PUT` endpoints for user preferences
+- [x] Create `GET /api/user/stats` endpoint to calculate real study streaks, average quiz scores, and total completed reviews
+- [x] Create `GET /api/user/queue` endpoint to fetch the actual pending review tasks (due flashcards and weak quizzes)
+- [x] Create `UserPreferences` model to store custom study settings (e.g., SM-2 aggressiveness, dark mode preference, daily goals)
+- [x] Create `GET` and `PUT` endpoints for user preferences
 
 #### Frontend: Dashboard & Settings
 - [ ] Connect the `DashboardPage` widgets (Streak, Stats, Queue) to the new real-time backend endpoints
