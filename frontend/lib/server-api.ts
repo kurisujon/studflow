@@ -74,3 +74,7 @@ export async function reviewFlashcard(
 
   return (await response.json()) as StudyFlashcard;
 }
+
+export function fetchMixedQuiz(): Promise<StudyQuizQuestion[]> {
+  return fetchJSON<StudyQuizQuestion[]>("/api/study/quizzes/mixed");
+}
