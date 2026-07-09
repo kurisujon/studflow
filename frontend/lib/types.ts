@@ -15,6 +15,10 @@ export type StudyFlashcard = {
   front: string;
   back: string;
   order_index: number;
+  next_review_date: string;
+  interval: number;
+  repetition: number;
+  easiness_factor: number;
 };
 
 export type StudyQuizQuestion = {
