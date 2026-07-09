@@ -1,5 +1,5 @@
 import { API_BASE_URL, readAPIErrorDetail } from "@/lib/api";
-import type { DocumentListItem, StudyDocument } from "@/lib/types";
+import type { DocumentListItem, StudyDocument, StudyFlashcard } from "@/lib/types";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 
