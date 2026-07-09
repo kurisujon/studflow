@@ -8,6 +8,7 @@ from api.routes.health import router as health_router
 from api.routes.documents import router as documents_router
 from api.routes.study import router as study_router
 from api.routes.upload import router as upload_router
+from api.routes.user import router as user_router
 from core.config import settings
 from core.database import init_db
 
@@ -47,3 +48,4 @@ app.include_router(health_router, prefix="/api")
 app.include_router(documents_router, prefix="/api")
 app.include_router(study_router, prefix="/api")
 app.include_router(upload_router, prefix="/api")
+app.include_router(user_router, prefix="/api")

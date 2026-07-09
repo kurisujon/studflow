@@ -40,7 +40,33 @@ class User(SQLModel, table=True):
 
     # Relationships
     documents: list["Document"] = Relationship(back_populates="user")
+    preferences: Optional["UserPreferences"] = Relationship(back_populates="user")
 
+
+# ---------------------------------------------------------------------------
+# User Preferences
+# ---------------------------------------------------------------------------
+
+class UserPreferences(SQLModel, table=True):
+    __tablename__ = "user_preferences"
+
+    id: uuid.UUID = Field(
+        default_factory=uuid.uuid4,
+        primary_key=True,
+        index=True,
+        nullable=False,
+    )
+    user_id: uuid.UUID = Field(
+        foreign_key="users.id", unique=True, nullable=False, index=True
+    )
+    theme: str = Field(default="system")
+    daily_review_goal: int = Field(default=20)
+    # 2.5 is standard SM-2. Lower = harder (cards appear sooner).
+    sm2_aggressiveness: float = Field(default=2.5) 
+    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    updated_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+
+    user: Optional[User] = Relationship(back_populates="preferences")
 
 # ---------------------------------------------------------------------------
 # Document
