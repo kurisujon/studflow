@@ -68,4 +68,7 @@ else
   docker compose --env-file "$ENV_PATH" up -d --remove-orphans
 fi
 
+echo "Running database migrations..."
+docker compose --env-file "$ENV_PATH" exec -T backend alembic upgrade head
+
 docker compose --env-file "$ENV_PATH" ps
