@@ -538,6 +538,10 @@ def get_study_document(document_id: uuid.UUID, current_user: CurrentUser = Depen
                     front=flashcard.front,
                     back=flashcard.back,
                     order_index=flashcard.order_index,
+                    next_review_date=flashcard.next_review_date,
+                    interval=flashcard.interval,
+                    repetition=flashcard.repetition,
+                    easiness_factor=flashcard.easiness_factor,
                 )
                 for flashcard in flashcards
             ],
@@ -574,6 +578,10 @@ def create_document_flashcard(
             front=flashcard.front,
             back=flashcard.back,
             order_index=flashcard.order_index,
+            next_review_date=flashcard.next_review_date,
+            interval=flashcard.interval,
+            repetition=flashcard.repetition,
+            easiness_factor=flashcard.easiness_factor,
         )
 
 
