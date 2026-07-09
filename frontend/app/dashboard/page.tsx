@@ -1,9 +1,13 @@
 import Link from "next/link";
 
-import { fetchDocuments } from "@/lib/server-api";
+import { fetchDocuments, fetchUserStats, fetchUserQueue } from "@/lib/server-api";
 
 export default async function DashboardPage() {
-  const documents = await fetchDocuments();
+  const [documents, stats, queue] = await Promise.all([
+    fetchDocuments(),
+    fetchUserStats(),
+    fetchUserQueue()
+  ]);
   const flashcardCount = documents.reduce(
     (total, document) => total + document.flashcard_count,
     0,
@@ -94,9 +98,9 @@ export default async function DashboardPage() {
             {/* 3 Stat Widgets */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1.5rem" }}>
               {[
-                { label: "Documents", value: documents.length, sub: "+1 this week", trend: "up" },
-                { label: "Flashcards", value: flashcardCount, sub: "+12 new", trend: "up" },
-                { label: "Avg. Score", value: "88%", sub: "+3% trend", trend: "up" },
+                { label: "Documents", value: stats.total_documents, sub: "Total uploaded", trend: "up" },
+                { label: "Flashcards", value: stats.total_flashcards, sub: "Total generated", trend: "up" },
+                { label: "Avg. Score", value: `${stats.avg_quiz_score}%`, sub: "Across quizzes", trend: "up" },
               ].map(stat => (
                 <div key={stat.label} style={{ 
                   padding: "1.25rem", borderRadius: "20px", backgroundColor: "var(--card)", 
@@ -104,7 +108,6 @@ export default async function DashboardPage() {
                 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <span style={{ fontWeight: 600 }}>{stat.label}</span>
-                    <span style={{ color: "#10b981", fontWeight: 600 }}>↗</span>
                   </div>
                   <div style={{ display: "flex", alignItems: "baseline", gap: "0.5rem" }}>
                     <div style={{ width: "2.5rem", height: "2.5rem", borderRadius: "12px", backgroundColor: "color-mix(in srgb, #10b981 15%, transparent)", color: "#10b981", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -124,24 +127,25 @@ export default async function DashboardPage() {
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "1rem" }}>
                 <div>
                   <h3 style={{ fontSize: "1.1rem", marginBottom: "0.15rem" }}>Study Streak</h3>
-                  <p style={{ fontSize: "0.85rem", color: "var(--distill-text-secondary)" }}>7-day streak</p>
+                  <p style={{ fontSize: "0.85rem", color: "var(--distill-text-secondary)" }}>{stats.streak_days}-day streak</p>
                 </div>
-                <span style={{ color: "var(--distill-text-secondary)", cursor: "pointer" }}>•••</span>
               </div>
               
               <div style={{ display: "flex", justifyContent: "space-between" }}>
-                {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat (Active)", "Today"].map((day, i) => (
-                  <div key={day} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem" }}>
-                    <div style={{ 
-                      fontSize: "2rem", 
-                      filter: i === 6 ? "hue-rotate(180deg) saturate(2)" : "none", // Make 'Today' blue flame
-                      opacity: i === 5 ? 0.6 : 1 // Gray out 'Sat' a bit
-                    }}>🔥</div>
-                    <span style={{ fontSize: "0.8rem", fontWeight: i === 6 ? 600 : 500, color: i === 6 ? "var(--theme-primary)" : "var(--distill-text-secondary)" }}>
-                      {day}
-                    </span>
-                  </div>
-                ))}
+                {["6d", "5d", "4d", "3d", "2d", "1d", "Today"].map((day, i) => {
+                  const active = stats.streak_activity[i];
+                  return (
+                    <div key={day} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem" }}>
+                      <div style={{ 
+                        fontSize: "2rem", 
+                        filter: active ? (i === 6 ? "hue-rotate(180deg) saturate(2)" : "none") : "grayscale(1) opacity(0.2)",
+                      }}>🔥</div>
+                      <span style={{ fontSize: "0.8rem", fontWeight: i === 6 ? 600 : 500, color: i === 6 ? "var(--theme-primary)" : "var(--distill-text-secondary)" }}>
+                        {day}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -157,28 +161,27 @@ export default async function DashboardPage() {
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-              {[
-                { title: "Anatomy Flashcards", subtitle: "55 cards", badge: "Review", color: "#fef2f2", textColor: "#ef4444" },
-                { title: "History Notes", subtitle: "Chapter 6", badge: "Study", color: "#eff6ff", textColor: "#3b82f6" },
-                { title: "Calculus Quiz", subtitle: "30 questions", badge: "Practice", color: "#fdf4ff", textColor: "#d946ef" },
-                { title: "Psychology Terms", subtitle: "40 cards", badge: "Review", color: "#fefce8", textColor: "#eab308" },
-              ].map((task, i) => (
-                <div key={task.title} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: "1.25rem", borderBottom: i === 3 ? "none" : "1px solid var(--border)" }}>
+              {queue.tasks.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "2rem", color: "var(--distill-text-secondary)" }}>
+                  You are all caught up!
+                </div>
+              ) : queue.tasks.map((task, i) => (
+                <div key={task.title} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: "1.25rem", borderBottom: i === queue.tasks.length - 1 ? "none" : "1px solid var(--border)" }}>
                   <div>
-                    <p style={{ fontWeight: 600, fontSize: "0.95rem", marginBottom: "0.25rem" }}>{i + 1}. {task.title}</p>
+                    <p style={{ fontWeight: 600, fontSize: "0.95rem", marginBottom: "0.25rem" }}>{task.title}</p>
                     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                       <span style={{ fontSize: "0.8rem", color: "var(--distill-text-secondary)" }}>{task.subtitle}</span>
-                      <span style={{ fontSize: "0.75rem", padding: "0.15rem 0.5rem", borderRadius: "99px", backgroundColor: task.color, color: task.textColor, fontWeight: 600 }}>
+                      <span style={{ fontSize: "0.75rem", padding: "0.15rem 0.5rem", borderRadius: "99px", backgroundColor: task.color, color: task.text_color, fontWeight: 600 }}>
                         {task.badge}
                       </span>
                     </div>
                   </div>
-                  <button style={{ 
-                    padding: "0.4rem 0.8rem", borderRadius: "8px", border: "1px solid var(--border)", 
-                    backgroundColor: "var(--background)", fontSize: "0.85rem", fontWeight: 500, cursor: "pointer" 
+                  <Link href={task.badge === "Review" ? "/dashboard/flashcards" : "/dashboard/quizzes"} style={{ 
+                    padding: "0.4rem 0.8rem", borderRadius: "8px", border: "1px solid var(--theme-border)", 
+                    backgroundColor: "var(--theme-primary)", color: "white", fontSize: "0.85rem", fontWeight: 500, cursor: "pointer", textDecoration: "none"
                   }}>
-                    {task.badge === "Study" ? "Study" : "Start Review"}
-                  </button>
+                    {task.badge === "Review" ? "Start Review" : "Start Practice"}
+                  </Link>
                 </div>
               ))}
             </div>

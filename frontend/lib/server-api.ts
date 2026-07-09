@@ -1,5 +1,5 @@
 import { API_BASE_URL, readAPIErrorDetail } from "@/lib/api";
-import type { DocumentListItem, StudyDocument, StudyFlashcard, StudyQuizQuestion } from "@/lib/types";
+import type { DocumentListItem, StudyDocument, StudyFlashcard, StudyQuizQuestion, UserStats, UserQueue, UserPreferences } from "@/lib/types";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 
@@ -77,4 +77,16 @@ export async function reviewFlashcard(
 
 export function fetchMixedQuiz(): Promise<StudyQuizQuestion[]> {
   return fetchJSON<StudyQuizQuestion[]>("/api/study/quizzes/mixed");
+}
+
+export function fetchUserStats(): Promise<UserStats> {
+  return fetchJSON<UserStats>("/api/user/stats");
+}
+
+export function fetchUserQueue(): Promise<UserQueue> {
+  return fetchJSON<UserQueue>("/api/user/queue");
+}
+
+export function fetchUserPreferences(): Promise<UserPreferences> {
+  return fetchJSON<UserPreferences>("/api/user/preferences");
 }

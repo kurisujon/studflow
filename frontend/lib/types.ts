@@ -56,3 +56,30 @@ export type StudyDocument = {
   flashcards: StudyFlashcard[];
   quiz: StudyQuizQuestion[];
 };
+
+export type UserStats = {
+  total_documents: number;
+  total_flashcards: number;
+  avg_quiz_score: number;
+  streak_days: number;
+  streak_activity: boolean[];
+};
+
+export type QueueItem = {
+  title: string;
+  subtitle: string;
+  badge: string;
+  color: string;
+  text_color: string;
+};
+
+export type UserQueue = {
+  tasks: QueueItem[];
+};
+
+export type UserPreferences = {
+  id: string;
+  theme: string;
+  daily_review_goal: number;
+  sm2_aggressiveness: number;
+};
