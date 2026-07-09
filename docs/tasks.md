@@ -53,13 +53,13 @@ Goal: Evolve the global sidebar pages (Flashcards and Quizzes) from static, redu
 - [x] Add SRS (Spaced Repetition System) fields to the Flashcard model (`interval`, `repetition`, `easiness_factor`, `next_review_date`)
 - [x] Create `GET /api/study/flashcards/due` endpoint to fetch global flashcards due for review across all documents
 - [x] Create `POST /api/study/flashcards/{id}/review` endpoint to update SRS stats based on user rating (Again, Hard, Good, Easy)
-- [ ] Create `GET /api/study/quizzes/mixed` endpoint to generate a cross-document quiz (prioritizing weakest topics from past attempts)
+- [x] Create `GET /api/study/quizzes/mixed` endpoint to generate a cross-document quiz (prioritizing weakest topics from past attempts)
 
 #### Frontend: Daily Review & Challenge Mode
 - [x] Redesign `/dashboard/flashcards/page.tsx` into a Daily Review Hub (showing cards due today)
 - [x] Implement SRS review interface (flashcard flipper with rating buttons: Again, Hard, Good, Easy)
-- [ ] Redesign `/dashboard/quizzes/page.tsx` into a Challenge Mode Hub
-- [ ] Implement multi-document mixed quiz UI leveraging the weakest-topic history
+- [x] Redesign `/dashboard/quizzes/page.tsx` into a Challenge Mode Hub
+- [x] Implement multi-document mixed quiz UI leveraging the weakest-topic history
 
 ### Study Workspace UI Refinement
 
