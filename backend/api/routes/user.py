@@ -40,10 +40,10 @@ class UserQueueResponse(BaseModel):
 @router.get("/user/preferences", response_model=UserPreferencesResponse)
 def get_user_preferences(current_user: CurrentUser = Depends(get_current_user)):
     with Session(engine) as session:
-        statement = select(UserPreferences).where(UserPreferences.user_id == current_user.id)
+        statement = select(UserPreferences).where(UserPreferences.clerk_user_id == current_user.clerk_user_id)
         prefs = session.exec(statement).first()
         if not prefs:
-            prefs = UserPreferences(user_id=current_user.id)
+            prefs = UserPreferences(clerk_user_id=current_user.clerk_user_id)
             session.add(prefs)
             session.commit()
             session.refresh(prefs)
@@ -55,10 +55,10 @@ def update_user_preferences(
     current_user: CurrentUser = Depends(get_current_user)
 ):
     with Session(engine) as session:
-        statement = select(UserPreferences).where(UserPreferences.user_id == current_user.id)
+        statement = select(UserPreferences).where(UserPreferences.clerk_user_id == current_user.clerk_user_id)
         prefs = session.exec(statement).first()
         if not prefs:
-            prefs = UserPreferences(user_id=current_user.id)
+            prefs = UserPreferences(clerk_user_id=current_user.clerk_user_id)
             session.add(prefs)
             
         if request.theme is not None:
@@ -76,7 +76,7 @@ def update_user_preferences(
 @router.get("/user/stats", response_model=UserStatsResponse)
 def get_user_stats(current_user: CurrentUser = Depends(get_current_user)):
     with Session(engine) as session:
-        docs = session.exec(select(Document).where(Document.user_id == current_user.id)).all()
+        docs = session.exec(select(Document).where(Document.clerk_user_id == current_user.clerk_user_id)).all()
         doc_ids = [d.id for d in docs]
         
         if not doc_ids:
@@ -128,7 +128,7 @@ def get_user_stats(current_user: CurrentUser = Depends(get_current_user)):
 @router.get("/user/queue", response_model=UserQueueResponse)
 def get_user_queue(current_user: CurrentUser = Depends(get_current_user)):
     with Session(engine) as session:
-        docs = session.exec(select(Document).where(Document.user_id == current_user.id)).all()
+        docs = session.exec(select(Document).where(Document.clerk_user_id == current_user.clerk_user_id)).all()
         doc_ids = [d.id for d in docs]
         
         if not doc_ids:
