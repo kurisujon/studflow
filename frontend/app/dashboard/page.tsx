@@ -8,10 +8,6 @@ export default async function DashboardPage() {
     fetchUserStats(),
     fetchUserQueue()
   ]);
-  const flashcardCount = documents.reduce(
-    (total, document) => total + document.flashcard_count,
-    0,
-  );
 
   return (
     <section

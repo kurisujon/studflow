@@ -23,7 +23,7 @@ export function SettingsForm({ preferences }: { preferences: UserPreferences }) 
       } else {
         setMessage("Failed to save preferences.");
       }
-    } catch (e) {
+    } catch {
       setMessage("An error occurred.");
     }
     setSaving(false);
