@@ -24,7 +24,7 @@ export default async function StudyPage({
       style={{
         minHeight: "calc(100dvh - var(--nav-height))",
         background:
-          "linear-gradient(180deg, color-mix(in srgb, var(--background) 98%, white), color-mix(in srgb, var(--background) 94%, var(--theme-soft)))",
+          "radial-gradient(circle at top left, var(--theme-shadow), transparent 24%), linear-gradient(180deg, var(--background), color-mix(in srgb, var(--background) 82%, var(--theme-soft)))",
       }}
     >
       <div className="container mx-auto">

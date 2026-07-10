@@ -207,8 +207,14 @@ export function DocumentListView({
     : [];
 
   return (
-    <section style={{ minHeight: "calc(100dvh - var(--nav-height))", padding: "2rem 1.5rem 4rem" }}>
-
+    <section
+      style={{
+        minHeight: "calc(100dvh - var(--nav-height))",
+        padding: "2rem 1.5rem 3rem",
+        background:
+          "radial-gradient(circle at top left, var(--theme-shadow), transparent 24%), linear-gradient(180deg, var(--background), color-mix(in srgb, var(--background) 82%, var(--theme-soft)))",
+      }}
+    >
       {/* ── Confirm Delete Overlay ── */}
       {confirmDelete && (
         <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -361,7 +367,7 @@ export function DocumentListView({
 
         {/* ── Page Header ── */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.75rem", flexWrap: "wrap", gap: "1rem" }}>
-          <h1 style={{ fontSize: "2rem", fontWeight: 800 }}>{title}</h1>
+          <h1 style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>{title}</h1>
           <button
             className="add-folder-btn"
             onClick={() => setShowAddFolder(true)}
