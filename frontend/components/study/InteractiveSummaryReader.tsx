@@ -787,11 +787,13 @@ export function InteractiveSummaryReader({
 
       <div
         ref={rootRef}
+        className="max-w-[70ch] mx-auto"
         style={{
           cursor: "text",
           width: "100%",
-          maxWidth: "1080px",
-          marginInline: "auto",
+          opacity: isFocusedReading ? 1 : 0.95,
+          transition: "opacity 0.3s ease",
+          position: "relative",
         }}
       >
         <div style={{ display: "grid", gap: "1rem", marginBottom: "1.5rem" }}>

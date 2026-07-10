@@ -20,23 +20,15 @@ export default async function StudyPage({
 
   return (
     <section
+      className="px-4 py-6 md:px-6 md:py-8 lg:py-12"
       style={{
         minHeight: "calc(100dvh - var(--nav-height))",
-        padding: "2rem 1.5rem 3rem",
         background:
           "linear-gradient(180deg, color-mix(in srgb, var(--background) 98%, white), color-mix(in srgb, var(--background) 94%, var(--theme-soft)))",
       }}
     >
-      <div className="container">
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            alignItems: "center",
-            gap: "1rem",
-            marginBottom: "1.75rem",
-          }}
-        >
+      <div className="container mx-auto">
+        <div className="flex flex-wrap items-center gap-4 mb-6 md:mb-8">
           <div>
             <p
               style={{

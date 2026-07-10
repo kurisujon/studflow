@@ -78,14 +78,7 @@ export function StudyWorkspace({
 
   return (
     <>
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: "0.75rem",
-          marginBottom: "1.5rem",
-        }}
-      >
+      <div className="flex flex-wrap gap-3 mb-6">
         {[
           { key: "summary" as const, label: "Summary" },
           { key: "flashcards" as const, label: "Flashcards" },
