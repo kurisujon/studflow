@@ -89,8 +89,8 @@ Goal: make Studflow feel calmer, more editorial, and more focused for long-form 
 - [x] Keep homepage styling decisions from leaking into the actual study-reading experience
 
 #### Validation
-- [ ] Verify desktop reading comfort on long summaries
-- [ ] Verify mobile layout for `/dashboard/study/[id]`
+- [x] Verify desktop reading comfort on long summaries
+- [x] Verify mobile layout for `/dashboard/study/[id]`
 - [x] Confirm no backend API contract changes are introduced by UI refinement
 - [x] Run frontend lint/validation after each meaningful UI batch
 
