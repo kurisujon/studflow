@@ -122,7 +122,7 @@ These are intentionally sequenced after the UI refinement workstream:
 - [x] Improve dashboard empty state with clearer upload guidance
 - [x] Add useful dashboard summary widgets without changing backend contracts
 
-## Phase 3: Deep Customization & Study Session Analytics (Pending)
+## Phase 3: Deep Customization & Study Session Analytics (Completed)
 
 Goal: Replace mock dashboard data with real user analytics, and give users control over their study experience.
 

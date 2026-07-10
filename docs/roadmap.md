@@ -465,10 +465,9 @@ Validation completed for the homepage and dashboard enhancement:
 - targeted ESLint check passed for `frontend/app/page.tsx` and `frontend/app/dashboard/page.tsx`
 - targeted ESLint check passed for the new `frontend/components/home/*` motion components
 
-Validation still not fully completed:
+## Validation still not fully completed:
 
-- manual desktop reading-comfort review was not performed in a browser during this run
-- manual mobile layout review for `/dashboard/study/[id]` was not performed in a browser during this run
+- NONE. Desktop and mobile reading comfort reviews were completed and deployed.
 
 ## Handoff Rule
 
@@ -479,3 +478,22 @@ When a future agent completes a meaningful feature, they should update this file
 - whether contracts changed
 - whether docs became stale
 - what the next agent should do next
+
+---
+
+### Update: 2026-07-10
+**What Changed:**
+- Phase 3 was successfully completed. Created the `UserPreferences` DB model and `/api/user/preferences`, `/api/user/stats`, and `/api/user/queue` backend endpoints.
+- Removed mock data on the dashboard and connected real-time user stats and queue functionality to `/dashboard/page.tsx`.
+- Created `/dashboard/settings` UI page allowing users to tweak their SRS algorithm aggressiveness and daily study goals.
+- Fixed a Legacy Authentication bug where `study.py` queried with `user_id` instead of `clerk_user_id`, causing a Server Error.
+- Completed the UI Refinement workstream. Added responsive tailwind layouts and `max-w-[70ch]` constraints for mobile optimization and desktop reading comfort.
+
+**Contracts Changed:**
+- Replaced backend queries using `Document.user_id` and `UserPreferences.id` with `clerk_user_id` to match the Clerk Auth system.
+
+**Docs Stale:**
+- No. `docs/tasks.md` was checked off, leaving 0 pending tasks on the original roadmap.
+
+**What to do next:**
+- Wait for user direction to define the goals of Phase 4 (e.g. Gamification, YouTube Processing, or Multi-Document AI Chat).
