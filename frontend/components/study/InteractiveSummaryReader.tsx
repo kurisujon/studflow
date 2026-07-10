@@ -791,8 +791,6 @@ export function InteractiveSummaryReader({
         style={{
           cursor: "text",
           width: "100%",
-          opacity: isFocusedReading ? 1 : 0.95,
-          transition: "opacity 0.3s ease",
           position: "relative",
         }}
       >

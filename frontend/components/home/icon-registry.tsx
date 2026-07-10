@@ -1,3 +1,5 @@
+"use client";
+
 import * as LucideIcons from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
 
@@ -25,3 +27,4 @@ export const FolderOpenIcon = icons.FolderOpen;
 export const HighlighterIcon = icons.Highlighter;
 export const FolderPlusIcon = icons.FolderPlus;
 export const ChevronLeftIcon = icons.ChevronLeft;
+
