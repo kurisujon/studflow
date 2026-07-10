@@ -32,7 +32,7 @@ def calculate_sm2(rating: str, interval: int, repetitions: int, easiness: float)
 
     return interval, repetitions, easiness
 
-def review_flashcard(session: Session, flashcard_id: uuid.UUID, user_id: uuid.UUID, rating: str) -> Flashcard | None:
+def review_flashcard(session: Session, flashcard_id: uuid.UUID, rating: str) -> Flashcard | None:
     # We must ensure the flashcard belongs to the user
     # but the flashcard table only has document_id. We can join or just query flashcard.
     flashcard = session.get(Flashcard, flashcard_id)

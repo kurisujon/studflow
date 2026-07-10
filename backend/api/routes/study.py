@@ -19,7 +19,7 @@ def get_due_flashcards(current_user: CurrentUser = Depends(get_current_user)):
         statement = (
             select(Flashcard)
             .join(Document, Flashcard.document_id == Document.id)
-            .where(Document.user_id == current_user.id)
+            .where(Document.clerk_user_id == current_user.clerk_user_id)
             .where(Flashcard.next_review_date <= datetime.utcnow())
             .order_by(Flashcard.next_review_date.asc())
         )
@@ -38,7 +38,7 @@ def review_flashcard_endpoint(
         statement = (
             select(Flashcard)
             .join(Document, Flashcard.document_id == Document.id)
-            .where(Document.user_id == current_user.id)
+            .where(Document.clerk_user_id == current_user.clerk_user_id)
             .where(Flashcard.id == flashcard_id)
         )
         flashcard = session.exec(statement).first()
@@ -48,7 +48,6 @@ def review_flashcard_endpoint(
         updated_flashcard = review_flashcard(
             session=session,
             flashcard_id=flashcard_id,
-            user_id=current_user.id,
             rating=request.rating
         )
         
@@ -58,8 +57,8 @@ def review_flashcard_endpoint(
 def get_mixed_quiz(current_user: CurrentUser = Depends(get_current_user)):
     """Generate a cross-document quiz prioritizing weakest topics from past attempts."""
     with Session(engine) as session:
-        # Get user's documents
-        docs = session.exec(select(Document.id).where(Document.user_id == current_user.id)).all()
+        # 1. Find all documents owned by user
+        docs = session.exec(select(Document.id).where(Document.clerk_user_id == current_user.clerk_user_id)).all()
         if not docs:
             return []
             
