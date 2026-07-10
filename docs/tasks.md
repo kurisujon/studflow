@@ -133,5 +133,5 @@ Goal: Replace mock dashboard data with real user analytics, and give users contr
 - [x] Create `GET` and `PUT` endpoints for user preferences
 
 #### Frontend: Dashboard & Settings
-- [ ] Connect the `DashboardPage` widgets (Streak, Stats, Queue) to the new real-time backend endpoints
-- [ ] Build a `/dashboard/settings` page allowing users to configure their study algorithm variables and appearance
+- [x] Connect the `DashboardPage` widgets (Streak, Stats, Queue) to the new real-time backend endpoints
+- [x] Build a `/dashboard/settings` page allowing users to configure their study algorithm variables and appearance
