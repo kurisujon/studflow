@@ -1,6 +1,6 @@
 "use client";
 
-import { X, Check } from "lucide-react";
+
 
 export function ComparisonSection() {
   const traditional = [
@@ -35,7 +35,7 @@ export function ComparisonSection() {
             <ul className="space-y-4">
               {traditional.map((item, i) => (
                 <li key={i} className="flex items-center gap-3 text-muted-foreground">
-                  <X className="w-5 h-5 text-red-500 mt-0.5 shrink-0" />
+                  <svg className="w-5 h-5 text-red-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                   <span>{item}</span>
                 </li>
               ))}
@@ -53,7 +53,7 @@ export function ComparisonSection() {
             <ul className="space-y-4">
               {studflow.map((item, i) => (
                 <li key={i} className="flex items-center gap-3 text-foreground font-medium">
-                  <Check className="w-5 h-5 text-primary mt-0.5 shrink-0" />
+                  <svg className="w-5 h-5 text-primary mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                   <span>{item}</span>
                 </li>
               ))}
