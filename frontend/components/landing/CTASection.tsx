@@ -13,21 +13,20 @@ export function CTASection() {
         <motion.h2 
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="text-4xl md:text-5xl font-bold text-foreground tracking-tight mb-6"
-        >
-          Start Learning Smarter Today
-        </motion.h2>
-        
-        <motion.p 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ delay: 0.1 }}
-          className="text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto"
+          transition={{ duration: 0.5 }}
+          className="text-center max-w-2xl mx-auto mb-10"
         >
-          Join thousands of students and professionals who have upgraded their study workflow with Studflow.
-        </motion.p>
+          <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-6">
+            Start Using Studflow Today
+          </h2>
+          <p className="text-lg text-muted-foreground">
+            Turn your meetings, videos, and PDFs into clear, organized notes in seconds. Studflow helps you capture ideas, summarize content, and stay on top of tasks instantly. No sign-up needed, just start creating notes now.
+          </p>
+        </motion.div>
         
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
@@ -40,7 +39,7 @@ export function CTASection() {
             href="/sign-up"
             className="w-full sm:w-auto px-8 py-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded-[12px] font-semibold text-base transition-colors flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(37,99,235,0.3)]"
           >
-            Start Studying 
+            Try It Free Now
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
           </Link>
           <Link
