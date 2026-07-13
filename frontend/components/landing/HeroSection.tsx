@@ -91,7 +91,7 @@ export function HeroSection() {
               <div className="h-4 w-full bg-foreground/10 rounded" />
               <div className="h-4 w-full bg-foreground/10 rounded" />
               <div className="h-4 w-[85%] bg-foreground/10 rounded" />
-              <div className="h-4 w-[90%] bg-primary/10 rounded border-l-2 border-[#8B5CF6] pl-2" />
+              <div className="h-4 w-[90%] bg-primary/10 rounded border-l-2 border-primary pl-2" />
               <div className="h-4 w-full bg-foreground/10 rounded" />
             </div>
 

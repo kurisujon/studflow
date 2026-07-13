@@ -6,7 +6,7 @@ export function PhilosophySection() {
   return (
     <section className="w-full py-32 bg-background flex flex-col items-center relative overflow-hidden">
       {/* Background elements */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#2563EB]/5 via-transparent to-transparent pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent pointer-events-none" />
       
       <div className="w-full max-w-4xl px-6 text-center z-10">
         <motion.h2 

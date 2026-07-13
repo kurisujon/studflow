@@ -40,7 +40,7 @@ export function HowItWorksSection() {
                 className={`relative flex items-center gap-6 md:gap-0 ${idx % 2 === 0 ? 'md:flex-row' : 'md:flex-row-reverse'}`}
               >
                 {/* Node */}
-                <div className="absolute left-8 md:left-1/2 -ml-6 w-12 h-12 rounded-full bg-muted border-4 border-[#171717] shadow-xl flex items-center justify-center z-10">
+                <div className="absolute left-8 md:left-1/2 -ml-6 w-12 h-12 rounded-full bg-muted border-4 border-background shadow-xl flex items-center justify-center z-10">
                   <step.icon className="w-5 h-5 text-primary" />
                 </div>
 

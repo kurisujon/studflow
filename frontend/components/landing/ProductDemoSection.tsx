@@ -16,7 +16,7 @@ export function ProductDemoSection() {
 
         {/* Video Placeholder Container */}
         <div className="relative w-full aspect-video bg-card rounded-2xl border border-border shadow-2xl overflow-hidden group cursor-pointer flex items-center justify-center">
-          <div className="absolute inset-0 bg-gradient-to-tr from-[#2563EB]/10 to-[#8B5CF6]/10 opacity-50 group-hover:opacity-100 transition-opacity" />
+          <div className="absolute inset-0 bg-gradient-to-tr from-primary/10 to-secondary/10 opacity-50 group-hover:opacity-100 transition-opacity" />
           
           <motion.div 
             whileHover={{ scale: 1.05 }}

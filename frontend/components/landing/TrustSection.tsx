@@ -9,25 +9,25 @@ export function TrustSection() {
       title: "Students",
       description: "Understand lectures and textbooks faster.",
       icon: GraduationCap,
-      color: "#2563EB"
+      colorClass: "text-primary", bgClass: "bg-primary/15"
     },
     {
       title: "Researchers",
       description: "Extract important information from documents.",
       icon: FlaskConical,
-      color: "#8B5CF6"
+      colorClass: "text-secondary", bgClass: "bg-secondary/15"
     },
     {
       title: "Professionals",
       description: "Learn new concepts efficiently.",
       icon: Briefcase,
-      color: "#14B8A6"
+      colorClass: "text-primary", bgClass: "bg-primary/15"
     },
     {
       title: "Self-Learners",
       description: "Organize and master self-study materials.",
       icon: UserRound,
-      color: "#F59E0B"
+      colorClass: "text-secondary", bgClass: "bg-secondary/15"
     }
   ];
 
@@ -69,8 +69,8 @@ export function TrustSection() {
               variants={item}
               className="bg-card border border-border rounded-[16px] p-6 flex flex-col gap-4 hover:bg-muted hover:border-border transition-colors"
             >
-              <div className="p-3 rounded-xl w-fit" style={{ backgroundColor: `${card.color}15` }}>
-                <card.icon className="w-6 h-6" style={{ color: card.color }} />
+              <div className={`p-3 rounded-xl w-fit ${card.bgClass}`}>
+                <card.icon className={`w-6 h-6 ${card.colorClass}`} />
               </div>
               <div>
                 <h3 className="text-foreground font-semibold text-lg">{card.title}</h3>

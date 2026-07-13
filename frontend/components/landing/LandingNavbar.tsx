@@ -24,13 +24,11 @@ export function LandingNavbar() {
 
   return (
     <motion.header
-      className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center px-6 transition-colors duration-300"
-      initial={{ backgroundColor: "rgba(10, 10, 10, 0)", backdropFilter: "blur(0px)" }}
-      animate={{
-        backgroundColor: isScrolled ? "rgba(23, 23, 23, 0.85)" : "rgba(10, 10, 10, 0)",
-        backdropFilter: isScrolled ? "blur(12px)" : "blur(0px)",
-        borderBottom: isScrolled ? "1px solid rgba(255, 255, 255, 0.05)" : "1px solid rgba(255, 255, 255, 0)",
-      }}
+      className={`fixed top-0 left-0 right-0 z-50 flex items-center justify-center px-6 transition-all duration-300 ${
+        isScrolled 
+          ? "bg-background/85 backdrop-blur-md border-b border-border shadow-sm" 
+          : "bg-transparent border-b border-transparent"
+      }`}
       style={{ height: "72px" }}
     >
       <div className="w-full max-w-7xl flex items-center justify-between">

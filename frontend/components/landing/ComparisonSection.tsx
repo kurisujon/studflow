@@ -1,6 +1,6 @@
 "use client";
 
-import { XCircle, CheckCircle2 } from "lucide-react";
+import { X, Check } from "lucide-react";
 
 export function ComparisonSection() {
   const traditional = [
@@ -35,7 +35,7 @@ export function ComparisonSection() {
             <ul className="space-y-4">
               {traditional.map((item, i) => (
                 <li key={i} className="flex items-center gap-3 text-muted-foreground">
-                  <XCircle className="w-5 h-5 text-red-500/70" />
+                  <X className="w-5 h-5 text-red-500 mt-0.5 shrink-0" />
                   <span>{item}</span>
                 </li>
               ))}
@@ -43,7 +43,7 @@ export function ComparisonSection() {
           </div>
 
           {/* Studflow */}
-          <div className="bg-gradient-to-b from-[#2563EB]/10 to-transparent border border-primary/20 rounded-2xl p-8 relative overflow-hidden">
+          <div className="bg-gradient-to-b from-primary/10 to-transparent border border-primary/20 rounded-2xl p-8 relative overflow-hidden">
             <div className="absolute top-0 right-0 p-4">
               <div className="text-[10px] font-bold tracking-wider text-primary uppercase bg-primary/10 px-2 py-1 rounded">The Modern Way</div>
             </div>
@@ -53,7 +53,7 @@ export function ComparisonSection() {
             <ul className="space-y-4">
               {studflow.map((item, i) => (
                 <li key={i} className="flex items-center gap-3 text-foreground font-medium">
-                  <CheckCircle2 className="w-5 h-5 text-primary" />
+                  <Check className="w-5 h-5 text-primary mt-0.5 shrink-0" />
                   <span>{item}</span>
                 </li>
               ))}
