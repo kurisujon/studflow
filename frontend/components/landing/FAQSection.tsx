@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import * as Lucide from "lucide-react";
-const { ChevronDown } = Lucide as unknown as Record<string, React.ElementType>;
+import { ChevronDown } from "lucide-react";
 
 export function FAQSection() {
   const faqs = [
@@ -34,9 +33,9 @@ export function FAQSection() {
   ];
 
   return (
-    <section className="w-full py-24 bg-[#0A0A0A] flex flex-col items-center">
+    <section className="w-full py-24 bg-background flex flex-col items-center">
       <div className="w-full max-w-3xl px-6">
-        <h2 className="text-3xl md:text-4xl font-bold text-[#F9FAFB] tracking-tight text-center mb-16">
+        <h2 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight text-center mb-16">
           Frequently Asked Questions
         </h2>
 
@@ -54,13 +53,13 @@ function FAQItem({ question, answer }: { question: string, answer: string }) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="bg-[#171717] border border-white/5 rounded-xl overflow-hidden">
+    <div className="bg-card border border-border rounded-xl overflow-hidden">
       <button 
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center justify-between p-6 text-left focus:outline-none"
       >
-        <span className="font-semibold text-[#F9FAFB]">{question}</span>
-        <ChevronDown className={`w-5 h-5 text-[#A1A1AA] transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`} />
+        <span className="font-semibold text-foreground">{question}</span>
+        <ChevronDown className={`w-5 h-5 text-muted-foreground transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`} />
       </button>
       
       <AnimatePresence>
@@ -71,7 +70,7 @@ function FAQItem({ question, answer }: { question: string, answer: string }) {
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.3, ease: "easeInOut" }}
           >
-            <div className="px-6 pb-6 text-[#A1A1AA] leading-relaxed">
+            <div className="px-6 pb-6 text-muted-foreground leading-relaxed">
               {answer}
             </div>
           </motion.div>

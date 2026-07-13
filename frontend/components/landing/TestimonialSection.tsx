@@ -1,8 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import * as Lucide from "lucide-react";
-const { Quote } = Lucide as unknown as Record<string, React.ElementType>;
+import { Quote } from "lucide-react";
 
 export function TestimonialSection() {
   const testimonials = [
@@ -24,9 +23,9 @@ export function TestimonialSection() {
   ];
 
   return (
-    <section id="reviews" className="w-full py-24 bg-[#171717] border-y border-white/5 flex flex-col items-center">
+    <section id="reviews" className="w-full py-24 bg-card border-y border-border flex flex-col items-center">
       <div className="w-full max-w-7xl px-6">
-        <h2 className="text-3xl md:text-4xl font-bold text-[#F9FAFB] tracking-tight text-center mb-16">
+        <h2 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight text-center mb-16">
           Loved by Students Everywhere
         </h2>
 
@@ -38,13 +37,13 @@ export function TestimonialSection() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: idx * 0.1 }}
-              className="bg-[#1F1F1F] p-8 rounded-2xl border border-white/5 relative"
+              className="bg-muted p-8 rounded-2xl border border-border relative"
             >
-              <Quote className="w-8 h-8 text-[#2563EB]/20 absolute top-6 right-6" />
-              <p className="text-[#F9FAFB] mb-8 leading-relaxed relative z-10 text-lg">&quot;{t.text}&quot;</p>
+              <Quote className="w-8 h-8 text-primary/20 absolute top-6 right-6" />
+              <p className="text-foreground mb-8 leading-relaxed relative z-10 text-lg">&quot;{t.text}&quot;</p>
               <div>
-                <div className="font-semibold text-[#F9FAFB]">{t.name}</div>
-                <div className="text-sm text-[#A1A1AA]">{t.role}</div>
+                <div className="font-semibold text-foreground">{t.name}</div>
+                <div className="text-sm text-muted-foreground">{t.role}</div>
               </div>
             </motion.div>
           ))}

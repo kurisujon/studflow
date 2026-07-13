@@ -13,7 +13,7 @@ import { LandingFooter } from "@/components/landing/LandingFooter";
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-[#F9FAFB] font-sans overflow-x-hidden selection:bg-[#2563EB]/30">
+    <div className="min-h-screen bg-background text-foreground font-sans overflow-x-hidden selection:bg-primary/30">
       <LandingNavbar />
       
       {/* We use main to wrap content and offset for navbar if needed, though sticky nav usually overlays */}

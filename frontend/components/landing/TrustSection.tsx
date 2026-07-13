@@ -1,8 +1,7 @@
 "use client";
 
 import { motion, Variants } from "framer-motion";
-import * as Lucide from "lucide-react";
-const { GraduationCap, FlaskConical, Briefcase, UserRound } = Lucide as unknown as Record<string, React.ElementType>;
+import { GraduationCap, FlaskConical, Briefcase, UserRound } from "lucide-react";
 
 export function TrustSection() {
   const cards = [
@@ -46,13 +45,13 @@ export function TrustSection() {
   };
 
   return (
-    <section className="w-full py-20 bg-[#0A0A0A] border-t border-white/5 relative z-10 flex flex-col items-center">
+    <section className="w-full py-20 bg-background border-t border-border relative z-10 flex flex-col items-center">
       <div className="w-full max-w-7xl px-6">
         <div className="text-center mb-12">
-          <h2 className="text-2xl md:text-3xl font-bold text-[#F9FAFB] tracking-tight">
+          <h2 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">
             Designed For Better Learning
           </h2>
-          <p className="text-[#A1A1AA] mt-4 max-w-xl mx-auto">
+          <p className="text-muted-foreground mt-4 max-w-xl mx-auto">
             Studflow adapts to your workflow, whether you&apos;re passing exams or staying ahead in your career.
           </p>
         </div>
@@ -68,14 +67,14 @@ export function TrustSection() {
             <motion.div 
               key={i}
               variants={item}
-              className="bg-[#171717] border border-white/5 rounded-[16px] p-6 flex flex-col gap-4 hover:bg-[#1F1F1F] hover:border-white/10 transition-colors"
+              className="bg-card border border-border rounded-[16px] p-6 flex flex-col gap-4 hover:bg-muted hover:border-border transition-colors"
             >
               <div className="p-3 rounded-xl w-fit" style={{ backgroundColor: `${card.color}15` }}>
                 <card.icon className="w-6 h-6" style={{ color: card.color }} />
               </div>
               <div>
-                <h3 className="text-[#F9FAFB] font-semibold text-lg">{card.title}</h3>
-                <p className="text-[#A1A1AA] text-sm mt-1">{card.description}</p>
+                <h3 className="text-foreground font-semibold text-lg">{card.title}</h3>
+                <p className="text-muted-foreground text-sm mt-1">{card.description}</p>
               </div>
             </motion.div>
           ))}

@@ -35,18 +35,18 @@ export function LandingNavbar() {
     >
       <div className="w-full max-w-7xl flex items-center justify-between">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 font-bold text-lg text-[#F9FAFB]">
+        <Link href="/" className="flex items-center gap-2 font-bold text-lg text-foreground">
           <Image src="/studflow_logo.png" alt="Studflow Logo" width={28} height={28} priority />
           Studflow
         </Link>
 
         {/* Desktop Nav */}
-        <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-[#A1A1AA]">
+        <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-muted-foreground">
           {navLinks.map((link) => (
             <Link 
               key={link.label} 
               href={link.href}
-              className="hover:text-[#F9FAFB] transition-colors"
+              className="hover:text-foreground transition-colors"
             >
               {link.label}
             </Link>
@@ -55,12 +55,12 @@ export function LandingNavbar() {
 
         {/* Actions */}
         <div className="flex items-center gap-4">
-          <Link href="/sign-in" className="hidden sm:block text-sm font-medium text-[#F9FAFB] hover:text-[#2563EB] transition-colors">
+          <Link href="/sign-in" className="hidden sm:block text-sm font-medium text-foreground hover:text-primary transition-colors">
             Login
           </Link>
           <Link 
             href="/sign-up" 
-            className="bg-[#2563EB] hover:bg-[#1d4ed8] text-white text-sm font-medium px-4 py-2 rounded-[12px] transition-colors"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium px-4 py-2 rounded-[12px] transition-colors"
           >
             Get Started
           </Link>
