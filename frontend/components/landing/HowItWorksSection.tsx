@@ -11,74 +11,49 @@ export function HowItWorksSection() {
     { title: "Generate Summary & Study Resources", icon: Sparkles },
     { title: "Read With AI Assistance", icon: BookOpen },
     { title: "Practice With Flashcards & Quizzes", icon: Layers },
+    { title: "Track Your Learning Progress", icon: BarChart3 }
+  ];
+
   return (
     <section id="how-it-works" className="w-full py-24 bg-card border-y border-border flex flex-col items-center">
       <div className="w-full max-w-4xl px-6">
-        <div className="text-center mb-16 max-w-3xl mx-auto">
-          <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-6">How to Use Studflow Quickly?</h2>
-          <p className="text-lg text-muted-foreground">
-            Studflow makes it easy to turn audio, video, and documents into organized notes online. Just upload your file, choose settings, and let AI generate summaries and transcripts automatically.
+        <div className="text-center mb-16">
+          <h2 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight">
+            How Studflow Works
+          </h2>
+          <p className="text-muted-foreground mt-4 text-lg">
+            From raw document to complete mastery in six simple steps.
           </p>
         </div>
 
         <div className="relative">
-          {/* Connecting line */}
-          <div className="hidden md:block absolute top-1/2 left-0 w-full h-0.5 bg-border -translate-y-1/2" />
+          {/* Vertical Timeline Line */}
+          <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-foreground/10 md:left-1/2 md:-ml-[1px]" />
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 relative z-10">
-            {/* Step 1 */}
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-              className="flex flex-col items-center text-center relative group"
-            >
-              <div className="w-16 h-16 rounded-2xl bg-card border border-border shadow-lg flex items-center justify-center mb-6 relative z-10 group-hover:scale-110 transition-transform duration-300">
-                <Upload className="w-8 h-8 text-primary" />
-                <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm shadow-md">1</div>
-              </div>
-              <h3 className="text-xl font-bold text-foreground mb-3">Upload Your File</h3>
-              <p className="text-muted-foreground">
-                Add an audio, video, or PDF file from your device to start taking notes online.
-              </p>
-            </motion.div>
+          <div className="space-y-12">
+            {steps.map((step, idx) => (
+              <motion.div 
+                key={idx}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-100px" }}
+                transition={{ duration: 0.5, delay: idx * 0.1 }}
+                className={`relative flex items-center gap-6 md:gap-0 ${idx % 2 === 0 ? 'md:flex-row' : 'md:flex-row-reverse'}`}
+              >
+                {/* Node */}
+                <div className="absolute left-8 md:left-1/2 -ml-6 w-12 h-12 rounded-full bg-muted border-4 border-background shadow-xl flex items-center justify-center z-10">
+                  <step.icon className="w-5 h-5 text-primary" />
+                </div>
 
-            {/* Step 2 */}
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-              className="flex flex-col items-center text-center relative group"
-            >
-              <div className="w-16 h-16 rounded-2xl bg-card border border-border shadow-lg flex items-center justify-center mb-6 relative z-10 group-hover:scale-110 transition-transform duration-300">
-                <BrainCircuit className="w-8 h-8 text-secondary" />
-                <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-secondary text-primary-foreground flex items-center justify-center font-bold text-sm shadow-md">2</div>
-              </div>
-              <h3 className="text-xl font-bold text-foreground mb-3">Choose AI Note Settings</h3>
-              <p className="text-muted-foreground">
-                Select language, speaker recognition, and transcription accuracy options before processing.
-              </p>
-            </motion.div>
-
-            {/* Step 3 */}
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: 0.3 }}
-              className="flex flex-col items-center text-center relative group"
-            >
-              <div className="w-16 h-16 rounded-2xl bg-card border border-border shadow-lg flex items-center justify-center mb-6 relative z-10 group-hover:scale-110 transition-transform duration-300">
-                <FileText className="w-8 h-8 text-primary" />
-                <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm shadow-md">3</div>
-              </div>
-              <h3 className="text-xl font-bold text-foreground mb-3">Generate and Download Notes</h3>
-              <p className="text-muted-foreground">
-                Create AI notes, summaries, and transcripts, then download or save them instantly.
-              </p>
-            </motion.div>
+                {/* Content */}
+                <div className={`pl-20 md:pl-0 md:w-1/2 ${idx % 2 === 0 ? 'md:pr-16 md:text-right' : 'md:pl-16'}`}>
+                  <div className="bg-muted border border-border p-6 rounded-2xl hover:border-border transition-colors">
+                    <div className="text-sm font-bold text-primary mb-1">Step {idx + 1}</div>
+                    <h3 className="text-xl font-semibold text-foreground">{step.title}</h3>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
           </div>
         </div>
       </div>

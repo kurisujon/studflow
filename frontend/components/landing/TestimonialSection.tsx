@@ -7,34 +7,19 @@ const { Quote } = Lucide as unknown as Record<string, React.ElementType>;
 export function TestimonialSection() {
   const testimonials = [
     {
-      quote: "Studflow has completely changed how I handle meetings. I no longer worry about missing details, and it quickly turns calls, lectures, and videos into clear, searchable notes. It's fast, accurate, and makes studying or work so much easier.",
-      author: "M.J.",
-      role: "Project Manager"
+      name: "Sarah M.",
+      role: "Medical Student",
+      text: "Studflow helped me understand complicated lecture materials faster. The active recall flashcards alone saved me hours of prep time."
     },
     {
-      quote: "I love using Studflow for my online classes. Uploading a lecture video and getting a neat, summarized note takes just minutes. It helps me focus during class without stressing about writing everything down.",
-      author: "S.L.",
-      role: "Student"
+      name: "James T.",
+      role: "Computer Science Major",
+      text: "I upload research papers and use the AI tutor to explain complex algorithms. It's like having a TA available 24/7."
     },
     {
-      quote: "Studflow saves me hours every week. I record client calls, get instant transcripts, and can review key points without replaying the entire meeting. It's simple, free, and works across all my devices.",
-      author: "R.K.",
-      role: "Sales Executive"
-    },
-    {
-      quote: "Using Studflow for webinar summaries is amazing. I can capture main ideas, action items, and important quotes automatically. It's a must-have tool for remote teams and online learning.",
-      author: "T.P.",
-      role: "Marketing Specialist"
-    },
-    {
-      quote: "Studflow is the easiest way to turn PDFs and video content into notes. I don't need to type or copy anything, and the AI summaries are spot on. It really improves productivity for work and study.",
-      author: "L.C.",
-      role: "Research Analyst"
-    },
-    {
-      quote: "I rely on Studflow every day for meetings and interviews. The auto transcription and note generation help me stay organized and focused. Plus, it's free and fast, which makes life much easier.",
-      author: "D.N.",
-      role: "Entrepreneur"
+      name: "Elena R.",
+      role: "Law Student",
+      text: "The ability to ask questions grounded directly in my case studies ensures I'm not getting hallucinations, just pure factual analysis."
     }
   ];
 
@@ -56,9 +41,9 @@ export function TestimonialSection() {
               className="bg-muted p-8 rounded-2xl border border-border relative"
             >
               <Quote className="w-8 h-8 text-primary/20 absolute top-6 right-6" />
-              <p className="text-foreground mb-8 leading-relaxed relative z-10 text-lg">&quot;{t.quote}&quot;</p>
+              <p className="text-foreground mb-8 leading-relaxed relative z-10 text-lg">&quot;{t.text}&quot;</p>
               <div>
-                <div className="font-semibold text-foreground">{t.author}</div>
+                <div className="font-semibold text-foreground">{t.name}</div>
                 <div className="text-sm text-muted-foreground">{t.role}</div>
               </div>
             </motion.div>
