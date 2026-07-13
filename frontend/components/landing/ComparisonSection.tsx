@@ -1,7 +1,7 @@
 "use client";
 
 import * as Lucide from "lucide-react";
-const { XCircle, CheckCircle2 } = Lucide as any;
+const { XCircle, CheckCircle2 } = Lucide as unknown as Record<string, React.ElementType>;
 
 export function ComparisonSection() {
   const traditional = [

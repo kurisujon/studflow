@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import * as Lucide from "lucide-react";
-const { Quote } = Lucide as any;
+const { Quote } = Lucide as unknown as Record<string, React.ElementType>;
 
 export function TestimonialSection() {
   const testimonials = [
@@ -41,7 +41,7 @@ export function TestimonialSection() {
               className="bg-[#1F1F1F] p-8 rounded-2xl border border-white/5 relative"
             >
               <Quote className="w-8 h-8 text-[#2563EB]/20 absolute top-6 right-6" />
-              <p className="text-[#F9FAFB] mb-8 leading-relaxed relative z-10 text-lg">"{t.text}"</p>
+              <p className="text-[#F9FAFB] mb-8 leading-relaxed relative z-10 text-lg">&quot;{t.text}&quot;</p>
               <div>
                 <div className="font-semibold text-[#F9FAFB]">{t.name}</div>
                 <div className="text-sm text-[#A1A1AA]">{t.role}</div>

@@ -1,8 +1,8 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, Variants } from "framer-motion";
 import * as Lucide from "lucide-react";
-const { GraduationCap, FlaskConical, Briefcase, UserRound } = Lucide as any;
+const { GraduationCap, FlaskConical, Briefcase, UserRound } = Lucide as unknown as Record<string, React.ElementType>;
 
 export function TrustSection() {
   const cards = [
@@ -32,7 +32,7 @@ export function TrustSection() {
     }
   ];
 
-  const container = {
+  const container: Variants = {
     hidden: { opacity: 0 },
     show: {
       opacity: 1,
@@ -40,10 +40,10 @@ export function TrustSection() {
     }
   };
 
-  const item = {
+  const item: Variants = {
     hidden: { opacity: 0, y: 20 },
     show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 50 } }
-  } as any;
+  };
 
   return (
     <section className="w-full py-20 bg-[#0A0A0A] border-t border-white/5 relative z-10 flex flex-col items-center">
@@ -53,7 +53,7 @@ export function TrustSection() {
             Designed For Better Learning
           </h2>
           <p className="text-[#A1A1AA] mt-4 max-w-xl mx-auto">
-            Studflow adapts to your workflow, whether you're passing exams or staying ahead in your career.
+            Studflow adapts to your workflow, whether you&apos;re passing exams or staying ahead in your career.
           </p>
         </div>
 

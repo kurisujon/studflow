@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import * as Lucide from "lucide-react";
-const { PlayCircle } = Lucide as any;
+const { PlayCircle } = Lucide as unknown as Record<string, React.ElementType>;
 
 export function ProductDemoSection() {
   return (

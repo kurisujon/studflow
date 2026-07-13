@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import * as Lucide from "lucide-react";
-const { ChevronDown } = Lucide as any;
+const { ChevronDown } = Lucide as unknown as Record<string, React.ElementType>;
 
 export function FAQSection() {
   const faqs = [

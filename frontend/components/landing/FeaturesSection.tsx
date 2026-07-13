@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import * as Lucide from "lucide-react";
-const { FileText, Bot, Highlighter, Layers, CircleHelp, LayoutDashboard, Search, CheckCircle2 } = Lucide as any;
+const { FileText, Bot, Highlighter, Layers, CircleHelp, LayoutDashboard, Search, CheckCircle2 } = Lucide as unknown as Record<string, React.ElementType>;
 
 export function FeaturesSection() {
   const features = [

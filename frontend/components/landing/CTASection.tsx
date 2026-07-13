@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 import * as Lucide from "lucide-react";
-const { ArrowRight } = Lucide as any;
+const { ArrowRight } = Lucide as unknown as Record<string, React.ElementType>;
 
 export function CTASection() {
   return (

@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 import * as Lucide from "lucide-react";
-const { FileText, Bot, BrainCircuit, Layers } = Lucide as any;
+const { Bot, Layers } = Lucide as unknown as Record<string, React.ElementType>;
 
 export function HeroSection() {
   return (
