@@ -45,15 +45,15 @@ export function FeaturesSection() {
 
   return (
     <section id="features" className="w-full py-24 bg-background overflow-hidden relative">
-      <div className="w-full max-w-7xl px-6 flex flex-col items-center mb-16 mx-auto">
+      <div className="w-full max-w-7xl px-4 sm:px-6 flex flex-col items-center mb-16 mx-auto">
         <h2 className="text-3xl md:text-5xl font-bold text-foreground tracking-tight text-center">
           Experience Intelligent Learning
         </h2>
       </div>
 
-      <div className="w-full max-w-7xl px-6 space-y-32 mx-auto">
+      <div className="w-full max-w-7xl px-4 sm:px-6 space-y-32 mx-auto">
         {features.map((feature, idx) => (
-          <div key={idx} className={`flex flex-col ${idx % 2 === 1 ? 'md:flex-row-reverse' : 'md:flex-row'} items-center gap-12 lg:gap-24`}>
+          <div key={idx} className={`flex flex-col ${idx % 2 === 1 ? 'lg:flex-row-reverse' : 'lg:flex-row'} items-center gap-12 lg:gap-24`}>
             
             {/* Text Content */}
             <motion.div 
@@ -87,7 +87,7 @@ export function FeaturesSection() {
               transition={{ duration: 0.5, ease: "easeOut", delay: 0.2 }}
               className="flex-1 w-full"
             >
-              <div className="relative aspect-square md:aspect-[4/3] w-full bg-card border border-border rounded-[16px] overflow-hidden shadow-2xl flex items-center justify-center p-8">
+              <div className="relative w-full min-h-[350px] lg:min-h-[450px] bg-card border border-border rounded-[16px] overflow-hidden shadow-2xl flex items-center justify-center p-8">
                 <FeatureMockup type={feature.mockupType} />
               </div>
             </motion.div>

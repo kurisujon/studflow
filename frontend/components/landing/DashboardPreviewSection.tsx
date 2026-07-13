@@ -30,7 +30,7 @@ export function DashboardPreviewSection() {
           initial={{ opacity: 0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="w-full aspect-[16/10] md:aspect-[21/9] bg-surface border border-border rounded-2xl shadow-2xl flex overflow-hidden relative"
+          className="w-full min-h-[500px] bg-surface border border-border rounded-2xl shadow-2xl flex flex-col md:flex-row overflow-hidden relative"
         >
           {/* Sidebar */}
           <div className="w-16 md:w-64 bg-card border-r border-border flex flex-col p-4 gap-2 z-10">

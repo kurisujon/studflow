@@ -30,7 +30,7 @@ export function LearningMomentSection() {
 
   return (
     <section className="w-full py-24 bg-card border-y border-border flex flex-col items-center overflow-hidden">
-      <div className="w-full max-w-7xl px-6">
+      <div className="w-full max-w-7xl px-4 sm:px-6 mx-auto">
         <div className="text-center mb-16">
           <motion.h2 
             initial={{ opacity: 0, y: 20 }}

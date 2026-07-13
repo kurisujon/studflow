@@ -22,7 +22,7 @@ export function ComparisonSection() {
 
   return (
     <section className="w-full py-24 bg-card flex flex-col items-center">
-      <div className="w-full max-w-5xl px-6">
+      <div className="w-full max-w-5xl px-4 sm:px-6 mx-auto">
         <div className="text-center mb-16">
           <motion.h2 
             initial={{ opacity: 0, y: 20 }}
