@@ -1,80 +1,87 @@
 "use client";
 
-import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useState } from "react";
+import * as Lucide from "lucide-react";
+const { ChevronDown } = Lucide as unknown as Record<string, React.ElementType>;
 
 export function FAQSection() {
   const faqs = [
     {
       question: "What documents can I upload?",
-      answer: "Studflow currently supports standard document formats including PDF, DOCX, and TXT files. We recommend uploading lecture slides, academic papers, and reading materials."
+      answer: "Studflow supports a wide variety of formats including PDFs, lecture slides (PPTX), Word documents, and text files. We also support extracting text directly from YouTube links and web articles."
     },
     {
-      question: "How does AI understand my files?",
-      answer: "When you upload a document, our system analyzes the text, structure, and context. It creates a secure semantic index that allows our AI to accurately extract concepts, generate summaries, and answer your questions based strictly on that source material."
+      question: "How does Studflow understand my files?",
+      answer: "We use advanced large language models combined with vector search to process your documents. The AI breaks down the content into concepts, builds a knowledge graph, and uses that context to provide accurate answers and summaries."
     },
     {
-      question: "Can I ask questions about my documents?",
-      answer: "Yes. Our Contextual AI Tutor lets you highlight specific passages or ask general questions. Every answer it provides is grounded in the material you uploaded, reducing hallucinations and ensuring accuracy."
+      question: "Can AI answer from my documents?",
+      answer: "Yes! Every answer from the AI Tutor is directly grounded in the materials you uploaded. It acts as a personalized tutor that knows exactly what you're studying, rather than giving generic internet answers."
     },
     {
-      question: "Can Studflow generate quizzes?",
-      answer: "Absolutely. Studflow can automatically generate multiple-choice and short-answer quizzes based on your document's key concepts, helping you test your understanding instantly."
+      question: "Can I create quizzes automatically?",
+      answer: "Absolutely. Once a document is processed, Studflow can instantly generate multiple-choice quizzes, flashcards, and short-answer questions tailored to test your understanding of the material."
     },
     {
-      question: "Are my documents private?",
-      answer: "Yes. Your uploaded documents are private to your account. We do not use your personal study materials to train public AI models."
+      question: "Are my notes saved?",
+      answer: "Yes, all your notes, highlights, and generated study materials are securely saved to your personal dashboard. You can organize them by subject and access them across all your devices."
     },
     {
-      question: "Can I save notes and highlights?",
-      answer: "Yes, you can highlight text directly in the interactive reader and attach personal notes. These are saved to your dashboard for easy review later."
+      question: "Is my data private?",
+      answer: "We take your privacy seriously. Your uploaded documents are only used to generate your personal study materials. We do not sell your data or use your personal files to train public AI models."
     }
   ];
 
+  const [openIndex, setOpenIndex] = useState<number | null>(0);
+
   return (
-    <section className="w-full py-24 bg-background flex flex-col items-center">
+    <section id="faq" className="w-full py-24 bg-background flex flex-col items-center">
       <div className="w-full max-w-3xl px-6">
-        <h2 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight text-center mb-16">
-          Frequently Asked Questions
-        </h2>
+        <div className="text-center mb-16">
+          <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-4">Frequently Asked Questions</h2>
+          <p className="text-lg text-muted-foreground">
+            Everything you need to know about Studflow.
+          </p>
+        </div>
 
         <div className="space-y-4">
           {faqs.map((faq, idx) => (
-            <FAQItem key={idx} question={faq.question} answer={faq.answer} />
+            <motion.div 
+              key={idx}
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: idx * 0.1 }}
+              className="bg-card border border-border rounded-2xl overflow-hidden"
+            >
+              <button
+                onClick={() => setOpenIndex(openIndex === idx ? null : idx)}
+                className="w-full px-6 py-5 flex items-center justify-between text-left focus:outline-none"
+              >
+                <span className="font-semibold text-foreground text-lg">{faq.question}</span>
+                <ChevronDown 
+                  className={`w-5 h-5 text-muted-foreground transition-transform duration-300 ${openIndex === idx ? "rotate-180" : ""}`} 
+                />
+              </button>
+              <AnimatePresence>
+                {openIndex === idx && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <div className="px-6 pb-5 text-muted-foreground leading-relaxed">
+                      {faq.answer}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
           ))}
         </div>
       </div>
     </section>
-  );
-}
-
-function FAQItem({ question, answer }: { question: string, answer: string }) {
-  const [isOpen, setIsOpen] = useState(false);
-
-  return (
-    <div className="bg-card border border-border rounded-xl overflow-hidden">
-      <button 
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between p-6 text-left focus:outline-none"
-      >
-        <span className="font-semibold text-foreground">{question}</span>
-        <svg className={`w-5 h-5 text-muted-foreground transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-      </button>
-      
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: "easeInOut" }}
-          >
-            <div className="px-6 pb-6 text-muted-foreground leading-relaxed">
-              {answer}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
   );
 }

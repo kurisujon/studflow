@@ -567,30 +567,31 @@ select {
 
 .dark {
   color-scheme: dark;
-  --background: #11100f;
-  --foreground: #f5f2ed;
-  --card: #1a1816;
-  --card-foreground: #f5f2ed;
-  --popover: #1a1816;
-  --popover-foreground: #f5f2ed;
-  --muted: #24211f;
-  --muted-foreground: #aaa29a;
-  --border: #332f2b;
-  --input: #3c3731;
-  --primary: var(--theme-primary);
-  --primary-foreground: var(--theme-on-primary);
-  --secondary: #24211f;
-  --secondary-foreground: #f5f2ed;
-  --accent: #24211f;
-  --accent-foreground: #f5f2ed;
+  --background: #0B1120;
+  --foreground: #F8FAFC;
+  --card: #172033;
+  --card-foreground: #F8FAFC;
+  --popover: #111827;
+  --popover-foreground: #F8FAFC;
+  --muted: #111827;
+  --muted-foreground: #94A3B8;
+  --border: #1E293B;
+  --input: #1E293B;
+  --primary: #3B82F6;
+  --primary-foreground: #ffffff;
+  --secondary: #14B8A6;
+  --secondary-foreground: #ffffff;
+  --accent: #8B5CF6;
+  --accent-foreground: #ffffff;
+  --success: #22C55E;
   --distill-bg: var(--background);
   --distill-surface: var(--card);
   --distill-border: var(--border);
   --distill-text-primary: var(--foreground);
-  --distill-text-secondary: #d8d1ca;
-  --distill-text-muted: #aaa29a;
+  --distill-text-secondary: #E2E8F0;
+  --distill-text-muted: var(--muted-foreground);
   --destructive: oklch(0.704 0.191 22.216);
-  --ring: var(--theme-primary);
+  --ring: var(--primary);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -598,12 +599,12 @@ select {
   --chart-5: oklch(0.269 0 0);
   --sidebar: var(--card);
   --sidebar-foreground: var(--foreground);
-  --sidebar-primary: var(--theme-primary);
-  --sidebar-primary-foreground: var(--theme-on-primary);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
   --sidebar-accent: var(--muted);
   --sidebar-accent-foreground: var(--foreground);
   --sidebar-border: var(--border);
-  --sidebar-ring: var(--theme-primary);
+  --sidebar-ring: var(--primary);
 }
 
 .dark [data-theme-color],

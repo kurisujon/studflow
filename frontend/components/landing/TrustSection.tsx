@@ -1,85 +1,77 @@
 "use client";
 
-import { motion, Variants } from "framer-motion";
+import { motion } from "framer-motion";
 import * as Lucide from "lucide-react";
-const { GraduationCap, FlaskConical, Briefcase, UserRound } = Lucide as unknown as Record<string, React.ElementType>;
+const { FileText, Highlighter, Bot, Layers, CircleHelp, LineChart } = Lucide as unknown as Record<string, React.ElementType>;
 
 export function TrustSection() {
-  const cards = [
+  const features = [
     {
-      title: "Students",
-      description: "Understand lectures and textbooks faster.",
-      icon: GraduationCap,
-      colorClass: "text-primary", bgClass: "bg-primary/15"
+      title: "AI Summary",
+      description: "Understand information faster.",
+      icon: FileText
     },
     {
-      title: "Researchers",
-      description: "Extract important information from documents.",
-      icon: FlaskConical,
-      colorClass: "text-secondary", bgClass: "bg-secondary/15"
+      title: "Smart Notes",
+      description: "Save important ideas.",
+      icon: Highlighter
     },
     {
-      title: "Professionals",
-      description: "Learn new concepts efficiently.",
-      icon: Briefcase,
-      colorClass: "text-primary", bgClass: "bg-primary/15"
+      title: "AI Tutor",
+      description: "Ask questions anytime.",
+      icon: Bot
     },
     {
-      title: "Self-Learners",
-      description: "Organize and master self-study materials.",
-      icon: UserRound,
-      colorClass: "text-secondary", bgClass: "bg-secondary/15"
+      title: "Flashcards",
+      description: "Remember concepts longer.",
+      icon: Layers
+    },
+    {
+      title: "Quizzes",
+      description: "Test your knowledge.",
+      icon: CircleHelp
+    },
+    {
+      title: "Progress",
+      description: "Track improvement.",
+      icon: LineChart
     }
   ];
 
-  const container: Variants = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: { staggerChildren: 0.1 }
-    }
-  };
-
-  const item: Variants = {
-    hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 50 } }
-  };
-
   return (
-    <section className="w-full py-20 bg-background border-t border-border relative z-10 flex flex-col items-center">
+    <section className="w-full py-24 bg-card border-y border-border flex flex-col items-center">
       <div className="w-full max-w-7xl px-6">
-        <div className="text-center mb-12">
-          <h2 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">
-            Designed For Better Learning
-          </h2>
-          <p className="text-muted-foreground mt-4 max-w-xl mx-auto">
-            Studflow adapts to your workflow, whether you&apos;re passing exams or staying ahead in your career.
-          </p>
+        <div className="text-center mb-16">
+          <motion.h2 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-3xl md:text-5xl font-bold text-foreground mb-4"
+          >
+            Everything You Need For Better Learning
+          </motion.h2>
         </div>
 
-        <motion.div 
-          variants={container}
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, margin: "-100px" }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
-        >
-          {cards.map((card, i) => (
-            <motion.div 
-              key={i}
-              variants={item}
-              className="bg-card border border-border rounded-[16px] p-6 flex flex-col gap-4 hover:bg-muted hover:border-border transition-colors"
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {features.map((feature, idx) => (
+            <motion.div
+              key={idx}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: idx * 0.1 }}
+              className="bg-surface border border-border p-6 rounded-2xl flex items-center gap-4 hover:border-primary/50 hover:shadow-md transition-all group"
             >
-              <div className={`p-3 rounded-xl w-fit ${card.bgClass}`}>
-                <card.icon className={`w-6 h-6 ${card.colorClass}`} />
+              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                <feature.icon className="w-6 h-6 text-primary" />
               </div>
               <div>
-                <h3 className="text-foreground font-semibold text-lg">{card.title}</h3>
-                <p className="text-muted-foreground text-sm mt-1">{card.description}</p>
+                <h3 className="font-bold text-foreground text-lg">{feature.title}</h3>
+                <p className="text-muted-foreground text-sm">{feature.description}</p>
               </div>
             </motion.div>
           ))}
-        </motion.div>
+        </div>
       </div>
     </section>
   );

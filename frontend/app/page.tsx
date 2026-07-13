@@ -3,29 +3,28 @@ import { HeroSection } from "@/components/landing/HeroSection";
 import { TrustSection } from "@/components/landing/TrustSection";
 import { FeaturesSection } from "@/components/landing/FeaturesSection";
 import { HowItWorksSection } from "@/components/landing/HowItWorksSection";
-import { ProductDemoSection } from "@/components/landing/ProductDemoSection";
+import { DashboardPreviewSection } from "@/components/landing/DashboardPreviewSection";
+import { ProblemSection } from "@/components/landing/ProblemSection";
 import { ComparisonSection } from "@/components/landing/ComparisonSection";
-import { PhilosophySection } from "@/components/landing/PhilosophySection";
-import { TestimonialSection } from "@/components/landing/TestimonialSection";
+import { LearningMomentSection } from "@/components/landing/LearningMomentSection";
 import { FAQSection } from "@/components/landing/FAQSection";
 import { CTASection } from "@/components/landing/CTASection";
 import { LandingFooter } from "@/components/landing/LandingFooter";
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-background text-foreground font-sans overflow-x-hidden selection:bg-primary/30">
+    <div className="dark min-h-screen bg-background text-foreground font-sans overflow-x-hidden selection:bg-primary/30">
       <LandingNavbar />
       
-      {/* We use main to wrap content and offset for navbar if needed, though sticky nav usually overlays */}
       <main className="relative flex flex-col items-center w-full">
         <HeroSection />
         <TrustSection />
         <FeaturesSection />
         <HowItWorksSection />
-        <ProductDemoSection />
+        <DashboardPreviewSection />
+        <ProblemSection />
         <ComparisonSection />
-        <PhilosophySection />
-        <TestimonialSection />
+        <LearningMomentSection />
         <FAQSection />
         <CTASection />
       </main>

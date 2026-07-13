@@ -2,73 +2,56 @@
 
 import { motion } from "framer-motion";
 import * as Lucide from "lucide-react";
-const { FileText, Bot, Highlighter, Layers, CircleHelp, LayoutDashboard, Search, CheckCircle2 } = Lucide as unknown as Record<string, React.ElementType>;
+const { FileText, Bot, Layers, CircleHelp, Search, CheckCircle2 } = Lucide as unknown as Record<string, React.ElementType>;
 
 export function FeaturesSection() {
   const features = [
     {
-      title: "AI-Powered Document Summary",
-      description: "Convert complex documents into simple explanations.",
+      title: "AI Document Understanding",
+      description: "Upload any learning material and let our AI extract the core concepts into simple, readable summaries.",
       benefits: ["Save reading time", "Understand key concepts quickly", "Focus on important information"],
       icon: FileText,
       mockupType: "summary"
     },
     {
-      title: "Interactive AI Study Reader",
-      description: "Read documents with AI assistance directly inside the learning workspace.",
+      title: "Interactive Study Reader",
+      description: "Highlight text to save notes or instantly ask the AI for deeper explanations without leaving the page.",
       benefits: ["Learn without switching applications", "Keep context while studying"],
       icon: Search,
       mockupType: "reader"
     },
     {
-      title: "Contextual AI Tutor",
-      description: "Ask questions and receive answers grounded in your uploaded documents.",
+      title: "Personal AI Tutor",
+      description: "Stuck on a concept? Chat directly with an AI tutor that understands the exact document you're reading.",
       benefits: ["Personalized tutoring", "Clear explanations", "Better understanding"],
       icon: Bot,
       mockupType: "tutor"
     },
     {
-      title: "Smart Notes & Highlights",
-      description: "Save important concepts while reading.",
-      benefits: ["Never lose important information", "Quickly revisit concepts"],
-      icon: Highlighter,
-      mockupType: "notes"
-    },
-    {
-      title: "Interactive Flashcards",
-      description: "Automatically generate flashcards from learning materials.",
+      title: "Smart Flashcards",
+      description: "Automatically generate digital flashcards from your study materials to master active recall.",
       benefits: ["Active recall", "Better memory retention"],
       icon: Layers,
       mockupType: "flashcards"
     },
     {
       title: "AI Generated Quizzes",
-      description: "Test understanding through automatically generated quizzes.",
+      description: "Test your understanding through automatically generated quizzes tailored to your reading.",
       benefits: ["Measure progress", "Practice knowledge"],
       icon: CircleHelp,
       mockupType: "quizzes"
-    },
-    {
-      title: "Learning Dashboard",
-      description: "Manage documents, notes, quizzes, and study progress.",
-      benefits: ["Track recent documents", "Monitor progress", "Review sessions"],
-      icon: LayoutDashboard,
-      mockupType: "dashboard"
     }
   ];
 
   return (
-    <section id="features" className="w-full py-24 bg-background flex flex-col items-center overflow-hidden">
-      <div className="w-full max-w-7xl px-6 flex flex-col items-center mb-16">
+    <section id="features" className="w-full py-24 bg-background overflow-hidden relative">
+      <div className="w-full max-w-7xl px-6 flex flex-col items-center mb-16 mx-auto">
         <h2 className="text-3xl md:text-5xl font-bold text-foreground tracking-tight text-center">
-          Everything You Need to Master Any Subject
+          Experience Intelligent Learning
         </h2>
-        <p className="text-muted-foreground text-lg mt-4 max-w-2xl text-center">
-          A complete suite of AI-powered tools designed to improve how you read, remember, and review.
-        </p>
       </div>
 
-      <div className="w-full max-w-7xl px-6 space-y-32">
+      <div className="w-full max-w-7xl px-6 space-y-32 mx-auto">
         {features.map((feature, idx) => (
           <div key={idx} className={`flex flex-col ${idx % 2 === 1 ? 'md:flex-row-reverse' : 'md:flex-row'} items-center gap-12 lg:gap-24`}>
             
@@ -80,7 +63,7 @@ export function FeaturesSection() {
               transition={{ duration: 0.5, ease: "easeOut" }}
               className="flex-1 w-full"
             >
-              <div className="w-12 h-12 bg-card border border-border rounded-xl flex items-center justify-center mb-6">
+              <div className="w-12 h-12 bg-card border border-border rounded-xl flex items-center justify-center mb-6 shadow-sm">
                 <feature.icon className="w-6 h-6 text-primary" />
               </div>
               <h3 className="text-2xl md:text-3xl font-bold text-foreground mb-4">{feature.title}</h3>
@@ -105,7 +88,6 @@ export function FeaturesSection() {
               className="flex-1 w-full"
             >
               <div className="relative aspect-square md:aspect-[4/3] w-full bg-card border border-border rounded-[16px] overflow-hidden shadow-2xl flex items-center justify-center p-8">
-                {/* Abstract visualization based on mockupType */}
                 <FeatureMockup type={feature.mockupType} />
               </div>
             </motion.div>
@@ -118,62 +100,188 @@ export function FeaturesSection() {
 }
 
 function FeatureMockup({ type }: { type: string }) {
-  // Return different abstract visual mockups based on feature type
   if (type === "summary") {
     return (
       <div className="w-full h-full flex flex-col gap-4">
-        <div className="h-6 w-1/3 bg-foreground/10 rounded mb-2" />
-        <div className="space-y-2">
-          <div className="h-3 w-full bg-foreground/10 rounded" />
-          <div className="h-3 w-full bg-foreground/10 rounded" />
-          <div className="h-3 w-3/4 bg-foreground/10 rounded" />
-        </div>
-        <div className="mt-4 p-4 border border-primary/20 bg-primary/5 rounded-[12px]">
-          <div className="flex items-center gap-2 mb-3">
-            <Bot className="w-4 h-4 text-primary" />
-            <div className="h-3 w-20 bg-primary/40 rounded" />
-          </div>
-          <div className="space-y-2">
-            <div className="h-2 w-full bg-foreground/10 rounded" />
-            <div className="h-2 w-5/6 bg-foreground/10 rounded" />
-          </div>
-        </div>
-      </div>
-    );
-  }
-  
-  if (type === "flashcards") {
-    return (
-      <div className="relative w-full max-w-sm aspect-[4/3]">
         <motion.div 
-          animate={{ rotate: [-2, 2, -2], zIndex: [10, 0, 10] }}
+          animate={{ y: [10, 0, 10] }} 
           transition={{ duration: 4, repeat: Infinity }}
-          className="absolute inset-0 bg-muted border border-border rounded-2xl shadow-xl p-8 flex flex-col items-center justify-center text-center origin-bottom"
+          className="w-full h-12 bg-muted rounded-md flex items-center px-4"
         >
-          <div className="h-4 w-3/4 bg-foreground/10 rounded mb-2" />
-          <div className="h-4 w-1/2 bg-foreground/10 rounded" />
-          <div className="mt-8 px-4 py-2 bg-foreground/10 rounded-full text-xs text-muted-foreground">Tap to flip</div>
+          <div className="w-24 h-2 bg-muted-foreground/30 rounded-full" />
         </motion.div>
-        <motion.div 
-          animate={{ rotate: [3, -3, 3] }}
-          transition={{ duration: 4, repeat: Infinity, delay: 0.5 }}
-          className="absolute inset-0 bg-card border border-border rounded-2xl shadow-lg -z-10"
-        />
+        <div className="flex-1 flex gap-4">
+          <motion.div 
+            animate={{ opacity: [0.5, 1, 0.5] }} 
+            transition={{ duration: 3, repeat: Infinity }}
+            className="flex-1 bg-muted rounded-md p-4 space-y-3"
+          >
+            <div className="w-full h-2 bg-muted-foreground/20 rounded-full" />
+            <div className="w-5/6 h-2 bg-muted-foreground/20 rounded-full" />
+            <div className="w-4/6 h-2 bg-muted-foreground/20 rounded-full" />
+          </motion.div>
+          <motion.div 
+            initial={{ height: "0%" }}
+            animate={{ height: "100%" }}
+            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+            className="w-1 bg-primary/30 rounded-full"
+          />
+          <div className="w-1/3 bg-primary/10 rounded-md border border-primary/20 p-4 space-y-4">
+            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+              <Bot className="w-4 h-4 text-primary" />
+            </div>
+            <div className="space-y-2">
+              <div className="w-full h-2 bg-primary/40 rounded-full" />
+              <div className="w-4/5 h-2 bg-primary/40 rounded-full" />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
 
-  // Generic fallback for others
-  return (
-    <div className="w-full h-full border border-border bg-muted rounded-xl flex flex-col p-4 opacity-70">
-      <div className="h-4 w-24 bg-foreground/10 rounded mb-6" />
-      <div className="flex-1 flex gap-4">
-        <div className="w-16 h-full bg-foreground/10 rounded-lg" />
-        <div className="flex-1 space-y-4">
-          <div className="h-20 w-full bg-foreground/10 rounded-lg" />
-          <div className="h-20 w-full bg-foreground/10 rounded-lg" />
+  if (type === "reader") {
+    return (
+      <div className="w-full h-full flex gap-4">
+        <div className="flex-1 bg-muted rounded-md p-6 space-y-4 relative">
+          <div className="w-3/4 h-4 bg-muted-foreground/20 rounded-full mb-8" />
+          <div className="space-y-2 relative">
+            <div className="w-full h-2 bg-muted-foreground/20 rounded-full" />
+            <motion.div 
+              animate={{ width: ["0%", "100%", "100%", "0%"] }}
+              transition={{ duration: 4, repeat: Infinity }}
+              className="absolute top-0 left-0 h-2 bg-accent/40 rounded-full" 
+            />
+            <div className="w-full h-2 bg-muted-foreground/20 rounded-full mt-2" />
+          </div>
+          
+          <motion.div 
+            animate={{ opacity: [0, 1, 1, 0], scale: [0.9, 1, 1, 0.9] }}
+            transition={{ duration: 4, repeat: Infinity }}
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-surface shadow-xl border border-border p-3 rounded-lg z-10 w-48"
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <Bot className="w-4 h-4 text-accent" />
+              <div className="h-2 w-16 bg-accent/40 rounded-full" />
+            </div>
+            <div className="h-2 w-full bg-muted-foreground/20 rounded-full" />
+          </motion.div>
         </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  if (type === "tutor") {
+    return (
+      <div className="w-full h-full flex flex-col gap-4">
+        <div className="flex-1 overflow-hidden space-y-4 pr-4">
+          <div className="flex justify-end">
+            <div className="bg-primary text-primary-foreground p-3 rounded-2xl rounded-tr-sm max-w-[80%]">
+              <div className="w-24 h-2 bg-primary-foreground/30 rounded-full mb-2" />
+              <div className="w-32 h-2 bg-primary-foreground/30 rounded-full" />
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+              <Bot className="w-4 h-4 text-primary" />
+            </div>
+            <div className="bg-muted border border-border p-3 rounded-2xl rounded-tl-sm w-full">
+              <motion.div 
+                animate={{ width: ["0%", "100%"] }}
+                transition={{ duration: 2, repeat: Infinity }}
+                className="h-2 bg-muted-foreground/30 rounded-full mb-2" 
+              />
+              <motion.div 
+                animate={{ width: ["0%", "80%"] }}
+                transition={{ duration: 2, repeat: Infinity, delay: 0.2 }}
+                className="h-2 bg-muted-foreground/30 rounded-full mb-2" 
+              />
+            </div>
+          </div>
+        </div>
+        <div className="h-12 bg-muted border border-border rounded-full flex items-center px-4 mt-auto">
+          <motion.div 
+            animate={{ opacity: [0, 1, 0] }}
+            transition={{ duration: 1.5, repeat: Infinity }}
+            className="w-1 h-4 bg-primary rounded-full" 
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (type === "flashcards") {
+    return (
+      <div className="w-full h-full flex items-center justify-center relative perspective-[1000px]">
+        <motion.div 
+          animate={{ rotateY: [0, 180, 180, 0] }}
+          transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+          className="relative w-56 h-72 preserve-3d"
+        >
+          {/* Front */}
+          <div className="absolute inset-0 backface-hidden bg-card border border-primary/20 rounded-xl shadow-xl p-6 flex flex-col z-10">
+            <div className="w-full flex justify-between items-center mb-6">
+              <div className="w-12 h-2 bg-primary/30 rounded-full" />
+              <Layers className="w-5 h-5 text-primary/50" />
+            </div>
+            <div className="flex-1 flex flex-col items-center justify-center text-center space-y-4">
+              <div className="w-3/4 h-4 bg-foreground/20 rounded-full" />
+              <div className="w-1/2 h-4 bg-foreground/20 rounded-full" />
+            </div>
+          </div>
+          
+          {/* Back */}
+          <div className="absolute inset-0 backface-hidden bg-primary/5 border border-primary/30 rounded-xl shadow-xl p-6 flex flex-col items-center justify-center text-center rotate-y-180">
+            <div className="w-full h-3 bg-primary/40 rounded-full mb-3" />
+            <div className="w-5/6 h-3 bg-primary/40 rounded-full mb-6" />
+            <div className="w-full flex justify-center gap-2 mt-auto">
+              <div className="w-10 h-10 bg-red-500/20 rounded-full flex items-center justify-center text-red-500 text-xs">✗</div>
+              <div className="w-10 h-10 bg-green-500/20 rounded-full flex items-center justify-center text-green-500 text-xs">✓</div>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  if (type === "quizzes") {
+    return (
+      <div className="w-full h-full flex flex-col justify-center gap-6">
+        <div className="space-y-3 mb-4">
+          <div className="w-5/6 h-3 bg-foreground/30 rounded-full" />
+          <div className="w-4/6 h-3 bg-foreground/30 rounded-full" />
+        </div>
+        
+        <div className="space-y-3">
+          <div className="w-full h-12 bg-muted rounded-lg border border-border flex items-center px-4 gap-4">
+            <div className="w-5 h-5 rounded-full border-2 border-muted-foreground/30" />
+            <div className="w-1/2 h-2 bg-muted-foreground/30 rounded-full" />
+          </div>
+          <motion.div 
+            animate={{ backgroundColor: ["rgba(59,130,246,0)", "rgba(59,130,246,0.1)"], borderColor: ["#1E293B", "#3B82F6"] }}
+            transition={{ duration: 2, repeat: Infinity, repeatType: "reverse" }}
+            className="w-full h-12 rounded-lg border flex items-center px-4 gap-4 relative overflow-hidden"
+          >
+            <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+              <CheckCircle2 className="w-3 h-3 text-primary-foreground" />
+            </div>
+            <div className="w-3/4 h-2 bg-primary/50 rounded-full" />
+            <motion.div 
+               animate={{ opacity: [0, 1] }}
+               transition={{ duration: 2, repeat: Infinity, repeatType: "reverse" }}
+               className="absolute right-4 text-green-500 text-sm font-bold"
+            >
+              +10
+            </motion.div>
+          </motion.div>
+          <div className="w-full h-12 bg-muted rounded-lg border border-border flex items-center px-4 gap-4">
+            <div className="w-5 h-5 rounded-full border-2 border-muted-foreground/30" />
+            <div className="w-2/3 h-2 bg-muted-foreground/30 rounded-full" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
 }

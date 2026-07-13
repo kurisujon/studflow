@@ -16,10 +16,9 @@ export function LandingNavbar() {
   const navLinks = [
     { label: "Features", href: "#features" },
     { label: "How It Works", href: "#how-it-works" },
-    { label: "AI Study Assistant", href: "#demo" },
-    { label: "Reviews", href: "#reviews" },
-    { label: "Pricing (Coming Soon)", href: "#" },
-    { label: "About", href: "#about" },
+    { label: "AI Tutor", href: "#features" },
+    { label: "Study Tools", href: "#features" },
+    { label: "Reviews", href: "#faq" }, // Or whatever appropriate section
   ];
 
   return (
@@ -58,9 +57,9 @@ export function LandingNavbar() {
           </Link>
           <Link 
             href="/sign-up" 
-            className="bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium px-4 py-2 rounded-[12px] transition-colors"
+            className="px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors shadow-sm"
           >
-            Get Started
+            Start Studying
           </Link>
         </div>
       </div>
