@@ -28,7 +28,7 @@ export function HeroSection() {
           transition={{ duration: 0.5, ease: "easeOut", delay: 0.1 }}
           className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight text-foreground max-w-4xl mb-6 leading-tight"
         >
-          Transform Your Documents Into Smarter Learning Experiences
+          Take Notes with Meetings, Video, PDF and Any Content Online Free
         </motion.h1>
 
         <motion.p
@@ -37,7 +37,7 @@ export function HeroSection() {
           transition={{ duration: 0.5, ease: "easeOut", delay: 0.2 }}
           className="text-lg md:text-xl text-muted-foreground max-w-2xl mb-10 leading-relaxed"
         >
-          Upload your PDFs, notes, and learning materials. Studflow summarizes concepts, creates study resources, and helps you understand difficult topics with an AI-powered learning assistant.
+          Studflow does more than simple transcription. It helps you capture ideas, organize information, and create clear notes from almost any type of content online in just a few clicks.
         </motion.p>
 
         <motion.div
