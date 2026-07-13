@@ -2,77 +2,58 @@
 
 import { motion } from "framer-motion";
 import * as Lucide from "lucide-react";
-const { Upload, BrainCircuit, FileText } = Lucide as unknown as Record<string, React.ElementType>;
+const { UploadCloud, Cpu, Sparkles, BookOpen, Layers, BarChart3 } = Lucide as unknown as Record<string, React.ElementType>;
 
 export function HowItWorksSection() {
+  const steps = [
+    { title: "Upload Your Material", icon: UploadCloud },
+    { title: "AI Understands Your Document", icon: Cpu },
+    { title: "Generate Summary & Study Resources", icon: Sparkles },
+    { title: "Read With AI Assistance", icon: BookOpen },
+    { title: "Practice With Flashcards & Quizzes", icon: Layers },
+    { title: "Track Your Learning Progress", icon: BarChart3 }
+  ];
+
   return (
     <section id="how-it-works" className="w-full py-24 bg-card border-y border-border flex flex-col items-center">
-      <div className="w-full max-w-7xl px-6">
-        <div className="text-center mb-16 max-w-3xl mx-auto">
-          <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-6">Designed For Better Learning</h2>
-          <p className="text-lg text-muted-foreground">
-            From raw documents to complete mastery in three simple steps.
+      <div className="w-full max-w-4xl px-6">
+        <div className="text-center mb-16">
+          <h2 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight">
+            How Studflow Works
+          </h2>
+          <p className="text-muted-foreground mt-4 text-lg">
+            From raw document to complete mastery in six simple steps.
           </p>
         </div>
 
-        <div className="relative mt-20">
-          {/* Connecting line */}
-          <div className="hidden md:block absolute top-8 left-0 w-full h-0.5 bg-border" />
+        <div className="relative">
+          {/* Vertical Timeline Line */}
+          <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-foreground/10 md:left-1/2 md:-ml-[1px]" />
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 relative z-10">
-            {/* Step 1 */}
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-              className="flex flex-col items-center text-center relative group"
-            >
-              <div className="w-16 h-16 rounded-2xl bg-background border border-border shadow-lg flex items-center justify-center mb-6 relative z-10 group-hover:scale-110 transition-transform duration-300">
-                <Upload className="w-8 h-8 text-primary" />
-                <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm shadow-md">1</div>
-              </div>
-              <h3 className="text-xl font-bold text-foreground mb-3">Upload Materials</h3>
-              <p className="text-muted-foreground">
-                Drop your PDFs, lecture slides, video links, or past notes securely into your workspace.
-              </p>
-            </motion.div>
+          <div className="space-y-12">
+            {steps.map((step, idx) => (
+              <motion.div 
+                key={idx}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-100px" }}
+                transition={{ duration: 0.5, delay: idx * 0.1 }}
+                className={`relative flex items-center gap-6 md:gap-0 ${idx % 2 === 0 ? 'md:flex-row' : 'md:flex-row-reverse'}`}
+              >
+                {/* Node */}
+                <div className="absolute left-8 md:left-1/2 -ml-6 w-12 h-12 rounded-full bg-muted border-4 border-background shadow-xl flex items-center justify-center z-10">
+                  <step.icon className="w-5 h-5 text-primary" />
+                </div>
 
-            {/* Step 2 */}
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-              className="flex flex-col items-center text-center relative group"
-            >
-              <div className="w-16 h-16 rounded-2xl bg-background border border-border shadow-lg flex items-center justify-center mb-6 relative z-10 group-hover:scale-110 transition-transform duration-300">
-                <BrainCircuit className="w-8 h-8 text-secondary" />
-                <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-secondary text-primary-foreground flex items-center justify-center font-bold text-sm shadow-md">2</div>
-              </div>
-              <h3 className="text-xl font-bold text-foreground mb-3">AI Processing</h3>
-              <p className="text-muted-foreground">
-                Our AI instantly reads, understands, and extracts the core concepts into summaries and flashcards.
-              </p>
-            </motion.div>
-
-            {/* Step 3 */}
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: 0.3 }}
-              className="flex flex-col items-center text-center relative group"
-            >
-              <div className="w-16 h-16 rounded-2xl bg-background border border-border shadow-lg flex items-center justify-center mb-6 relative z-10 group-hover:scale-110 transition-transform duration-300">
-                <FileText className="w-8 h-8 text-primary" />
-                <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm shadow-md">3</div>
-              </div>
-              <h3 className="text-xl font-bold text-foreground mb-3">Start Learning</h3>
-              <p className="text-muted-foreground">
-                Review study materials, answer auto-generated quizzes, and chat with your AI tutor.
-              </p>
-            </motion.div>
+                {/* Content */}
+                <div className={`pl-20 md:pl-0 md:w-1/2 ${idx % 2 === 0 ? 'md:pr-16 md:text-right' : 'md:pl-16'}`}>
+                  <div className="bg-muted border border-border p-6 rounded-2xl hover:border-border transition-colors">
+                    <div className="text-sm font-bold text-primary mb-1">Step {idx + 1}</div>
+                    <h3 className="text-xl font-semibold text-foreground">{step.title}</h3>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
           </div>
         </div>
       </div>
