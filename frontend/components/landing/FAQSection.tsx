@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown } from "lucide-react";
 
 export function FAQSection() {
   const faqs = [
@@ -59,7 +58,7 @@ function FAQItem({ question, answer }: { question: string, answer: string }) {
         className="w-full flex items-center justify-between p-6 text-left focus:outline-none"
       >
         <span className="font-semibold text-foreground">{question}</span>
-        <ChevronDown className={`w-5 h-5 text-muted-foreground transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`} />
+        <svg className={`w-5 h-5 text-muted-foreground transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
       </button>
       
       <AnimatePresence>
