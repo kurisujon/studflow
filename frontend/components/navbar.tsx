@@ -16,6 +16,8 @@ export function Navbar() {
   const pathname = usePathname();
   const { isLoaded, isSignedIn } = useUser();
 
+  if (pathname === "/") return null;
+
   return (
     <header
       style={{
