@@ -1,7 +1,8 @@
 "use client";
 
 import { motion, Variants } from "framer-motion";
-import { GraduationCap, FlaskConical, Briefcase, UserRound } from "lucide-react";
+import * as Lucide from "lucide-react";
+const { GraduationCap, FlaskConical, Briefcase, UserRound } = Lucide as unknown as Record<string, React.ElementType>;
 
 export function TrustSection() {
   const cards = [

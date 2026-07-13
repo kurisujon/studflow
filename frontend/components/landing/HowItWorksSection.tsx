@@ -1,7 +1,8 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { UploadCloud, Cpu, Sparkles, BookOpen, Layers, BarChart3 } from "lucide-react";
+import * as Lucide from "lucide-react";
+const { UploadCloud, Cpu, Sparkles, BookOpen, Layers, BarChart3 } = Lucide as unknown as Record<string, React.ElementType>;
 
 export function HowItWorksSection() {
   const steps = [

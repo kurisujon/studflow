@@ -1,7 +1,8 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Quote } from "lucide-react";
+import * as Lucide from "lucide-react";
+const { Quote } = Lucide as unknown as Record<string, React.ElementType>;
 
 export function TestimonialSection() {
   const testimonials = [

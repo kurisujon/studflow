@@ -2,7 +2,8 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { Bot, Layers } from "lucide-react";
+import * as Lucide from "lucide-react";
+const { Bot, Layers } = Lucide as unknown as Record<string, React.ElementType>;
 
 export function HeroSection() {
   return (

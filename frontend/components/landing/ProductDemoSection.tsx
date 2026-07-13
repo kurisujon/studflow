@@ -1,7 +1,8 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { PlayCircle } from "lucide-react";
+import * as Lucide from "lucide-react";
+const { PlayCircle } = Lucide as unknown as Record<string, React.ElementType>;
 
 export function ProductDemoSection() {
   return (
