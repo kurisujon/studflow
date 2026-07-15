@@ -26,8 +26,8 @@ const LinkedinIcon = () => (
 
 export function LandingFooter() {
   return (
-    <footer className="w-full bg-[#050816] border-t border-[rgba(255,255,255,.05)] flex flex-col items-center pt-[120px] pb-[40px]">
-      <div className="w-full max-w-[1400px] px-6 md:px-12 lg:px-20 mx-auto flex flex-col md:flex-row justify-between items-start gap-16 md:gap-12">
+    <footer className="w-full bg-[#050816] border-t border-[rgba(255,255,255,.05)] flex flex-col items-center pt-[160px] pb-[80px]">
+      <div className="w-full max-w-[1400px] px-6 md:px-12 lg:px-20 mx-auto flex flex-col lg:flex-row justify-between items-start gap-20 lg:gap-16">
         
         {/* Brand */}
         <div className="flex flex-col items-start gap-6 max-w-lg">
@@ -52,7 +52,7 @@ export function LandingFooter() {
         </div>
 
         {/* Links Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-24 gap-y-12">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-20 md:gap-x-32 gap-y-16">
           <div className="flex flex-col gap-4">
             <h4 className="text-white font-semibold mb-2 text-[15px]">Product</h4>
             <Link href="#features" className="text-white/60 hover:text-white text-[15px] transition-colors">Features</Link>

@@ -36,10 +36,10 @@ export function FAQSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   return (
-    <section id="faq" className="w-full pt-[160px] pb-[120px] bg-[#050816] flex flex-col items-center relative overflow-hidden border-t border-[rgba(255,255,255,.05)]">
+    <section id="faq" className="w-full pt-[240px] pb-[160px] bg-[#050816] flex flex-col items-center relative overflow-hidden border-t border-[rgba(255,255,255,.05)]">
       <div className="absolute inset-0 bg-gradient-to-t from-[#050816] to-transparent pointer-events-none" />
 
-      <div className="w-full max-w-[1000px] px-6 md:px-12 mx-auto relative z-10">
+      <div className="w-full max-w-[1200px] px-6 md:px-12 lg:px-16 mx-auto relative z-10">
         <div className="text-center mb-[80px]">
           <motion.h2 
             initial={{ opacity: 0, y: 20 }}
@@ -74,7 +74,7 @@ export function FAQSection() {
                 onClick={() => setOpenIndex(openIndex === idx ? null : idx)}
                 className="w-full py-6 flex items-center justify-between text-left focus:outline-none hover:text-[#4F7BFF] transition-colors group"
               >
-                <span className="font-semibold text-white/90 group-hover:text-white transition-colors text-[18px]">{faq.question}</span>
+                <span className="font-semibold text-white/90 group-hover:text-white transition-colors text-[20px] pr-8">{faq.question}</span>
                 <div className="w-8 h-8 rounded-full border border-[rgba(255,255,255,.1)] flex items-center justify-center bg-[rgba(255,255,255,.02)] group-hover:bg-[#4F7BFF]/10 group-hover:border-[#4F7BFF]/30 transition-all flex-shrink-0">
                   {openIndex === idx ? (
                     <Minus className="w-4 h-4 text-[#4F7BFF]" />
@@ -91,7 +91,7 @@ export function FAQSection() {
                     exit={{ height: 0, opacity: 0 }}
                     transition={{ duration: 0.3, ease: "easeInOut" }}
                   >
-                    <div className="pb-8 pr-12 text-white/60 leading-[1.6] font-light text-[16px]">
+                    <div className="pb-10 pr-12 text-white/60 leading-[1.7] font-light text-[17px]">
                       {faq.answer}
                     </div>
                   </motion.div>

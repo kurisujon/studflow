@@ -89,23 +89,23 @@ export function HeroSection() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.3 }}
-          className="flex flex-col sm:flex-row items-center gap-4 mb-6"
+          className="flex flex-col sm:flex-row items-center gap-4 mb-6 w-full sm:w-auto px-6 sm:px-0"
         >
-          <Link href="/sign-up">
+          <Link href="/sign-up" className="w-full sm:w-auto">
             <motion.div 
               whileHover={{ scale: 1.02, y: -2 }}
               whileTap={{ scale: 0.98 }}
-              className="group relative flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-[#4F7BFF] to-[#7C5CFF] rounded-full text-white font-semibold text-[16px] shadow-[0_0_20px_rgba(79,123,255,0.25)] hover:shadow-[0_0_30px_rgba(79,123,255,0.4)] transition-all whitespace-nowrap"
+              className="group relative flex items-center justify-center gap-2 px-10 py-5 bg-gradient-to-r from-[#4F7BFF] to-[#7C5CFF] rounded-full text-white font-semibold text-[18px] shadow-[0_0_20px_rgba(79,123,255,0.25)] hover:shadow-[0_0_30px_rgba(79,123,255,0.4)] transition-all whitespace-nowrap min-w-max"
             >
               <span>Start Learning Free</span>
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform flex-shrink-0" />
             </motion.div>
           </Link>
-          <Link href="#features">
+          <Link href="#features" className="w-full sm:w-auto">
             <motion.div 
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="flex items-center justify-center gap-2 px-8 py-4 bg-[rgba(16,20,38,.65)] hover:bg-[rgba(16,20,38,.85)] border border-[rgba(255,255,255,.08)] rounded-full text-white/80 font-semibold text-[16px] transition-colors backdrop-blur-[20px] whitespace-nowrap"
+              className="flex items-center justify-center gap-2 px-10 py-5 bg-[rgba(16,20,38,.65)] hover:bg-[rgba(16,20,38,.85)] border border-[rgba(255,255,255,.08)] rounded-full text-white/80 font-semibold text-[18px] transition-colors backdrop-blur-[20px] whitespace-nowrap min-w-max"
             >
               View Demo
             </motion.div>

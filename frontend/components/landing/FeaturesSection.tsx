@@ -63,14 +63,14 @@ export function FeaturesSection() {
   ];
 
   return (
-    <section id="features" className="w-full pt-[120px] pb-[160px] bg-[#050816] overflow-hidden relative border-t border-[rgba(255,255,255,.05)]">
+    <section id="features" className="w-full pt-[120px] pb-[240px] bg-[#050816] overflow-hidden relative border-t border-[rgba(255,255,255,.05)]">
       {/* Background Ambience */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-[20%] left-[-10%] w-[500px] h-[500px] bg-[#4F7BFF]/10 rounded-full blur-[150px]" />
         <div className="absolute bottom-[20%] right-[-10%] w-[600px] h-[600px] bg-[#7C5CFF]/10 rounded-full blur-[150px]" />
       </div>
 
-      <div className="relative z-10 w-full max-w-[1400px] px-6 md:px-12 lg:px-20 flex flex-col items-center mb-[120px] mx-auto">
+      <div className="relative z-10 w-full max-w-[1400px] px-4 sm:px-8 md:px-12 lg:px-20 flex flex-col items-center mb-[120px] mx-auto text-center">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -91,7 +91,7 @@ export function FeaturesSection() {
         </motion.h2>
       </div>
 
-      <div className="relative z-10 w-full max-w-[1400px] px-6 md:px-12 lg:px-20 space-y-[160px] mx-auto">
+      <div className="relative z-10 w-full max-w-[1400px] px-4 sm:px-8 md:px-12 lg:px-20 space-y-[160px] mx-auto">
         {features.map((feature, idx) => {
           const isReversed = idx % 2 === 1;
           const flexClass = isReversed ? "lg:flex-row-reverse" : "lg:flex-row";

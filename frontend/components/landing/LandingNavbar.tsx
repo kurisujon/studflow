@@ -31,8 +31,8 @@ export function LandingNavbar() {
         transition={{ duration: 0.5, ease: "easeOut" }}
         className={`fixed top-0 left-0 right-0 z-50 flex justify-center transition-all duration-300 ${
           isScrolled 
-            ? "bg-[rgba(16,20,38,.75)] backdrop-blur-[24px] border-b border-white/[0.06] shadow-lg shadow-black/20 py-5" 
-            : "bg-transparent border-b border-transparent py-8"
+            ? "bg-[#1f2233]/40 backdrop-blur-[24px] border-b border-white/[0.06] shadow-lg shadow-black/20 py-6 md:py-8" 
+            : "bg-transparent border-b border-transparent py-10 md:py-12"
         }`}
       >
         <div className="w-full max-w-[1400px] mx-auto px-6 md:px-12 lg:px-20 flex items-center justify-between">
@@ -57,16 +57,16 @@ export function LandingNavbar() {
           </nav>
 
           {/* Actions */}
-          <div className="hidden md:flex items-center gap-8">
+          <div className="hidden md:flex items-center gap-10">
             <Link 
               href="/sign-in" 
-              className="text-[16px] font-medium text-white/80 hover:text-white transition-colors"
+              className="text-[18px] font-medium text-white/80 hover:text-white transition-colors"
             >
               Login
             </Link>
             <Link 
               href="/sign-up" 
-              className="px-8 py-3.5 bg-gradient-to-r from-[#4F7BFF] to-[#7C5CFF] text-white text-[16px] font-semibold rounded-full hover:-translate-y-0.5 transition-transform shadow-[0_0_20px_rgba(79,123,255,0.25)] hover:shadow-[0_0_30px_rgba(79,123,255,0.4)]"
+              className="px-10 py-4 bg-gradient-to-r from-[#4F7BFF] to-[#7C5CFF] text-white text-[18px] font-semibold rounded-full hover:-translate-y-0.5 transition-transform shadow-[0_0_20px_rgba(79,123,255,0.25)] hover:shadow-[0_0_30px_rgba(79,123,255,0.4)] whitespace-nowrap"
             >
               Get Started Free
             </Link>
