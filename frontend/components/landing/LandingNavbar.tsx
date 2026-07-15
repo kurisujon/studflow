@@ -29,43 +29,44 @@ export function LandingNavbar() {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
-        className={`fixed top-0 left-0 right-0 z-50 flex justify-center px-4 sm:px-6 transition-all duration-300 ${
+        className={`fixed top-0 left-0 right-0 z-50 flex justify-center transition-all duration-300 ${
           isScrolled 
-            ? "bg-[#0a0e1a]/80 backdrop-blur-xl border-b border-white/5 shadow-lg shadow-black/20 py-3" 
-            : "bg-transparent border-b border-transparent py-5"
+            ? "bg-[rgba(16,20,38,.75)] backdrop-blur-[24px] border-b border-white/[0.06] shadow-lg shadow-black/20 py-5" 
+            : "bg-transparent border-b border-transparent py-8"
         }`}
       >
-        <div className="w-full max-w-7xl mx-auto flex items-center justify-between">
+        <div className="w-full max-w-[1400px] mx-auto px-6 md:px-12 lg:px-20 flex items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 font-semibold text-lg text-white">
-            <Image src="/studflow_logo.png" alt="Studflow Logo" width={28} height={28} priority />
+          <Link href="/" className="flex items-center gap-3 font-semibold text-xl text-white hover:opacity-90 transition-opacity">
+            <Image src="/studflow_logo.png" alt="Studflow Logo" width={32} height={32} priority className="drop-shadow-md" />
             Studflow
           </Link>
 
           {/* Desktop Nav */}
-          <nav className="hidden md:flex items-center gap-8">
+          <nav className="hidden md:flex items-center gap-10">
             {navLinks.map((link) => (
               <Link 
                 key={link.label} 
                 href={link.href}
-                className="text-sm font-medium text-white/70 hover:text-white transition-colors"
+                className="group relative text-[15px] font-medium text-white/80 hover:text-[#4F7BFF] transition-colors duration-300"
               >
                 {link.label}
+                <span className="absolute -bottom-1 left-0 w-0 h-[2px] bg-[#4F7BFF] transition-all duration-300 group-hover:w-full rounded-full" />
               </Link>
             ))}
           </nav>
 
           {/* Actions */}
-          <div className="hidden md:flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-8">
             <Link 
               href="/sign-in" 
-              className="text-sm font-medium text-white/70 hover:text-white transition-colors px-4 py-2"
+              className="text-[16px] font-medium text-white/80 hover:text-white transition-colors"
             >
               Login
             </Link>
             <Link 
               href="/sign-up" 
-              className="px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-blue-500 text-white text-sm font-semibold rounded-xl hover:opacity-90 transition-opacity shadow-lg shadow-indigo-500/20"
+              className="px-8 py-3.5 bg-gradient-to-r from-[#4F7BFF] to-[#7C5CFF] text-white text-[16px] font-semibold rounded-full hover:-translate-y-0.5 transition-transform shadow-[0_0_20px_rgba(79,123,255,0.25)] hover:shadow-[0_0_30px_rgba(79,123,255,0.4)]"
             >
               Get Started Free
             </Link>
@@ -73,7 +74,7 @@ export function LandingNavbar() {
 
           {/* Mobile Menu Button */}
           <button 
-            className="md:hidden p-2 text-white/70 hover:text-white"
+            className="md:hidden p-2 text-white/80 hover:text-white transition-colors"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label="Toggle mobile menu"
           >
@@ -90,20 +91,20 @@ export function LandingNavbar() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-x-0 top-[70px] z-40 bg-[#0a0e1a]/95 backdrop-blur-xl border-b border-white/5 md:hidden"
+            className="fixed inset-x-0 top-[70px] z-40 bg-[#080C19]/95 backdrop-blur-[18px] border-b border-white/[0.06] md:hidden"
           >
-            <div className="flex flex-col p-4 space-y-4">
+            <div className="flex flex-col p-6 space-y-4">
               {navLinks.map((link) => (
                 <Link 
                   key={link.label} 
                   href={link.href}
                   onClick={() => setMobileMenuOpen(false)}
-                  className="text-base font-medium text-white/80 hover:text-white p-2 rounded-lg hover:bg-white/5 transition-colors"
+                  className="text-base font-medium text-white/80 hover:text-[#4F7BFF] p-2 rounded-lg hover:bg-white/5 transition-colors"
                 >
                   {link.label}
                 </Link>
               ))}
-              <div className="h-px w-full bg-white/10 my-2" />
+              <div className="h-px w-full bg-white/[0.06] my-2" />
               <Link 
                 href="/sign-in" 
                 onClick={() => setMobileMenuOpen(false)}
@@ -114,7 +115,7 @@ export function LandingNavbar() {
               <Link 
                 href="/sign-up" 
                 onClick={() => setMobileMenuOpen(false)}
-                className="w-full py-3 mt-2 text-center bg-gradient-to-r from-indigo-500 to-blue-500 text-white text-base font-semibold rounded-xl shadow-lg shadow-indigo-500/20"
+                className="w-full py-3 mt-2 text-center bg-gradient-to-r from-[#4F7BFF] to-[#7C5CFF] text-white text-base font-semibold rounded-full shadow-[0_0_20px_rgba(79,123,255,0.25)]"
               >
                 Get Started Free
               </Link>
