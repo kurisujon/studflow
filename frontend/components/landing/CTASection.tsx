@@ -7,62 +7,51 @@ const { ArrowRight, Sparkles } = Lucide as unknown as Record<string, React.Eleme
 
 export function CTASection() {
   return (
-    <section className="w-full py-32 bg-primary relative overflow-hidden flex flex-col items-center">
-      {/* Background decorations */}
-      <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-white/10 blur-[100px] rounded-full translate-x-1/2 -translate-y-1/2 pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-black/10 blur-[100px] rounded-full -translate-x-1/2 translate-y-1/2 pointer-events-none" />
+    <section className="w-full py-32 bg-[#0a0e1a] relative overflow-hidden flex flex-col items-center">
+      {/* Background Ambience */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-gradient-to-br from-indigo-500/20 to-purple-500/20 blur-[100px] rounded-full" />
+      </div>
       
-      <div className="w-full max-w-4xl px-6 relative z-10 text-center flex flex-col items-center">
+      <div className="w-full max-w-5xl px-4 sm:px-6 relative z-10 mx-auto">
         <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          viewport={{ once: true }}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/20 text-white border border-white/30 mb-8 font-medium text-sm backdrop-blur-md"
-        >
-          <Sparkles className="w-4 h-4" />
-          <span>Join thousands of smart students</span>
-        </motion.div>
-
-        <motion.h2 
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ delay: 0.1 }}
-          className="text-4xl md:text-6xl font-bold text-white mb-8 tracking-tight"
+          transition={{ duration: 0.8, ease: "easeOut" }}
+          className="bg-white/[0.02] border border-white/10 rounded-3xl p-10 md:p-16 text-center flex flex-col items-center shadow-2xl backdrop-blur-xl relative overflow-hidden"
         >
-          Start Building Better Study Habits Today
-        </motion.h2>
+          {/* Inner Glow */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 blur-[80px] rounded-full" />
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-500/10 blur-[80px] rounded-full" />
 
-        <motion.p 
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.2 }}
-          className="text-primary-foreground/80 text-xl max-w-2xl mb-12"
-        >
-          Your personal AI study desk is waiting. Transform your documents into intelligent learning experiences in seconds.
-        </motion.p>
-
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.3 }}
-          className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto"
-        >
-          <Link
-            href="/sign-up"
-            className="w-full sm:w-auto px-8 py-4 bg-white hover:bg-gray-100 text-primary rounded-xl font-bold text-lg transition-all flex items-center justify-center gap-2 shadow-xl hover:-translate-y-1"
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 text-white border border-white/10 mb-8 font-medium text-sm backdrop-blur-md"
           >
-            Start Learning
-            <ArrowRight className="w-5 h-5" />
-          </Link>
-          <Link
-            href="#features"
-            className="w-full sm:w-auto px-8 py-4 bg-primary-foreground/10 hover:bg-primary-foreground/20 text-white border border-white/20 rounded-xl font-bold text-lg transition-all flex items-center justify-center backdrop-blur-sm"
-          >
-            Explore Studflow
-          </Link>
+            <Sparkles className="w-4 h-4 text-indigo-400" />
+            <span>Join thousands of smart students</span>
+          </motion.div>
+
+          <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 tracking-tight max-w-2xl">
+            Start Building Better Study Habits Today
+          </h2>
+
+          <p className="text-white/60 text-lg md:text-xl max-w-2xl mb-10 font-light">
+            Your personal AI study desk is waiting. Transform your documents into intelligent learning experiences in seconds.
+          </p>
+
+          <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto z-10">
+            <Link
+              href="/sign-up"
+              className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-indigo-500 to-blue-500 hover:opacity-90 text-white rounded-xl font-bold text-lg transition-all flex items-center justify-center gap-2 shadow-[0_0_40px_rgba(99,102,241,0.4)] hover:shadow-[0_0_60px_rgba(99,102,241,0.6)] hover:-translate-y-1"
+            >
+              Start Learning Free
+              <ArrowRight className="w-5 h-5" />
+            </Link>
+          </div>
         </motion.div>
       </div>
     </section>

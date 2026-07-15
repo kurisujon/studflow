@@ -36,13 +36,28 @@ export function FAQSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   return (
-    <section id="faq" className="w-full py-24 bg-background flex flex-col items-center">
-      <div className="w-full max-w-3xl px-4 sm:px-6 mx-auto">
+    <section id="faq" className="w-full py-32 bg-[#0a0e1a] flex flex-col items-center relative overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-t from-[#0a0e1a] to-transparent pointer-events-none" />
+
+      <div className="w-full max-w-3xl px-4 sm:px-6 mx-auto relative z-10">
         <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-4">Frequently Asked Questions</h2>
-          <p className="text-lg text-muted-foreground">
+          <motion.h2 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-3xl md:text-5xl font-bold text-white mb-6 tracking-tight"
+          >
+            Frequently Asked Questions
+          </motion.h2>
+          <motion.p 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.1 }}
+            className="text-lg md:text-xl text-white/60 font-light"
+          >
             Everything you need to know about Studflow.
-          </p>
+          </motion.p>
         </div>
 
         <div className="space-y-4">
@@ -53,15 +68,15 @@ export function FAQSection() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: idx * 0.1 }}
-              className="bg-card border border-border rounded-2xl overflow-hidden"
+              className="bg-white/[0.02] border border-white/10 rounded-2xl overflow-hidden backdrop-blur-sm"
             >
               <button
                 onClick={() => setOpenIndex(openIndex === idx ? null : idx)}
-                className="w-full px-6 py-5 flex items-center justify-between text-left focus:outline-none"
+                className="w-full px-6 py-5 flex items-center justify-between text-left focus:outline-none hover:bg-white/[0.04] transition-colors"
               >
-                <span className="font-semibold text-foreground text-lg">{faq.question}</span>
+                <span className="font-semibold text-white/90 text-lg">{faq.question}</span>
                 <ChevronDown 
-                  className={`w-5 h-5 text-muted-foreground transition-transform duration-300 ${openIndex === idx ? "rotate-180" : ""}`} 
+                  className={`w-5 h-5 text-indigo-400 transition-transform duration-300 flex-shrink-0 ${openIndex === idx ? "rotate-180" : ""}`} 
                 />
               </button>
               <AnimatePresence>
@@ -70,9 +85,9 @@ export function FAQSection() {
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: "auto", opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.3 }}
+                    transition={{ duration: 0.3, ease: "easeInOut" }}
                   >
-                    <div className="px-6 pb-5 text-muted-foreground leading-relaxed">
+                    <div className="px-6 pb-6 text-white/60 leading-relaxed font-light text-base md:text-lg">
                       {faq.answer}
                     </div>
                   </motion.div>

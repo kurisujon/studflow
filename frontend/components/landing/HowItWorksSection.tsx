@@ -1,56 +1,42 @@
 "use client";
 
-import { motion, useScroll, useTransform } from "framer-motion";
-import { useRef } from "react";
+import { motion } from "framer-motion";
 import * as Lucide from "lucide-react";
-const { Upload, BrainCircuit, FileText, Bot, Trophy } = Lucide as unknown as Record<string, React.ElementType>;
+
+const { 
+  Upload, 
+  BrainCircuit, 
+  FileText, 
+  MessageSquare, 
+  Highlighter, 
+  Layers, 
+  CircleHelp,
+  ArrowRight
+} = Lucide as unknown as Record<string, React.ElementType>;
 
 export function HowItWorksSection() {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: containerRef,
-    offset: ["start center", "end center"]
-  });
-
-  const lineHeight = useTransform(scrollYProgress, [0, 1], ["0%", "100%"]);
-
   const steps = [
-    {
-      title: "Upload Materials",
-      description: "Drop your PDFs, lecture slides, video links, or past notes securely into your workspace.",
-      icon: Upload
-    },
-    {
-      title: "AI Understands Your Content",
-      description: "Our AI instantly reads, analyzes, and extracts the core concepts from your documents.",
-      icon: BrainCircuit
-    },
-    {
-      title: "Generate Study Resources",
-      description: "Automatically create summaries, flashcards, and quizzes tailored to your material.",
-      icon: FileText
-    },
-    {
-      title: "Review & Practice",
-      description: "Read with AI assistance, test your knowledge, and chat with your personal AI tutor.",
-      icon: Bot
-    },
-    {
-      title: "Master The Topic",
-      description: "Track your progress, improve your retention, and ace your exams with confidence.",
-      icon: Trophy
-    }
+    { title: "Upload PDF", icon: Upload },
+    { title: "AI Reads", icon: BrainCircuit },
+    { title: "Summary", icon: FileText },
+    { title: "Ask AI", icon: MessageSquare },
+    { title: "Highlights", icon: Highlighter },
+    { title: "Flashcards", icon: Layers },
+    { title: "Take Quiz", icon: CircleHelp },
   ];
 
   return (
-    <section id="how-it-works" className="w-full py-24 bg-card border-y border-border flex flex-col items-center overflow-hidden">
-      <div className="w-full max-w-4xl px-6" ref={containerRef}>
-        <div className="text-center mb-24">
+    <section id="how-it-works" className="w-full py-24 bg-[#0a0e1a] relative overflow-hidden flex flex-col items-center">
+      {/* Background Glow */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-5xl h-64 bg-indigo-600/10 blur-[100px] pointer-events-none rounded-full" />
+      
+      <div className="w-full max-w-7xl px-4 sm:px-6 mx-auto z-10">
+        <div className="text-center mb-16">
           <motion.h2 
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-3xl md:text-5xl font-bold text-foreground mb-6"
+            className="text-3xl md:text-5xl font-bold text-white mb-6 tracking-tight"
           >
             How Studflow Works
           </motion.h2>
@@ -59,53 +45,44 @@ export function HowItWorksSection() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: 0.1 }}
-            className="text-lg text-muted-foreground max-w-2xl mx-auto"
+            className="text-lg text-white/60 max-w-2xl mx-auto"
           >
-            A simple, intuitive process that transforms the way you learn.
+            A seamless pipeline from raw material to total mastery.
           </motion.p>
         </div>
 
-        <div className="relative">
-          {/* Vertical Line Background */}
-          <div className="absolute left-8 md:left-1/2 top-0 bottom-0 w-1 bg-border -translate-x-1/2 rounded-full" />
-          
-          {/* Animated Fill Line */}
-          <motion.div 
-            className="absolute left-8 md:left-1/2 top-0 w-1 bg-primary -translate-x-1/2 rounded-full origin-top"
-            style={{ height: lineHeight }}
-          />
-
-          <div className="space-y-24">
-            {steps.map((step, idx) => (
-              <div key={idx} className={`flex flex-col md:flex-row items-center gap-8 ${idx % 2 === 0 ? 'md:flex-row' : 'md:flex-row-reverse'} relative z-10`}>
-                
-                {/* Text Content */}
-                <motion.div 
-                  initial={{ opacity: 0, x: idx % 2 === 0 ? -40 : 40 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true, margin: "-100px" }}
-                  transition={{ duration: 0.5 }}
-                  className={`flex-1 text-left ${idx % 2 === 0 ? 'md:text-right' : 'md:text-left'} pl-20 md:pl-0`}
-                >
-                  <h3 className="text-2xl font-bold text-foreground mb-3">{step.title}</h3>
-                  <p className="text-muted-foreground text-lg">{step.description}</p>
-                </motion.div>
-
-                {/* Center Node */}
-                <div className="absolute left-8 md:static md:left-auto flex-shrink-0 w-16 h-16 rounded-full bg-background border-4 border-card shadow-xl flex items-center justify-center -translate-x-1/2 md:translate-x-0 z-20">
-                  <div className="w-full h-full rounded-full bg-primary/10 flex items-center justify-center relative group">
-                    <step.icon className="w-6 h-6 text-primary group-hover:scale-110 transition-transform" />
-                    <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold shadow-md">
-                      0{idx + 1}
-                    </div>
-                  </div>
+        {/* Horizontal Workflow for Desktop, wrapping for Mobile */}
+        <div className="flex flex-wrap md:flex-nowrap items-center justify-center gap-4 md:gap-2">
+          {steps.map((step, idx) => (
+            <motion.div 
+              key={idx}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.4, delay: idx * 0.1 }}
+              className="flex items-center"
+            >
+              {/* Step Node */}
+              <div className="group relative flex flex-col items-center justify-center p-4 w-28 md:w-32 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-sm hover:bg-white/10 transition-colors cursor-default hover:-translate-y-1 hover:shadow-lg hover:shadow-indigo-500/20 duration-300">
+                <div className="w-12 h-12 bg-gradient-to-br from-indigo-500/20 to-blue-500/20 border border-indigo-500/30 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                  <step.icon className="w-6 h-6 text-indigo-400" />
                 </div>
-
-                {/* Empty Space for Alignment */}
-                <div className="hidden md:block flex-1" />
+                <span className="text-xs md:text-sm font-semibold text-white/80 text-center leading-tight">
+                  {step.title}
+                </span>
+                
+                {/* Glow on hover */}
+                <div className="absolute inset-0 bg-indigo-400/0 group-hover:bg-indigo-400/5 rounded-2xl transition-colors" />
               </div>
-            ))}
-          </div>
+
+              {/* Arrow Connector (hide on last item) */}
+              {idx < steps.length - 1 && (
+                <div className="hidden md:flex items-center justify-center w-8 text-white/20 px-1">
+                  <ArrowRight className="w-5 h-5" />
+                </div>
+              )}
+            </motion.div>
+          ))}
         </div>
       </div>
     </section>
