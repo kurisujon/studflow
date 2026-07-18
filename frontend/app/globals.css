@@ -670,20 +670,20 @@ select {
 
 /* Override for hero which has custom top padding to clear the navbar */
 .landing-section.landing-hero {
-  padding-top: 72px !important;
+  padding-top: 100px !important;
   padding-bottom: 72px !important;
 }
 
 @media (min-width: 768px) {
   .landing-section.landing-hero {
-    padding-top: 90px !important;
+    padding-top: 130px !important;
     padding-bottom: 90px !important;
   }
 }
 
 @media (min-width: 1024px) {
   .landing-section.landing-hero {
-    padding-top: 110px !important;
+    padding-top: 170px !important;
     padding-bottom: 120px !important;
   }
 }

@@ -198,18 +198,8 @@ function ProductPreview() {
 export function HeroSection() {
   return (
     <section className="landing-section landing-hero relative w-full overflow-hidden bg-[#F8FAFC]">
-      {/* ── Background glows and patterns ── */}
+      {/* ── Background glows ── */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-        {/* Subtle CSS Grid Pattern */}
-        <div 
-          className="absolute inset-0 opacity-[0.5]"
-          style={{
-            backgroundImage: `linear-gradient(to right, #E2E8F0 1px, transparent 1px), linear-gradient(to bottom, #E2E8F0 1px, transparent 1px)`,
-            backgroundSize: '48px 48px',
-            WebkitMaskImage: 'radial-gradient(circle at center, black, transparent 80%)',
-            maskImage: 'radial-gradient(circle at center, black, transparent 80%)'
-          }}
-        />
         <div className="absolute -top-1/3 -right-1/4 w-[900px] h-[900px] rounded-full bg-gradient-to-b from-[#168BFF]/12 to-[#7C3AED]/6 blur-[130px] opacity-80" />
         <div className="absolute -bottom-1/3 -left-1/3 w-[800px] h-[800px] rounded-full bg-gradient-to-t from-[#4F46E5]/10 to-transparent blur-[110px] opacity-70" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-gradient-to-br from-[#7C3AED]/6 to-transparent blur-[90px] opacity-50" />
@@ -249,17 +239,17 @@ export function HeroSection() {
             {/* Supporting text */}
             <motion.p
               variants={itemVariants}
-              className="mb-8 text-[#475569] leading-relaxed max-w-[520px]"
+              className="mb-10 text-[#475569] leading-relaxed max-w-[620px]"
               style={{ fontSize: "clamp(1rem, 1.8vw, 1.125rem)" }}
             >
               Upload your lecture notes, slides, or PDFs and let StudFlow instantly transform them into concise summaries, interactive flashcards, and personalized quizzes — helping you study faster, retain more, and feel confident before every exam.
             </motion.p>
 
             {/* CTA Buttons */}
-            <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto mb-8">
+            <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto mb-12">
               <Link
                 href="/dashboard/upload"
-                className="landing-cta-primary group w-full sm:w-auto h-12 px-7 rounded-xl text-sm font-semibold bg-gradient-to-r from-[#168BFF] to-[#4F46E5] hover:shadow-xl hover:shadow-[#168BFF]/30 transition-all duration-300 ease-out hover:-translate-y-0.5 flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-[#168BFF] focus-visible:outline-offset-2"
+                className="landing-cta-primary group w-full sm:w-auto h-12 px-8 rounded-md text-base font-semibold bg-gradient-to-r from-[#168BFF] to-[#4F46E5] hover:shadow-2xl hover:shadow-[#168BFF]/40 transition-all duration-300 ease-out hover:-translate-y-1 flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-[#168BFF] focus-visible:outline-offset-2"
                 aria-label="Start studying for free"
               >
                 Start Studying Free
@@ -267,7 +257,7 @@ export function HeroSection() {
               </Link>
               <Link
                 href="#how-it-works"
-                className="landing-cta-ghost w-full sm:w-auto h-12 px-7 rounded-xl text-sm font-semibold bg-white border border-[#E2E8F0] hover:border-[#CBD5E1] hover:shadow-md transition-all duration-300 ease-out hover:-translate-y-0.5 flex items-center justify-center focus-visible:outline-2 focus-visible:outline-[#168BFF] focus-visible:outline-offset-2"
+                className="landing-cta-ghost w-full sm:w-auto h-12 px-8 rounded-md text-base font-semibold bg-white border border-[#E2E8F0] hover:border-[#CBD5E1] hover:shadow-lg transition-all duration-300 ease-out hover:-translate-y-1 flex items-center justify-center focus-visible:outline-2 focus-visible:outline-[#168BFF] focus-visible:outline-offset-2"
               >
                 See how it works
               </Link>
