@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-// @ts-ignore
+// @ts-expect-error - lucide-react types are outdated in this project
 import { ArrowRight, Sparkles, FileText, BrainCircuit, GraduationCap } from "lucide-react";
 
 export function HeroSection() {

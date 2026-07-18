@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-// @ts-ignore
+// @ts-expect-error - lucide-react types are outdated in this project
 import { Menu, X } from "lucide-react";
 import { useAuth } from "@clerk/nextjs";
 

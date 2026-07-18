@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-// @ts-ignore
+// @ts-expect-error - lucide-react types are outdated in this project
 import { UploadCloud, Cpu, Target } from "lucide-react";
 
 const steps = [

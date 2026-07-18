@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-// @ts-ignore
+// @ts-expect-error - lucide-react types are outdated in this project
 import { ChevronDown } from "lucide-react";
 
 const faqs = [
@@ -44,7 +44,7 @@ export function FAQSection() {
             Frequently Asked Questions
           </h2>
           <p className="text-lg text-[#64748B]">
-            Got questions? We've got answers.
+            Got questions? We&apos;ve got answers.
           </p>
         </div>
 
