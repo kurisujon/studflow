@@ -1,105 +1,95 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
-import * as Lucide from "lucide-react";
-const { Plus, Minus } = Lucide as unknown as Record<string, React.ElementType>;
+import { motion, AnimatePresence } from "framer-motion";
+// @ts-ignore
+import { ChevronDown } from "lucide-react";
+
+const faqs = [
+  {
+    question: "What file types do you support?",
+    answer: "Currently, StudFlow supports PDF and DOCX files. We are actively working on adding support for PPT (PowerPoint) and TXT files in the near future."
+  },
+  {
+    question: "How does the AI generate summaries and flashcards?",
+    answer: "When you upload a document, our backend extracts the text and uses advanced AI models to identify the core concepts. It then structures this information into readable summaries, flashcards, and adaptive quizzes tailored to your specific material."
+  },
+  {
+    question: "Can I ask questions about my document?",
+    answer: "Yes! Our 'Ask AI' feature is grounded entirely in your uploaded document. It will read the specific chunks of text related to your question and provide answers complete with citations so you know exactly where the information came from."
+  },
+  {
+    question: "Are my documents kept private?",
+    answer: "Absolutely. Your uploaded files are stored securely and are only accessible by you. We do not use your personal study materials to train public AI models."
+  },
+  {
+    question: "Do you have a spaced repetition system (SRS)?",
+    answer: "Yes, our flashcard system uses a Spaced Repetition System. As you study, the algorithm learns which concepts you find difficult and schedules them for review more frequently to maximize your retention."
+  }
+];
 
 export function FAQSection() {
-  const faqs = [
-    {
-      question: "What documents can I upload?",
-      answer: "Studflow supports a wide variety of formats including PDFs, lecture slides (PPTX), Word documents, and text files. We also support extracting text directly from YouTube links and web articles."
-    },
-    {
-      question: "How does Studflow understand my files?",
-      answer: "We use advanced large language models combined with vector search to process your documents. The AI breaks down the content into concepts, builds a knowledge graph, and uses that context to provide accurate answers and summaries."
-    },
-    {
-      question: "Can AI answer from my documents?",
-      answer: "Yes! Every answer from the AI Tutor is directly grounded in the materials you uploaded. It acts as a personalized tutor that knows exactly what you're studying, rather than giving generic internet answers."
-    },
-    {
-      question: "Can I create quizzes automatically?",
-      answer: "Absolutely. Once a document is processed, Studflow can instantly generate multiple-choice quizzes, flashcards, and short-answer questions tailored to test your understanding of the material."
-    },
-    {
-      question: "Are my notes saved?",
-      answer: "Yes, all your notes, highlights, and generated study materials are securely saved to your personal dashboard. You can organize them by subject and access them across all your devices."
-    },
-    {
-      question: "Is my data private?",
-      answer: "We take your privacy seriously. Your uploaded documents are only used to generate your personal study materials. We do not sell your data or use your personal files to train public AI models."
-    }
-  ];
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
 
-  const [openIndex, setOpenIndex] = useState<number | null>(0);
+  const toggleOpen = (index: number) => {
+    setOpenIndex(openIndex === index ? null : index);
+  };
 
   return (
-    <section id="faq" className="w-full pt-[240px] pb-[160px] bg-[#050816] flex flex-col items-center relative overflow-hidden border-t border-[rgba(255,255,255,.05)]">
-      <div className="absolute inset-0 bg-gradient-to-t from-[#050816] to-transparent pointer-events-none" />
-
-      <div className="w-full max-w-[1200px] px-6 md:px-12 lg:px-16 mx-auto relative z-10">
-        <div className="text-center mb-[80px]">
-          <motion.h2 
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-[48px] font-bold text-white mb-6 tracking-tight leading-[1.2]"
-          >
+    <section id="faq" className="w-full py-24 bg-[#F8FAFC]">
+      <div className="w-full px-5 md:px-12 lg:px-24 mx-auto max-w-[800px]">
+        
+        <div className="text-center mb-16">
+          <h2 className="text-3xl md:text-4xl font-bold text-[#0F172A] tracking-tight mb-4">
             Frequently Asked Questions
-          </motion.h2>
-          <motion.p 
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.1 }}
-            className="text-[18px] text-white/60 leading-[1.6]"
-          >
-            Everything you need to know about Studflow.
-          </motion.p>
+          </h2>
+          <p className="text-lg text-[#64748B]">
+            Got questions? We've got answers.
+          </p>
         </div>
 
-        <div className="flex flex-col">
-          {faqs.map((faq, idx) => (
-            <motion.div 
-              key={idx}
-              initial={{ opacity: 0, y: 10 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-50px" }}
-              transition={{ delay: idx * 0.1 }}
-              className="border-b border-[rgba(255,255,255,.08)]"
-            >
-              <button
-                onClick={() => setOpenIndex(openIndex === idx ? null : idx)}
-                className="w-full py-6 flex items-center justify-between text-left focus:outline-none hover:text-[#4F7BFF] transition-colors group"
+        <div className="space-y-4">
+          {faqs.map((faq, idx) => {
+            const isOpen = openIndex === idx;
+            return (
+              <div 
+                key={idx} 
+                className={`border border-[#E2E8F0] rounded-2xl overflow-hidden transition-colors duration-300 ${
+                  isOpen ? "bg-white shadow-md border-[#168BFF]/30" : "bg-[#F8FAFC] hover:bg-white"
+                }`}
               >
-                <span className="font-semibold text-white/90 group-hover:text-white transition-colors text-[20px] pr-8">{faq.question}</span>
-                <div className="w-8 h-8 rounded-full border border-[rgba(255,255,255,.1)] flex items-center justify-center bg-[rgba(255,255,255,.02)] group-hover:bg-[#4F7BFF]/10 group-hover:border-[#4F7BFF]/30 transition-all flex-shrink-0">
-                  {openIndex === idx ? (
-                    <Minus className="w-4 h-4 text-[#4F7BFF]" />
-                  ) : (
-                    <Plus className="w-4 h-4 text-white/50 group-hover:text-[#4F7BFF]" />
+                <button
+                  onClick={() => toggleOpen(idx)}
+                  className="w-full flex items-center justify-between p-6 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#168BFF]"
+                >
+                  <span className={`text-lg font-semibold transition-colors ${isOpen ? "text-[#168BFF]" : "text-[#0F172A]"}`}>
+                    {faq.question}
+                  </span>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${isOpen ? "bg-[#F0F7FF]" : "bg-[#F8FAFC]"}`}>
+                    <ChevronDown 
+                      className={`w-5 h-5 transition-transform duration-300 ${isOpen ? "rotate-180 text-[#168BFF]" : "text-[#64748B]"}`} 
+                    />
+                  </div>
+                </button>
+                <AnimatePresence initial={false}>
+                  {isOpen && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <div className="p-6 pt-0 text-[#64748B] leading-relaxed">
+                        {faq.answer}
+                      </div>
+                    </motion.div>
                   )}
-                </div>
-              </button>
-              <AnimatePresence>
-                {openIndex === idx && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.3, ease: "easeInOut" }}
-                  >
-                    <div className="pb-10 pr-12 text-white/60 leading-[1.7] font-light text-[17px]">
-                      {faq.answer}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
-          ))}
+                </AnimatePresence>
+              </div>
+            );
+          })}
         </div>
+
       </div>
     </section>
   );

@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { Inter } from "next/font/google";
 import { Navbar } from "@/components/navbar";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { ClerkProvider } from "@clerk/nextjs";
+
+const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://studflow.webcris.dev"), // Verified production URL
@@ -62,7 +65,7 @@ export default function RootLayout({
     <ClerkProvider>
       <html
         lang="en"
-        className="font-sans"
+        className={`${inter.variable} font-sans`}
         data-theme-color="system"
         suppressHydrationWarning
       >
