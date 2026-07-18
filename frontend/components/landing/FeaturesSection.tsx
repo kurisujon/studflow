@@ -189,7 +189,8 @@ function FeatureCard({ feature }: { feature: typeof standardFeatures[0] }) {
   return (
     <motion.div
       variants={cardVariants}
-      className={`group relative flex flex-col rounded-[24px] bg-white border border-[#E2E8F0] overflow-hidden transition-all duration-300 ease-out hover:-translate-y-[6px] hover:shadow-xl ${feature.borderGlow} cursor-default`}
+      whileHover={{ y: -6 }}
+      className={`group relative flex flex-col rounded-[24px] bg-white border border-[#E2E8F0] overflow-hidden transition-all duration-300 ease-out hover:shadow-xl ${feature.borderGlow} cursor-default h-full`}
       style={{ padding: "32px" }}
     >
       {/* Top gradient accent line */}
@@ -206,59 +207,68 @@ function FeatureCard({ feature }: { feature: typeof standardFeatures[0] }) {
       </span>
 
       {/* Title */}
-      <h3 className="text-lg font-bold text-[#0F172A] mb-3 leading-snug group-hover:text-[#168BFF] transition-colors duration-300">
+      <h3 className="text-xl font-bold text-[#0F172A] mb-3 leading-snug group-hover:text-[#168BFF] transition-colors duration-300">
         {feature.title}
       </h3>
 
       {/* Description */}
-      <p className="text-sm text-[#475569] leading-[1.7] flex-grow">
+      <p className="text-[15px] text-[#475569] leading-relaxed flex-grow">
         {feature.description}
       </p>
     </motion.div>
   );
 }
 
-// ── Featured card (Smart Flashcards, spans 2 cols) ────────────────────────────
+// ── Featured card (Smart Flashcards, spans full width) ────────────────────────────
 function FeaturedFlashcardCard() {
   return (
     <motion.div
       variants={cardVariants}
-      className="group relative flex flex-col rounded-[24px] border border-[#4F46E5]/20 overflow-hidden md:col-span-2 lg:col-span-1 xl:col-span-2 cursor-default hover:-translate-y-[6px] transition-all duration-300 ease-out hover:shadow-2xl hover:shadow-[#4F46E5]/10"
+      whileHover={{ y: -6 }}
+      className="group relative flex flex-col md:flex-row items-center gap-10 rounded-[24px] border border-[#4F46E5]/20 overflow-hidden cursor-default transition-all duration-300 ease-out hover:shadow-2xl hover:shadow-[#4F46E5]/10 h-full"
       style={{
-        padding: "32px",
+        padding: "40px",
         background: "linear-gradient(135deg, #fafaff 0%, #f4f3ff 50%, #fafaff 100%)",
       }}
     >
       {/* Top gradient bar — always visible on featured */}
-      <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-[#4F46E5] via-[#7C3AED] to-[#168BFF]" />
+      <div className="absolute top-0 left-0 right-0 h-[4px] bg-gradient-to-r from-[#4F46E5] via-[#7C3AED] to-[#168BFF]" />
 
       {/* Most Popular badge */}
-      <div className="absolute top-6 right-6">
+      <div className="absolute top-6 right-6 z-10">
         <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-white bg-gradient-to-r from-[#4F46E5] to-[#7C3AED] px-3 py-1.5 rounded-full shadow-md shadow-[#4F46E5]/30">
           ⚡ Most Popular
         </span>
       </div>
 
-      {/* Icon */}
-      <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#EEEDFC] to-[#E0DEFF] flex items-center justify-center mb-6 shrink-0 shadow-sm transition-transform duration-300 ease-out group-hover:scale-110 group-hover:-rotate-3">
-        <Layers className="w-7 h-7 text-[#4F46E5]" />
+      {/* Left Content Area */}
+      <div className="flex-1 flex flex-col w-full">
+        {/* Icon */}
+        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#EEEDFC] to-[#E0DEFF] flex items-center justify-center mb-6 shrink-0 shadow-sm transition-transform duration-300 ease-out group-hover:scale-110 group-hover:-rotate-3">
+          <Layers className="w-8 h-8 text-[#4F46E5]" />
+        </div>
+
+        {/* Label */}
+        <span className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-widest text-[#4F46E5] bg-[#EEEDFC] px-3 py-1.5 rounded-full mb-4 w-fit">
+          Spaced Repetition
+        </span>
+
+        {/* Title + description */}
+        <h3 className="text-3xl font-extrabold text-[#0F172A] mb-4 leading-tight group-hover:text-[#4F46E5] transition-colors duration-300">
+          Smart Flashcards
+        </h3>
+        <p className="text-base md:text-lg text-[#475569] leading-relaxed max-w-lg">
+          Automatically generate active-recall flashcards from your documents, complete with Spaced Repetition to ensure long-term retention. Never forget what you learned.
+        </p>
       </div>
 
-      {/* Label */}
-      <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-[#4F46E5] bg-[#EEEDFC] px-2.5 py-1 rounded-full mb-3 w-fit">
-        Spaced Repetition
-      </span>
-
-      {/* Title + description */}
-      <h3 className="text-lg font-bold text-[#0F172A] mb-3 leading-snug group-hover:text-[#4F46E5] transition-colors duration-300">
-        Smart Flashcards
-      </h3>
-      <p className="text-sm text-[#475569] leading-[1.7] mb-2">
-        Automatically generate active-recall flashcards from your documents, complete with Spaced Repetition to ensure long-term retention.
-      </p>
-
-      {/* Live flashcard preview */}
-      <FlashcardPreview />
+      {/* Right Live Preview */}
+      <div className="flex-1 w-full min-w-[280px] max-w-md mx-auto md:mx-0 mt-4 md:mt-0 relative z-10">
+        <div className="absolute inset-0 bg-gradient-to-r from-[#4F46E5]/10 to-[#7C3AED]/10 blur-2xl rounded-full transform scale-90" />
+        <div className="relative">
+          <FlashcardPreview />
+        </div>
+      </div>
     </motion.div>
   );
 }
@@ -284,54 +294,62 @@ export function FeaturesSection() {
       <div className="landing-container relative z-10">
         {/* ── Section heading ── */}
         <motion.div
-          className="text-center max-w-2xl mx-auto mb-16"
+          className="text-center w-full max-w-3xl mx-auto mb-20 flex flex-col items-center"
           variants={headingVariants}
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-80px" }}
         >
           {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white border border-[#E2E8F0] shadow-sm mb-6">
-            <Sparkles className="w-3.5 h-3.5 text-[#168BFF]" />
-            <span className="text-xs font-semibold text-[#0F172A] uppercase tracking-wide">AI-Powered Learning Tools</span>
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-[#E2E8F0] shadow-sm mb-8 hover:shadow-md transition-shadow">
+            <Sparkles className="w-4 h-4 text-[#168BFF]" />
+            <span className="text-xs font-bold text-[#0F172A] uppercase tracking-wider">AI-Powered Learning Tools</span>
           </div>
 
           <h2
-            className="font-bold text-[#0F172A] tracking-tight mb-5 leading-tight"
-            style={{ fontSize: "clamp(1.8rem, 4vw, 2.75rem)" }}
+            className="font-black text-[#0F172A] tracking-tighter mb-6 leading-[1.1] drop-shadow-sm"
+            style={{ fontSize: "clamp(2.5rem, 5vw, 4rem)" }}
           >
-            Everything You Need to{" "}
+            Everything You Need to <br className="hidden sm:block" />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#168BFF] via-[#4F46E5] to-[#7C3AED]">
               Ace Every Exam
             </span>
           </h2>
 
-          <p className="text-[#475569] leading-[1.7]" style={{ fontSize: "clamp(1rem, 1.8vw, 1.1rem)" }}>
-            Transform your study materials into summaries, flashcards, quizzes, and more with a complete AI-powered learning workspace.
+          <p className="text-[#475569] leading-relaxed text-center mx-auto max-w-2xl" style={{ fontSize: "clamp(1.05rem, 2vw, 1.25rem)" }}>
+            Transform your study materials into summaries, flashcards, quizzes, and more with a complete AI-powered learning workspace designed for success.
           </p>
         </motion.div>
 
         {/* ── Feature Grid ── */}
         <motion.div
-          className="grid gap-5 lg:gap-6"
-          style={{ gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))" }}
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8"
           variants={sectionVariants}
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-60px" }}
         >
-          {/* First two standard cards */}
-          {standardFeatures.slice(0, 2).map((feature) => (
-            <FeatureCard key={feature.title} feature={feature} />
-          ))}
+          {/* Center of Attraction: Featured Card (Spans all columns) */}
+          <div className="col-span-1 md:col-span-2 lg:col-span-3">
+            <FeaturedFlashcardCard />
+          </div>
 
-          {/* Featured Smart Flashcards card — spans 2 cols on md+ */}
-          <FeaturedFlashcardCard />
-
-          {/* Remaining standard cards */}
-          {standardFeatures.slice(2).map((feature) => (
-            <FeatureCard key={feature.title} feature={feature} />
-          ))}
+          {/* Standard cards */}
+          <div className="col-span-1">
+            <FeatureCard feature={standardFeatures[0]} />
+          </div>
+          <div className="col-span-1">
+            <FeatureCard feature={standardFeatures[1]} />
+          </div>
+          <div className="col-span-1">
+            <FeatureCard feature={standardFeatures[2]} />
+          </div>
+          <div className="col-span-1 lg:col-start-2">
+            <FeatureCard feature={standardFeatures[3]} />
+          </div>
+          <div className="col-span-1 md:col-span-2 lg:col-span-1">
+            <FeatureCard feature={standardFeatures[4]} />
+          </div>
         </motion.div>
       </div>
     </section>
