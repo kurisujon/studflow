@@ -693,6 +693,26 @@ select {
   padding: 2rem !important;
 }
 
+/* Features section specific padding: 100px top, 120px bottom on desktop */
+#features.landing-section {
+  padding-top: 64px !important;
+  padding-bottom: 64px !important;
+}
+
+@media (min-width: 768px) {
+  #features.landing-section {
+    padding-top: 80px !important;
+    padding-bottom: 80px !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  #features.landing-section {
+    padding-top: 100px !important;
+    padding-bottom: 120px !important;
+  }
+}
+
 .landing-container {
   width: 100%;
   max-width: 80rem; /* 1280px */
