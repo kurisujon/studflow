@@ -61,7 +61,7 @@ export function LandingNavbar() {
           {isSignedIn ? (
             <Link
               href="/dashboard"
-              className="h-12 px-6 rounded-xl flex items-center justify-center text-[15px] font-semibold text-white bg-gradient-to-r from-[#168BFF] to-[#2563EB] hover:shadow-lg hover:shadow-[#168BFF]/30 transition-all duration-300 ease-out transform hover:-translate-y-0.5"
+              className="landing-cta-primary h-12 px-6 rounded-xl flex items-center justify-center text-[15px] font-semibold bg-gradient-to-r from-[#168BFF] to-[#2563EB] hover:shadow-lg hover:shadow-[#168BFF]/30 transition-all duration-300 ease-out transform hover:-translate-y-0.5"
             >
               Go to Dashboard
             </Link>
@@ -69,13 +69,13 @@ export function LandingNavbar() {
             <>
               <Link
                 href="/sign-in"
-                className="h-12 px-6 flex items-center justify-center text-[15px] font-semibold text-[#0F172A] hover:text-[#168BFF] transition-colors duration-300 ease-out"
+                className="landing-cta-ghost h-12 px-6 flex items-center justify-center text-[15px] font-semibold hover:text-[#168BFF] transition-colors duration-300 ease-out"
               >
                 Sign In
               </Link>
               <Link
                 href="/sign-up"
-                className="h-12 px-6 rounded-xl flex items-center justify-center text-[15px] font-semibold text-white bg-[#0F172A] hover:bg-[#168BFF] hover:shadow-lg hover:shadow-[#168BFF]/30 transition-all duration-300 ease-out transform hover:-translate-y-0.5"
+                className="landing-cta-dark h-12 px-6 rounded-xl flex items-center justify-center text-[15px] font-semibold bg-[#0F172A] hover:bg-[#168BFF] hover:shadow-lg hover:shadow-[#168BFF]/30 transition-all duration-300 ease-out transform hover:-translate-y-0.5"
               >
                 Get Started
               </Link>
@@ -118,7 +118,7 @@ export function LandingNavbar() {
               {isSignedIn ? (
                 <Link
                   href="/dashboard"
-                  className="w-full h-12 rounded-xl flex items-center justify-center font-semibold text-white bg-gradient-to-r from-[#168BFF] to-[#2563EB] transition-all duration-300 ease-out"
+                  className="landing-cta-primary w-full h-12 rounded-xl flex items-center justify-center font-semibold bg-gradient-to-r from-[#168BFF] to-[#2563EB] transition-all duration-300 ease-out"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Go to Dashboard
@@ -127,14 +127,14 @@ export function LandingNavbar() {
                 <>
                   <Link
                     href="/sign-in"
-                    className="w-full h-12 rounded-xl flex items-center justify-center font-semibold text-[#0F172A] bg-[#F8FAFC] border border-[#E2E8F0] transition-all duration-300 ease-out"
+                    className="landing-cta-ghost w-full h-12 rounded-xl flex items-center justify-center font-semibold bg-[#F8FAFC] border border-[#E2E8F0] transition-all duration-300 ease-out"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     Sign In
                   </Link>
                   <Link
                     href="/sign-up"
-                    className="w-full h-12 rounded-xl flex items-center justify-center font-semibold text-white bg-[#0F172A] transition-all duration-300 ease-out"
+                    className="landing-cta-dark w-full h-12 rounded-xl flex items-center justify-center font-semibold bg-[#0F172A] transition-all duration-300 ease-out"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     Get Started

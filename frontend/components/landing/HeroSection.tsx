@@ -23,7 +23,7 @@ export function HeroSection() {
   };
 
   return (
-    <section className="landing-section relative w-full pt-[160px] pb-24 md:pb-32 overflow-hidden bg-[#F8FAFC]">
+    <section className="landing-section landing-hero relative w-full overflow-hidden bg-[#F8FAFC]">
       {/* Background Gradients & Blobs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-1/2 -right-1/4 w-[1000px] h-[1000px] rounded-full bg-gradient-to-b from-[#168BFF]/10 to-[#7C3AED]/5 blur-[120px] opacity-70 transform rotate-12" />
@@ -58,14 +58,14 @@ export function HeroSection() {
           <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
             <Link 
               href="/dashboard/upload" 
-              className="w-full sm:w-auto h-12 px-6 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-[#168BFF] to-[#2563EB] hover:shadow-xl hover:shadow-[#168BFF]/30 transition-all duration-300 ease-out transform hover:-translate-y-1 flex items-center justify-center gap-2"
+              className="landing-cta-primary w-full sm:w-auto h-12 px-6 rounded-xl text-sm font-semibold bg-gradient-to-r from-[#168BFF] to-[#2563EB] hover:shadow-xl hover:shadow-[#168BFF]/30 transition-all duration-300 ease-out transform hover:-translate-y-1 flex items-center justify-center gap-2"
             >
               Start Studying Free
               <ArrowRight className="w-4 h-4" />
             </Link>
             <Link 
               href="#how-it-works" 
-              className="w-full sm:w-auto h-12 px-6 rounded-xl text-sm font-semibold text-[#0F172A] bg-white border border-[#E2E8F0] hover:bg-[#F8FAFC] hover:border-[#CBD5E1] transition-all duration-300 ease-out flex items-center justify-center"
+              className="landing-cta-ghost w-full sm:w-auto h-12 px-6 rounded-xl text-sm font-semibold bg-white border border-[#E2E8F0] hover:bg-[#F8FAFC] hover:border-[#CBD5E1] transition-all duration-300 ease-out flex items-center justify-center"
             >
               See how it works
             </Link>

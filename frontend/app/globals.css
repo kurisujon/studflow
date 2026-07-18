@@ -655,9 +655,56 @@ select {
   line-height: unset;
 }
 
+/* Enforce section vertical spacing regardless of global reset */
+.landing-section {
+  padding-top: 6rem !important;
+  padding-bottom: 6rem !important;
+}
+
+@media (min-width: 768px) {
+  .landing-section {
+    padding-top: 8rem !important;
+    padding-bottom: 8rem !important;
+  }
+}
+
+/* Override for hero which has custom top padding to clear the navbar */
+.landing-section.landing-hero {
+  padding-top: 160px !important;
+  padding-bottom: 6rem !important;
+}
+
+@media (min-width: 768px) {
+  .landing-section.landing-hero {
+    padding-bottom: 8rem !important;
+  }
+}
+
+/* Feature/benefit cards — ensure internal padding is never stripped */
+.landing-card {
+  padding: 2rem !important;
+}
+
 .landing-container {
   width: 100%;
   max-width: 80rem; /* 1280px */
   margin-inline: auto;
   padding-inline: clamp(1.25rem, 5vw, 6rem);
+}
+
+/* Prevent global link color inheritance from overriding button text colors */
+.landing-section a {
+  color: inherit;
+}
+
+.landing-cta-primary {
+  color: #ffffff !important;
+}
+
+.landing-cta-dark {
+  color: #ffffff !important;
+}
+
+.landing-cta-ghost {
+  color: #0F172A !important;
 }

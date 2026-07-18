@@ -87,7 +87,7 @@ export function FeaturesSection() {
             <motion.div 
               key={idx}
               variants={cardVariants}
-              className="group p-6 lg:p-8 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] hover:bg-white hover:border-[#168BFF]/30 hover:shadow-xl hover:shadow-[#168BFF]/5 transition-all duration-300 ease-out relative overflow-hidden h-full flex flex-col"
+              className="landing-card group rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] hover:bg-white hover:border-[#168BFF]/30 hover:shadow-xl hover:shadow-[#168BFF]/5 transition-all duration-300 ease-out relative overflow-hidden h-full flex flex-col"
             >
               {/* Subtle hover gradient */}
               <div className="absolute inset-0 bg-gradient-to-br from-white/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
