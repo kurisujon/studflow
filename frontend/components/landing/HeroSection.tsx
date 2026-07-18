@@ -23,14 +23,14 @@ export function HeroSection() {
   };
 
   return (
-    <section className="relative w-full pt-[136px] md:pt-[152px] lg:pt-[176px] pb-14 md:pb-[72px] lg:pb-24 overflow-hidden bg-[#F8FAFC]">
+    <section className="relative w-full pt-[160px] pb-24 md:pb-32 overflow-hidden bg-[#F8FAFC]">
       {/* Background Gradients & Blobs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-1/2 -right-1/4 w-[1000px] h-[1000px] rounded-full bg-gradient-to-b from-[#168BFF]/10 to-[#7C3AED]/5 blur-[120px] opacity-70 transform rotate-12" />
         <div className="absolute -bottom-1/2 -left-1/4 w-[800px] h-[800px] rounded-full bg-gradient-to-t from-[#4F46E5]/10 to-transparent blur-[100px] opacity-60" />
       </div>
 
-      <div className="w-full px-5 md:px-10 lg:px-16 xl:px-20 mx-auto max-w-7xl relative z-10 flex flex-col lg:flex-row items-center gap-16">
+      <div className="w-full px-6 md:px-12 lg:px-24 2xl:px-32 mx-auto max-w-7xl relative z-10 flex flex-col lg:flex-row items-center gap-16">
         
         {/* Text Content */}
         <motion.div 
@@ -58,14 +58,14 @@ export function HeroSection() {
           <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
             <Link 
               href="/dashboard/upload" 
-              className="w-full sm:w-auto h-12 px-6 rounded-xl text-[16px] font-semibold text-white bg-gradient-to-r from-[#168BFF] to-[#2563EB] hover:shadow-xl hover:shadow-[#168BFF]/30 transition-all duration-300 ease-out transform hover:-translate-y-1 flex items-center justify-center gap-2"
+              className="w-full sm:w-auto h-12 px-6 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-[#168BFF] to-[#2563EB] hover:shadow-xl hover:shadow-[#168BFF]/30 transition-all duration-300 ease-out transform hover:-translate-y-1 flex items-center justify-center gap-2"
             >
               Start Studying Free
-              <ArrowRight className="w-5 h-5" />
+              <ArrowRight className="w-4 h-4" />
             </Link>
             <Link 
               href="#how-it-works" 
-              className="w-full sm:w-auto h-12 px-6 rounded-xl text-[16px] font-semibold text-[#0F172A] bg-white border border-[#E2E8F0] hover:bg-[#F8FAFC] hover:border-[#CBD5E1] transition-all duration-300 ease-out flex items-center justify-center"
+              className="w-full sm:w-auto h-12 px-6 rounded-xl text-sm font-semibold text-[#0F172A] bg-white border border-[#E2E8F0] hover:bg-[#F8FAFC] hover:border-[#CBD5E1] transition-all duration-300 ease-out flex items-center justify-center"
             >
               See how it works
             </Link>
