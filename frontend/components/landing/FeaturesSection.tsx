@@ -64,8 +64,8 @@ export function FeaturesSection() {
   };
 
   return (
-    <section id="features" className="w-full py-24 md:py-32 bg-white relative">
-      <div className="w-full px-6 md:px-12 lg:px-24 2xl:px-32 mx-auto max-w-7xl">
+    <section id="features" className="landing-section w-full py-24 md:py-32 bg-white relative">
+      <div className="landing-container">
         
         <div className="text-center max-w-3xl mx-auto mb-16">
           <h2 className="font-bold text-[#0F172A] tracking-tight mb-5 text-[clamp(1.8rem,4vw,3rem)]">

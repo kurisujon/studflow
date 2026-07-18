@@ -36,7 +36,7 @@ export function LandingNavbar() {
           : "bg-transparent py-6"
       }`}
     >
-      <div className="w-full px-6 md:px-12 lg:px-24 2xl:px-32 mx-auto max-w-7xl flex items-center justify-between">
+      <div className="landing-container flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2 group">
           <Image src="/studflow_logo.png" alt="StudFlow Logo" width={32} height={32} priority />
           <span className="text-xl font-bold tracking-tight text-[#0F172A]">

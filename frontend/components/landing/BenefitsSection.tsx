@@ -43,8 +43,8 @@ const benefits = [
 
 export function BenefitsSection() {
   return (
-    <section id="benefits" className="w-full py-24 md:py-32 bg-white">
-      <div className="w-full px-6 md:px-12 lg:px-24 2xl:px-32 mx-auto max-w-7xl">
+    <section id="benefits" className="landing-section w-full py-24 md:py-32 bg-white">
+      <div className="landing-container">
         
         <div className="flex flex-col lg:flex-row items-center gap-16">
           <motion.div 

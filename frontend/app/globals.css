@@ -634,3 +634,30 @@ select {
     @apply font-sans;
   }
 }
+
+/* -------------------------------------------------------------------------
+   Landing Page Overrides
+   These override the global h1/h2/p rules ONLY within landing sections
+   so Tailwind utility classes work as expected.
+   ------------------------------------------------------------------------- */
+.landing-section h1,
+.landing-section h2,
+.landing-section h3 {
+  font-size: unset;
+  font-weight: unset;
+  line-height: unset;
+  letter-spacing: unset;
+  color: unset;
+}
+
+.landing-section p {
+  color: unset;
+  line-height: unset;
+}
+
+.landing-container {
+  width: 100%;
+  max-width: 80rem; /* 1280px */
+  margin-inline: auto;
+  padding-inline: clamp(1.25rem, 5vw, 6rem);
+}

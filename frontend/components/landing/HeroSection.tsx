@@ -23,14 +23,14 @@ export function HeroSection() {
   };
 
   return (
-    <section className="relative w-full pt-[160px] pb-24 md:pb-32 overflow-hidden bg-[#F8FAFC]">
+    <section className="landing-section relative w-full pt-[160px] pb-24 md:pb-32 overflow-hidden bg-[#F8FAFC]">
       {/* Background Gradients & Blobs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-1/2 -right-1/4 w-[1000px] h-[1000px] rounded-full bg-gradient-to-b from-[#168BFF]/10 to-[#7C3AED]/5 blur-[120px] opacity-70 transform rotate-12" />
         <div className="absolute -bottom-1/2 -left-1/4 w-[800px] h-[800px] rounded-full bg-gradient-to-t from-[#4F46E5]/10 to-transparent blur-[100px] opacity-60" />
       </div>
 
-      <div className="w-full px-6 md:px-12 lg:px-24 2xl:px-32 mx-auto max-w-7xl relative z-10 flex flex-col lg:flex-row items-center gap-16">
+      <div className="landing-container relative z-10 flex flex-col lg:flex-row items-center gap-16">
         
         {/* Text Content */}
         <motion.div 

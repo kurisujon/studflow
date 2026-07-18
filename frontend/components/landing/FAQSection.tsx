@@ -36,8 +36,8 @@ export function FAQSection() {
   };
 
   return (
-    <section id="faq" className="w-full py-24 md:py-32 bg-[#F8FAFC]">
-      <div className="w-full px-6 md:px-12 lg:px-24 2xl:px-32 mx-auto max-w-3xl">
+    <section id="faq" className="landing-section w-full py-24 md:py-32 bg-[#F8FAFC]">
+      <div className="landing-container" style={{maxWidth: '48rem'}}>
         
         <div className="text-center mb-16 lg:mb-20">
           <h2 className="font-bold text-[#0F172A] tracking-tight mb-5 text-[clamp(1.8rem,4vw,3rem)]">
