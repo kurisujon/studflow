@@ -32,8 +32,8 @@ export function LandingNavbar() {
     <header
       className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${
         scrolled
-          ? "bg-white/80 backdrop-blur-md shadow-sm py-4"
-          : "bg-transparent py-6"
+          ? "bg-white/80 backdrop-blur-md shadow-sm py-5"
+          : "bg-transparent py-8"
       }`}
     >
       <div className="landing-container flex items-center justify-between">
@@ -61,7 +61,7 @@ export function LandingNavbar() {
           {isSignedIn ? (
             <Link
               href="/dashboard"
-              className="landing-cta-primary h-12 px-6 rounded-xl flex items-center justify-center text-[15px] font-semibold bg-gradient-to-r from-[#168BFF] to-[#2563EB] hover:shadow-lg hover:shadow-[#168BFF]/30 transition-all duration-300 ease-out transform hover:-translate-y-0.5"
+              className="landing-cta-primary h-10 px-5 rounded-lg flex items-center justify-center text-sm font-semibold bg-gradient-to-r from-[#168BFF] to-[#2563EB] hover:shadow-lg hover:shadow-[#168BFF]/30 transition-all duration-300 ease-out transform hover:-translate-y-0.5"
             >
               Go to Dashboard
             </Link>
@@ -69,13 +69,13 @@ export function LandingNavbar() {
             <>
               <Link
                 href="/sign-in"
-                className="landing-cta-ghost h-12 px-6 flex items-center justify-center text-[15px] font-semibold hover:text-[#168BFF] transition-colors duration-300 ease-out"
+                className="landing-cta-ghost h-10 px-5 flex items-center justify-center text-sm font-semibold hover:text-[#168BFF] transition-colors duration-300 ease-out"
               >
                 Sign In
               </Link>
               <Link
                 href="/sign-up"
-                className="landing-cta-dark h-12 px-6 rounded-xl flex items-center justify-center text-[15px] font-semibold bg-[#0F172A] hover:bg-[#168BFF] hover:shadow-lg hover:shadow-[#168BFF]/30 transition-all duration-300 ease-out transform hover:-translate-y-0.5"
+                className="landing-cta-dark h-10 px-5 rounded-lg flex items-center justify-center text-sm font-semibold bg-[#0F172A] hover:bg-[#168BFF] hover:shadow-lg hover:shadow-[#168BFF]/30 transition-all duration-300 ease-out transform hover:-translate-y-0.5"
               >
                 Get Started
               </Link>
@@ -118,7 +118,7 @@ export function LandingNavbar() {
               {isSignedIn ? (
                 <Link
                   href="/dashboard"
-                  className="landing-cta-primary w-full h-12 rounded-xl flex items-center justify-center font-semibold bg-gradient-to-r from-[#168BFF] to-[#2563EB] transition-all duration-300 ease-out"
+                  className="landing-cta-primary w-full h-11 rounded-lg flex items-center justify-center text-sm font-semibold bg-gradient-to-r from-[#168BFF] to-[#2563EB] transition-all duration-300 ease-out"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Go to Dashboard
@@ -127,14 +127,14 @@ export function LandingNavbar() {
                 <>
                   <Link
                     href="/sign-in"
-                    className="landing-cta-ghost w-full h-12 rounded-xl flex items-center justify-center font-semibold bg-[#F8FAFC] border border-[#E2E8F0] transition-all duration-300 ease-out"
+                    className="landing-cta-ghost w-full h-11 rounded-lg flex items-center justify-center text-sm font-semibold bg-[#F8FAFC] border border-[#E2E8F0] transition-all duration-300 ease-out"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     Sign In
                   </Link>
                   <Link
                     href="/sign-up"
-                    className="landing-cta-dark w-full h-12 rounded-xl flex items-center justify-center font-semibold bg-[#0F172A] transition-all duration-300 ease-out"
+                    className="landing-cta-dark w-full h-11 rounded-lg flex items-center justify-center text-sm font-semibold bg-[#0F172A] transition-all duration-300 ease-out"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     Get Started

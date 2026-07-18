@@ -198,8 +198,18 @@ function ProductPreview() {
 export function HeroSection() {
   return (
     <section className="landing-section landing-hero relative w-full overflow-hidden bg-[#F8FAFC]">
-      {/* ── Background glows ── */}
+      {/* ── Background glows and patterns ── */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+        {/* Subtle CSS Grid Pattern */}
+        <div 
+          className="absolute inset-0 opacity-[0.5]"
+          style={{
+            backgroundImage: `linear-gradient(to right, #E2E8F0 1px, transparent 1px), linear-gradient(to bottom, #E2E8F0 1px, transparent 1px)`,
+            backgroundSize: '48px 48px',
+            WebkitMaskImage: 'radial-gradient(circle at center, black, transparent 80%)',
+            maskImage: 'radial-gradient(circle at center, black, transparent 80%)'
+          }}
+        />
         <div className="absolute -top-1/3 -right-1/4 w-[900px] h-[900px] rounded-full bg-gradient-to-b from-[#168BFF]/12 to-[#7C3AED]/6 blur-[130px] opacity-80" />
         <div className="absolute -bottom-1/3 -left-1/3 w-[800px] h-[800px] rounded-full bg-gradient-to-t from-[#4F46E5]/10 to-transparent blur-[110px] opacity-70" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-gradient-to-br from-[#7C3AED]/6 to-transparent blur-[90px] opacity-50" />
