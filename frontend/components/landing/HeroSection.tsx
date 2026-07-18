@@ -23,49 +23,49 @@ export function HeroSection() {
   };
 
   return (
-    <section className="relative w-full pt-32 pb-20 md:pt-48 md:pb-32 overflow-hidden bg-[#F8FAFC]">
+    <section className="relative w-full pt-[136px] md:pt-[152px] lg:pt-[176px] pb-14 md:pb-[72px] lg:pb-24 overflow-hidden bg-[#F8FAFC]">
       {/* Background Gradients & Blobs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-1/2 -right-1/4 w-[1000px] h-[1000px] rounded-full bg-gradient-to-b from-[#168BFF]/10 to-[#7C3AED]/5 blur-[120px] opacity-70 transform rotate-12" />
         <div className="absolute -bottom-1/2 -left-1/4 w-[800px] h-[800px] rounded-full bg-gradient-to-t from-[#4F46E5]/10 to-transparent blur-[100px] opacity-60" />
       </div>
 
-      <div className="w-full px-5 md:px-12 lg:px-24 mx-auto max-w-[1440px] relative z-10 flex flex-col lg:flex-row items-center gap-16">
+      <div className="w-full px-5 md:px-10 lg:px-16 xl:px-20 mx-auto max-w-7xl relative z-10 flex flex-col lg:flex-row items-center gap-16">
         
         {/* Text Content */}
         <motion.div 
-          className="flex-1 flex flex-col items-start text-left max-w-2xl"
+          className="flex-1 flex flex-col items-center lg:items-start text-center lg:text-left max-w-3xl lg:max-w-2xl mx-auto"
           variants={containerVariants}
           initial="hidden"
           animate="visible"
         >
-          <motion.div variants={itemVariants} className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-[#E2E8F0] shadow-sm mb-8">
+          <motion.div variants={itemVariants} className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-[#E2E8F0] shadow-sm mb-6">
             <Sparkles className="w-4 h-4 text-[#168BFF]" />
             <span className="text-sm font-semibold text-[#0F172A]">The Ultimate Study OS for Students</span>
           </motion.div>
           
-          <motion.h1 variants={itemVariants} className="text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-[#0F172A] leading-[1.1]">
-            Turn your notes into <br/>
+          <motion.h1 variants={itemVariants} className="font-bold tracking-tight text-[#0F172A] leading-[1.1] mb-5 text-[clamp(2.2rem,5vw,4.5rem)]">
+            Turn your notes into <br className="hidden lg:block"/>
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#168BFF] via-[#4F46E5] to-[#7C3AED]">
               perfect grades.
             </span>
           </motion.h1>
           
-          <motion.p variants={itemVariants} className="mt-6 text-lg md:text-xl text-[#64748B] leading-relaxed max-w-xl">
+          <motion.p variants={itemVariants} className="mb-8 text-[#64748B] leading-relaxed max-w-xl text-[clamp(1rem,2vw,1.125rem)]">
             Upload your lectures, slides, and readings. StudFlow instantly generates smart summaries, active-recall flashcards, and personalized quizzes to help you learn faster.
           </motion.p>
           
-          <motion.div variants={itemVariants} className="mt-10 flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
+          <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
             <Link 
               href="/dashboard/upload" 
-              className="w-full sm:w-auto px-8 py-4 rounded-full text-[16px] font-semibold text-white bg-gradient-to-r from-[#168BFF] to-[#2563EB] hover:shadow-xl hover:shadow-[#168BFF]/30 transition-all duration-300 transform hover:-translate-y-1 flex items-center justify-center gap-2"
+              className="w-full sm:w-auto h-12 px-6 rounded-xl text-[16px] font-semibold text-white bg-gradient-to-r from-[#168BFF] to-[#2563EB] hover:shadow-xl hover:shadow-[#168BFF]/30 transition-all duration-300 ease-out transform hover:-translate-y-1 flex items-center justify-center gap-2"
             >
               Start Studying Free
               <ArrowRight className="w-5 h-5" />
             </Link>
             <Link 
               href="#how-it-works" 
-              className="w-full sm:w-auto px-8 py-4 rounded-full text-[16px] font-semibold text-[#0F172A] bg-white border border-[#E2E8F0] hover:bg-[#F8FAFC] hover:border-[#CBD5E1] transition-all duration-300 flex items-center justify-center"
+              className="w-full sm:w-auto h-12 px-6 rounded-xl text-[16px] font-semibold text-[#0F172A] bg-white border border-[#E2E8F0] hover:bg-[#F8FAFC] hover:border-[#CBD5E1] transition-all duration-300 ease-out flex items-center justify-center"
             >
               See how it works
             </Link>
@@ -80,7 +80,7 @@ export function HeroSection() {
           transition={{ duration: 0.8, delay: 0.4 }}
         >
           {/* Main Mockup Card */}
-          <div className="relative rounded-2xl bg-white border border-[#E2E8F0] shadow-2xl p-6 md:p-8 z-20 overflow-hidden group">
+          <div className="relative rounded-2xl bg-white border border-[#E2E8F0] shadow-2xl p-6 lg:p-8 z-20 overflow-hidden group w-full">
             <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-[#168BFF] via-[#4F46E5] to-[#7C3AED]" />
             
             <div className="flex items-center gap-4 mb-8">

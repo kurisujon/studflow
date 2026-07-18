@@ -32,11 +32,11 @@ export function LandingNavbar() {
     <header
       className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${
         scrolled
-          ? "bg-white/80 backdrop-blur-md shadow-[0_4px_30px_rgba(0,0,0,0.05)] py-4"
+          ? "bg-white/80 backdrop-blur-md shadow-sm py-4"
           : "bg-transparent py-6"
       }`}
     >
-      <div className="w-full px-5 md:px-12 lg:px-24 mx-auto max-w-[1440px] flex items-center justify-between">
+      <div className="w-full px-5 md:px-10 lg:px-16 xl:px-20 mx-auto max-w-7xl flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2 group">
           <Image src="/studflow_logo.png" alt="StudFlow Logo" width={32} height={32} priority />
           <span className="text-xl font-bold tracking-tight text-[#0F172A]">
@@ -61,7 +61,7 @@ export function LandingNavbar() {
           {isSignedIn ? (
             <Link
               href="/dashboard"
-              className="px-6 py-2.5 rounded-full text-[15px] font-semibold text-white bg-gradient-to-r from-[#168BFF] to-[#2563EB] hover:shadow-lg hover:shadow-[#168BFF]/30 transition-all duration-300 transform hover:-translate-y-0.5"
+              className="h-12 px-6 rounded-xl flex items-center justify-center text-[15px] font-semibold text-white bg-gradient-to-r from-[#168BFF] to-[#2563EB] hover:shadow-lg hover:shadow-[#168BFF]/30 transition-all duration-300 ease-out transform hover:-translate-y-0.5"
             >
               Go to Dashboard
             </Link>
@@ -69,13 +69,13 @@ export function LandingNavbar() {
             <>
               <Link
                 href="/sign-in"
-                className="px-5 py-2.5 text-[15px] font-semibold text-[#0F172A] hover:text-[#168BFF] transition-colors"
+                className="h-12 px-6 flex items-center justify-center text-[15px] font-semibold text-[#0F172A] hover:text-[#168BFF] transition-colors duration-300 ease-out"
               >
                 Sign In
               </Link>
               <Link
                 href="/sign-up"
-                className="px-6 py-2.5 rounded-full text-[15px] font-semibold text-white bg-[#0F172A] hover:bg-[#168BFF] hover:shadow-lg hover:shadow-[#168BFF]/30 transition-all duration-300 transform hover:-translate-y-0.5"
+                className="h-12 px-6 rounded-xl flex items-center justify-center text-[15px] font-semibold text-white bg-[#0F172A] hover:bg-[#168BFF] hover:shadow-lg hover:shadow-[#168BFF]/30 transition-all duration-300 ease-out transform hover:-translate-y-0.5"
               >
                 Get Started
               </Link>
@@ -118,7 +118,7 @@ export function LandingNavbar() {
               {isSignedIn ? (
                 <Link
                   href="/dashboard"
-                  className="w-full py-3 rounded-xl text-center font-semibold text-white bg-gradient-to-r from-[#168BFF] to-[#2563EB]"
+                  className="w-full h-12 rounded-xl flex items-center justify-center font-semibold text-white bg-gradient-to-r from-[#168BFF] to-[#2563EB] transition-all duration-300 ease-out"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Go to Dashboard
@@ -127,14 +127,14 @@ export function LandingNavbar() {
                 <>
                   <Link
                     href="/sign-in"
-                    className="w-full py-3 rounded-xl text-center font-semibold text-[#0F172A] bg-[#F8FAFC] border border-[#E2E8F0]"
+                    className="w-full h-12 rounded-xl flex items-center justify-center font-semibold text-[#0F172A] bg-[#F8FAFC] border border-[#E2E8F0] transition-all duration-300 ease-out"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     Sign In
                   </Link>
                   <Link
                     href="/sign-up"
-                    className="w-full py-3 rounded-xl text-center font-semibold text-white bg-[#0F172A]"
+                    className="w-full h-12 rounded-xl flex items-center justify-center font-semibold text-white bg-[#0F172A] transition-all duration-300 ease-out"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     Get Started

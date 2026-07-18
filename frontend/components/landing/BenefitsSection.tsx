@@ -43,8 +43,8 @@ const benefits = [
 
 export function BenefitsSection() {
   return (
-    <section id="benefits" className="w-full py-24 bg-white">
-      <div className="w-full px-5 md:px-12 lg:px-24 mx-auto max-w-[1440px]">
+    <section id="benefits" className="w-full py-14 md:py-[72px] lg:py-24 bg-white">
+      <div className="w-full px-5 md:px-10 lg:px-16 xl:px-20 mx-auto max-w-7xl">
         
         <div className="flex flex-col lg:flex-row items-center gap-16">
           <motion.div 
@@ -54,16 +54,16 @@ export function BenefitsSection() {
             viewport={{ once: true, margin: "-100px" }}
             transition={{ duration: 0.6 }}
           >
-            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-[#0F172A] tracking-tight mb-6">
+            <h2 className="font-bold text-[#0F172A] tracking-tight mb-5 text-[clamp(1.8rem,4vw,3rem)]">
               Study smarter, not harder. <span className="text-[#168BFF]">Seriously.</span>
             </h2>
-            <p className="text-lg text-[#64748B] mb-8 leading-relaxed">
+            <p className="text-[#64748B] mb-8 leading-relaxed text-[clamp(1rem,2vw,1.125rem)]">
               StudFlow was built specifically for students who want to maximize their grades while reclaiming their free time. We combine proven learning frameworks with cutting-edge AI.
             </p>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               {benefits.map((benefit, idx) => (
-                <div key={idx} className="flex gap-4 p-5 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] hover:shadow-md transition-shadow">
+                <div key={idx} className="flex gap-4 p-6 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] hover:shadow-md transition-shadow duration-300 ease-out">
                   <div className={`shrink-0 w-12 h-12 rounded-xl ${benefit.bgColor} flex items-center justify-center`}>
                     <benefit.icon className={`w-6 h-6 ${benefit.color}`} />
                   </div>

@@ -33,14 +33,14 @@ const steps = [
 
 export function HowItWorksSection() {
   return (
-    <section id="how-it-works" className="w-full py-24 bg-[#F8FAFC]">
-      <div className="w-full px-5 md:px-12 lg:px-24 mx-auto max-w-[1440px]">
+    <section id="how-it-works" className="w-full py-14 md:py-[72px] lg:py-24 bg-[#F8FAFC]">
+      <div className="w-full px-5 md:px-10 lg:px-16 xl:px-20 mx-auto max-w-7xl">
         
-        <div className="text-center max-w-2xl mx-auto mb-20">
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-[#0F172A] tracking-tight mb-4">
+        <div className="text-center max-w-2xl mx-auto mb-16 lg:mb-20">
+          <h2 className="font-bold text-[#0F172A] tracking-tight mb-5 text-[clamp(1.8rem,4vw,3rem)]">
             From document to mastery in <span className="text-[#4F46E5]">3 steps</span>
           </h2>
-          <p className="text-lg text-[#64748B]">
+          <p className="text-[#64748B] text-[clamp(1rem,2vw,1.125rem)] mb-8">
             Stop spending hours preparing study materials. Let StudFlow do the heavy lifting so you can focus on learning.
           </p>
         </div>
@@ -60,7 +60,7 @@ export function HowItWorksSection() {
                 className="flex flex-col items-center text-center group"
               >
                 {/* Step Number Badge */}
-                <div className={`w-24 h-24 rounded-full ${step.bgColor} border-4 border-white shadow-xl flex items-center justify-center mb-6 relative transition-transform duration-300 group-hover:-translate-y-2`}>
+                <div className={`w-24 h-24 rounded-full ${step.bgColor} border-4 border-white shadow-xl flex items-center justify-center mb-6 relative transition-transform duration-300 ease-out group-hover:-translate-y-2`}>
                   <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-white border border-[#E2E8F0] shadow-sm flex items-center justify-center font-bold text-[#0F172A]">
                     {idx + 1}
                   </div>

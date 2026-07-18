@@ -5,11 +5,11 @@ export function LandingFooter() {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="w-full bg-white border-t border-[#E2E8F0] pt-16 pb-8">
-      <div className="w-full px-5 md:px-12 lg:px-24 mx-auto max-w-[1440px]">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
+    <footer className="w-full bg-white border-t border-[#E2E8F0] pt-14 md:pt-[72px] lg:pt-24 pb-8">
+      <div className="w-full px-5 md:px-10 lg:px-16 xl:px-20 mx-auto max-w-7xl">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-12 mb-16">
           
-          <div className="md:col-span-1">
+          <div className="md:col-span-2 lg:col-span-1">
             <Link href="/" className="flex items-center gap-2 group mb-6">
               <Image src="/studflow_logo.png" alt="StudFlow Logo" width={32} height={32} />
               <span className="text-xl font-bold tracking-tight text-[#0F172A]">
@@ -58,7 +58,7 @@ export function LandingFooter() {
           
         </div>
 
-        <div className="pt-8 border-t border-[#E2E8F0] flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="pt-8 border-t border-[#E2E8F0] flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
           <p className="text-[#64748B] text-sm">
             © {currentYear} StudFlow. All rights reserved.
           </p>

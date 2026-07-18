@@ -36,14 +36,14 @@ export function FAQSection() {
   };
 
   return (
-    <section id="faq" className="w-full py-24 bg-[#F8FAFC]">
-      <div className="w-full px-5 md:px-12 lg:px-24 mx-auto max-w-[800px]">
+    <section id="faq" className="w-full py-14 md:py-[72px] lg:py-24 bg-[#F8FAFC]">
+      <div className="w-full px-5 md:px-10 lg:px-16 xl:px-20 mx-auto max-w-3xl">
         
-        <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold text-[#0F172A] tracking-tight mb-4">
+        <div className="text-center mb-16 lg:mb-20">
+          <h2 className="font-bold text-[#0F172A] tracking-tight mb-5 text-[clamp(1.8rem,4vw,3rem)]">
             Frequently Asked Questions
           </h2>
-          <p className="text-lg text-[#64748B]">
+          <p className="text-[#64748B] text-[clamp(1rem,2vw,1.125rem)] mb-8">
             Got questions? We&apos;ve got answers.
           </p>
         </div>
@@ -54,13 +54,13 @@ export function FAQSection() {
             return (
               <div 
                 key={idx} 
-                className={`border border-[#E2E8F0] rounded-2xl overflow-hidden transition-colors duration-300 ${
+                className={`border border-[#E2E8F0] rounded-2xl overflow-hidden transition-colors duration-300 ease-out ${
                   isOpen ? "bg-white shadow-md border-[#168BFF]/30" : "bg-[#F8FAFC] hover:bg-white"
                 }`}
               >
                 <button
                   onClick={() => toggleOpen(idx)}
-                  className="w-full flex items-center justify-between p-6 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#168BFF]"
+                  className="w-full flex items-center justify-between p-6 md:p-8 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#168BFF]"
                 >
                   <span className={`text-lg font-semibold transition-colors ${isOpen ? "text-[#168BFF]" : "text-[#0F172A]"}`}>
                     {faq.question}
@@ -79,7 +79,7 @@ export function FAQSection() {
                       exit={{ height: 0, opacity: 0 }}
                       transition={{ duration: 0.3 }}
                     >
-                      <div className="p-6 pt-0 text-[#64748B] leading-relaxed">
+                      <div className="p-6 md:p-8 pt-0 md:pt-0 text-[#64748B] leading-relaxed">
                         {faq.answer}
                       </div>
                     </motion.div>
