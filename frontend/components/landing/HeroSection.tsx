@@ -91,13 +91,10 @@ function ProductPreview() {
   const completedCount = stepIndex;
 
   return (
-    <div className="relative rounded-2xl overflow-hidden border border-white/40 shadow-2xl"
+    <div className="relative rounded-2xl overflow-hidden border border-white/40 shadow-2xl min-h-[420px] flex flex-col justify-center"
       style={{ background: "rgba(255,255,255,0.72)", backdropFilter: "blur(20px)" }}
     >
-      {/* Top gradient bar */}
-      <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-[#168BFF] via-[#4F46E5] to-[#7C3AED]" />
-
-      <div className="p-6 pt-8">
+      <div className="p-8 sm:p-10">
         {/* File name header */}
         <div className="flex items-center gap-3 mb-6">
           <div className="w-10 h-10 rounded-xl bg-[#F0F7FF] flex items-center justify-center shrink-0">
