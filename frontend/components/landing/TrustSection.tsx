@@ -41,7 +41,7 @@ export function TrustSection() {
   ];
 
   return (
-    <section className="w-full py-[120px] bg-[#050816] flex flex-col items-center relative overflow-hidden border-t border-[rgba(255,255,255,.05)]">
+    <section className="w-full py-[120px] bg-[#050816] flex flex-col items-center relative overflow-hidden border-t border-[rgba(255,255,255,.05)] isolate">
       <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.03] pointer-events-none mix-blend-overlay" />
       
       <div className="w-full max-w-[1400px] px-6 md:px-12 lg:px-20 mx-auto z-10">

@@ -45,7 +45,7 @@ export function TestimonialSection() {
   ];
 
   return (
-    <section id="reviews" className="w-full py-[120px] bg-[#050816] flex flex-col items-center relative overflow-hidden border-t border-[rgba(255,255,255,.05)]">
+    <section id="reviews" className="w-full py-[120px] bg-[#050816] flex flex-col items-center relative overflow-hidden border-t border-[rgba(255,255,255,.05)] isolate">
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#4F7BFF]/5 to-transparent pointer-events-none" />
       
       <div className="w-full max-w-[1400px] px-6 md:px-12 lg:px-20 mx-auto relative z-10">

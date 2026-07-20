@@ -7,7 +7,7 @@ const { ArrowRight, Sparkles } = Lucide as unknown as Record<string, React.Eleme
 
 export function CTASection() {
   return (
-    <section className="w-full py-[120px] bg-[#050816] relative overflow-hidden flex flex-col items-center">
+    <section className="w-full py-[120px] bg-[#050816] relative overflow-hidden flex flex-col items-center isolate">
       {/* Background Ambience */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[1000px] bg-[#4F7BFF]/10 blur-[150px] rounded-full" />
