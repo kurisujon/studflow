@@ -32,11 +32,11 @@ export function LandingNavbar() {
     <header
       className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${
         scrolled
-          ? "bg-white/60 backdrop-blur-xl shadow-sm border-b border-white/20 !py-5"
-          : "bg-transparent !py-8"
+          ? "bg-white/60 backdrop-blur-xl shadow-sm border-b border-white/20"
+          : "bg-transparent"
       }`}
     >
-      <div className="landing-container flex items-center justify-between">
+      <div className="landing-container flex items-center justify-between min-h-[80px]">
         <Link href="/" className="flex items-center gap-2 group">
           <Image src="/studflow_logo.png" alt="StudFlow Logo" width={32} height={32} priority />
           <span className="text-xl font-bold tracking-tight text-[#0F172A]">
