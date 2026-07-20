@@ -32,8 +32,8 @@ export function LandingNavbar() {
     <header
       className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${
         scrolled
-          ? "bg-white/60 backdrop-blur-xl shadow-sm border-b border-white/20"
-          : "bg-transparent"
+          ? "bg-white/70 backdrop-blur-xl shadow-sm border-b border-[#E2E8F0]"
+          : "bg-white/90 border-b border-[#E2E8F0]/60"
       }`}
     >
       <div className="landing-container flex items-center justify-between h-[80px]">
