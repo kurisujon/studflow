@@ -32,7 +32,7 @@ export function LandingNavbar() {
     <header
       className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${
         scrolled
-          ? "bg-white/80 backdrop-blur-md shadow-sm !py-5"
+          ? "bg-white/60 backdrop-blur-xl shadow-sm border-b border-white/20 !py-5"
           : "bg-transparent !py-8"
       }`}
     >
