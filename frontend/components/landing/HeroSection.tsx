@@ -1,10 +1,10 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 // @ts-expect-error - lucide-react types are outdated in this project
-import { ArrowRight, Sparkles, FileText, CheckCircle, PlayCircle, Loader2, BookOpen, Layers } from "lucide-react";
+import { ArrowRight, Sparkles, FileText, CheckCircle, PlayCircle, Loader2, GraduationCap, Layers } from "lucide-react";
 
 // ── Workflow steps for the animated product preview ──────────────────────────
 const workflowSteps = [
@@ -36,6 +36,7 @@ const itemVariants = {
 function ProductPreview() {
   const [stepIndex, setStepIndex] = useState(0);
   const [progress, setProgress] = useState(78);
+  const shouldReduceMotion = useReducedMotion();
 
   useEffect(() => {
     const duration = 2000; // ms per step
@@ -69,7 +70,7 @@ function ProductPreview() {
       {/* ── Floating Badges ── */}
       <motion.div 
         className="absolute -top-6 right-8 z-30 w-12 h-12 rounded-xl bg-gradient-to-br from-[#A78BFA] to-[#8B5CF6] flex items-center justify-center shadow-lg shadow-[#8B5CF6]/30 border border-white/20"
-        animate={{ y: [0, -8, 0] }}
+        animate={shouldReduceMotion ? {} : { y: [0, -8, 0] }}
         transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
       >
         <Sparkles className="w-5 h-5 text-white" />
@@ -77,10 +78,10 @@ function ProductPreview() {
 
       <motion.div 
         className="absolute -bottom-6 -right-6 z-30 w-14 h-14 rounded-2xl bg-gradient-to-br from-[#60A5FA] to-[#3B82F6] flex items-center justify-center shadow-xl shadow-[#3B82F6]/30 border border-white/20"
-        animate={{ y: [0, 8, 0], rotate: [0, -5, 0] }}
+        animate={shouldReduceMotion ? {} : { y: [0, 8, 0], rotate: [0, -5, 0] }}
         transition={{ repeat: Infinity, duration: 5, ease: "easeInOut", delay: 1 }}
       >
-        <BookOpen className="w-6 h-6 text-white" />
+        <GraduationCap className="w-6 h-6 text-white" />
       </motion.div>
 
       {/* ── Main Card ── */}
