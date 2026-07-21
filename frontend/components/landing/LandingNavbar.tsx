@@ -61,8 +61,9 @@ export function LandingNavbar() {
           {isSignedIn ? (
             <Link
               href="/dashboard"
-              className="landing-cta-primary !h-11 !px-6 !rounded-md flex items-center justify-center !text-sm font-semibold bg-gradient-to-r from-[#168BFF] to-[#2563EB] hover:shadow-xl hover:shadow-[#168BFF]/30 transition-all duration-300 ease-out transform hover:-translate-y-1.5"
+              className="group relative flex items-center justify-center gap-1.5 h-11 px-6 rounded-xl text-[14px] font-bold text-white bg-gradient-to-r from-[#5964FF] to-[#8640FF] shadow-md hover:shadow-lg hover:shadow-[#8640FF]/30 transition-all duration-300 ease-out hover:-translate-y-1.5 overflow-hidden"
             >
+              <div className="absolute top-0 left-0 right-0 h-[2px] bg-white/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               Go to Dashboard
             </Link>
           ) : (
@@ -75,9 +76,11 @@ export function LandingNavbar() {
               </Link>
               <Link
                 href="/sign-up"
-                className="landing-cta-dark !h-11 !px-6 !rounded-md flex items-center justify-center !text-sm font-semibold bg-[#0F172A] hover:bg-[#168BFF] hover:shadow-xl hover:shadow-[#168BFF]/30 transition-all duration-300 ease-out transform hover:-translate-y-1.5"
+                className="group relative flex items-center justify-center gap-1.5 h-11 px-6 rounded-xl text-[14px] font-bold text-white bg-gradient-to-r from-[#5964FF] to-[#8640FF] shadow-md hover:shadow-lg hover:shadow-[#8640FF]/30 transition-all duration-300 ease-out hover:-translate-y-1.5 overflow-hidden"
               >
+                <div className="absolute top-0 left-0 right-0 h-[2px] bg-white/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 Get Started
+                <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
               </Link>
             </>
           )}
@@ -118,9 +121,10 @@ export function LandingNavbar() {
               {isSignedIn ? (
                 <Link
                   href="/dashboard"
-                  className="landing-cta-primary w-full !h-12 !rounded-md flex items-center justify-center !text-sm font-semibold bg-gradient-to-r from-[#168BFF] to-[#2563EB] hover:shadow-xl hover:shadow-[#168BFF]/30 transition-all duration-300 ease-out transform hover:-translate-y-1.5"
+                  className="group relative flex items-center justify-center gap-1.5 w-full h-12 rounded-xl text-[15px] font-bold text-white bg-gradient-to-r from-[#5964FF] to-[#8640FF] shadow-md hover:shadow-lg hover:shadow-[#8640FF]/30 transition-all duration-300 ease-out hover:-translate-y-1.5 overflow-hidden"
                   onClick={() => setMobileMenuOpen(false)}
                 >
+                  <div className="absolute top-0 left-0 right-0 h-[2px] bg-white/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   Go to Dashboard
                 </Link>
               ) : (
@@ -134,10 +138,12 @@ export function LandingNavbar() {
                   </Link>
                   <Link
                     href="/sign-up"
-                    className="landing-cta-dark w-full !h-12 !rounded-md flex items-center justify-center !text-sm font-semibold bg-[#0F172A] transition-all duration-300 ease-out transform hover:-translate-y-1.5"
+                    className="group relative flex items-center justify-center gap-1.5 w-full h-12 rounded-xl text-[15px] font-bold text-white bg-gradient-to-r from-[#5964FF] to-[#8640FF] shadow-md hover:shadow-lg hover:shadow-[#8640FF]/30 transition-all duration-300 ease-out hover:-translate-y-1.5 overflow-hidden"
                     onClick={() => setMobileMenuOpen(false)}
                   >
+                    <div className="absolute top-0 left-0 right-0 h-[2px] bg-white/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                     Get Started
+                    <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
                   </Link>
                 </>
               )}
