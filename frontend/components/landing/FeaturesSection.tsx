@@ -190,7 +190,7 @@ function FeatureCard({ feature }: { feature: typeof standardFeatures[0] }) {
     <motion.div
       variants={cardVariants}
       whileHover={{ y: -6 }}
-      className={`group relative flex flex-col rounded-[24px] bg-white border border-[#E2E8F0] overflow-hidden transition-all duration-300 ease-out hover:shadow-xl ${feature.borderGlow} cursor-default h-full`}
+      className={`group relative flex flex-col rounded-[24px] bg-white border border-[#E2E8F0] overflow-hidden transition-all duration-300 ease-out hover:shadow-[0_20px_60px_rgba(79,70,229,0.06)] ${feature.borderGlow} cursor-default h-full`}
       style={{ padding: "32px" }}
     >
       {/* Top gradient accent line */}
@@ -225,7 +225,7 @@ function FeaturedFlashcardCard() {
     <motion.div
       variants={cardVariants}
       whileHover={{ y: -6 }}
-      className="group relative flex flex-col md:flex-row items-center gap-10 rounded-[24px] border border-[#4F46E5]/20 overflow-hidden cursor-default transition-all duration-300 ease-out hover:shadow-2xl hover:shadow-[#4F46E5]/10 h-full"
+      className="group relative flex flex-col md:flex-row items-center gap-10 rounded-[32px] border border-[#4F46E5]/20 overflow-hidden cursor-default transition-all duration-300 ease-out hover:shadow-[0_20px_60px_rgba(79,70,229,0.06)] h-full"
       style={{
         padding: "40px",
         background: "linear-gradient(135deg, #fafaff 0%, #f4f3ff 50%, #fafaff 100%)",
@@ -291,7 +291,7 @@ export function FeaturesSection() {
         />
       </div>
 
-      <div className="landing-container relative z-10">
+      <div className="mx-auto w-full max-w-[1400px] px-6 md:px-12 lg:px-16 relative z-10 flex flex-col pb-20">
         {/* ── Section heading ── */}
         <motion.div
           className="text-center w-full max-w-3xl mx-auto mb-20 flex flex-col items-center"
@@ -307,8 +307,8 @@ export function FeaturesSection() {
           </div>
 
           <h2
-            className="font-black text-[#0F172A] tracking-tighter mb-6 leading-[1.1] drop-shadow-sm"
-            style={{ fontSize: "clamp(2.5rem, 5vw, 4rem)" }}
+            className="font-black text-[#0F172A] tracking-tighter mb-6 drop-shadow-sm"
+            style={{ fontSize: "clamp(2.25rem, 4vw, 3.75rem)", lineHeight: "1.1" }}
           >
             Everything You Need to <br className="hidden sm:block" />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#168BFF] via-[#4F46E5] to-[#7C3AED]">

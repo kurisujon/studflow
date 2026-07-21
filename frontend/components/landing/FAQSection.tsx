@@ -36,38 +36,43 @@ export function FAQSection() {
   };
 
   return (
-    <section id="faq" className="landing-section w-full py-24 md:py-32 bg-[#F8FAFC]">
-      <div className="landing-container" style={{maxWidth: '48rem'}}>
+    <section id="faq" className="w-full py-24 md:py-32 bg-white relative overflow-hidden">
+      {/* Subtle background gradient */}
+      <div className="absolute inset-0 bg-gradient-to-b from-[#F8FAFC] to-white pointer-events-none" />
+      <div className="mx-auto w-full max-w-[1400px] px-6 md:px-12 lg:px-16 relative z-10 flex flex-col items-center pb-20">
         
-        <div className="text-center mb-16 lg:mb-20">
-          <h2 className="font-bold text-[#0F172A] tracking-tight mb-5 text-[clamp(1.8rem,4vw,3rem)]">
+        <div className="text-center mb-16 lg:mb-20 max-w-3xl">
+          <h2 
+            className="text-[#0F172A] font-black tracking-tight mb-6"
+            style={{ fontSize: "clamp(2.25rem, 4vw, 3.75rem)", lineHeight: "1.1" }}
+          >
             Frequently Asked Questions
           </h2>
-          <p className="text-[#64748B] text-[clamp(1rem,2vw,1.125rem)] mb-8">
+          <p className="text-[#475569] text-[clamp(1.125rem,2vw,1.25rem)] mb-8">
             Got questions? We&apos;ve got answers.
           </p>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-4 w-full max-w-4xl">
           {faqs.map((faq, idx) => {
             const isOpen = openIndex === idx;
             return (
               <div 
                 key={idx} 
-                className={`border border-[#E2E8F0] rounded-2xl overflow-hidden transition-colors duration-300 ease-out ${
-                  isOpen ? "bg-white shadow-md border-[#168BFF]/30" : "bg-[#F8FAFC] hover:bg-white"
+                className={`border rounded-[24px] md:rounded-[32px] overflow-hidden transition-all duration-300 ease-out bg-white ${
+                  isOpen ? "shadow-[0_20px_60px_rgba(79,70,229,0.06)] border-[#E2E8F0]" : "border-[#E2E8F0]/60 hover:shadow-[0_20px_60px_rgba(79,70,229,0.06)] hover:border-[#E2E8F0]"
                 }`}
               >
                 <button
                   onClick={() => toggleOpen(idx)}
-                  className="w-full flex items-center justify-between p-6 md:p-8 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#168BFF]"
+                  className="w-full flex items-center justify-between p-6 md:p-8 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50"
                 >
-                  <span className={`text-lg font-semibold transition-colors ${isOpen ? "text-[#168BFF]" : "text-[#0F172A]"}`}>
+                  <span className="text-[1.125rem] md:text-[1.25rem] font-semibold text-[#0F172A]">
                     {faq.question}
                   </span>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${isOpen ? "bg-[#F0F7FF]" : "bg-[#F8FAFC]"}`}>
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors shrink-0 ml-4 ${isOpen ? "bg-indigo-50" : "bg-[#F8FAFC]"}`}>
                     <ChevronDown 
-                      className={`w-5 h-5 transition-transform duration-300 ${isOpen ? "rotate-180 text-[#168BFF]" : "text-[#64748B]"}`} 
+                      className={`w-5 h-5 transition-transform duration-300 ${isOpen ? "rotate-180 text-indigo-600" : "text-[#475569]"}`} 
                     />
                   </div>
                 </button>
@@ -79,7 +84,7 @@ export function FAQSection() {
                       exit={{ height: 0, opacity: 0 }}
                       transition={{ duration: 0.3 }}
                     >
-                      <div className="p-6 md:p-8 pt-0 md:pt-0 text-[#64748B] leading-relaxed">
+                      <div className="p-6 md:p-8 pt-0 md:pt-0 text-[#475569] text-base md:text-lg leading-relaxed">
                         {faq.answer}
                       </div>
                     </motion.div>

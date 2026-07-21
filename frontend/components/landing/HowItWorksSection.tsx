@@ -42,7 +42,7 @@ const steps = [
 
 function Step1Preview() {
   return (
-    <div className="w-full bg-white rounded-xl border border-[#E2E8F0] p-4 shadow-sm flex flex-col gap-3">
+    <div className="w-full bg-white rounded-[24px] border border-[#E2E8F0] p-4 shadow-[0_20px_60px_rgba(79,70,229,0.06)] flex flex-col gap-3">
       <div className="flex items-center gap-3 p-3 rounded-lg border border-dashed border-[#CBD5E1] bg-[#F8FAFC]">
         <div className="w-8 h-8 rounded bg-[#F0F7FF] flex items-center justify-center shrink-0">
           <FileImage className="w-4 h-4 text-[#168BFF]" />
@@ -100,7 +100,7 @@ function Step2Preview() {
   }, []);
 
   return (
-    <div className="w-full bg-white rounded-xl border border-[#E2E8F0] p-4 shadow-sm relative overflow-hidden">
+    <div className="w-full bg-white rounded-[24px] border border-[#E2E8F0] p-4 shadow-[0_20px_60px_rgba(79,70,229,0.06)] relative overflow-hidden">
       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#7C3AED] to-[#4F46E5]" />
       <div className="flex items-center justify-between mb-3 mt-1">
         <span className="text-[11px] font-bold text-[#7C3AED] uppercase tracking-wider flex items-center gap-1">
@@ -135,7 +135,7 @@ function Step2Preview() {
 
 function Step3Preview() {
   return (
-    <div className="w-full bg-white rounded-xl border border-[#E2E8F0] p-4 shadow-sm flex flex-col gap-2 relative overflow-hidden">
+    <div className="w-full bg-white rounded-[24px] border border-[#E2E8F0] p-4 shadow-[0_20px_60px_rgba(79,70,229,0.06)] flex flex-col gap-2 relative overflow-hidden">
       <div className="absolute -right-6 -top-6 w-20 h-20 bg-emerald-500/10 rounded-full blur-xl pointer-events-none" />
       <div className="flex items-center justify-between mb-2">
         <span className="text-[11px] font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-1">
@@ -201,7 +201,7 @@ export function HowItWorksSection() {
         <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-gradient-to-tr from-[#7C3AED]/5 to-transparent rounded-full blur-[80px]" />
       </div>
 
-      <div className="landing-container relative z-10">
+      <div className="mx-auto w-full max-w-[1400px] px-6 md:px-12 lg:px-16 relative z-10 flex flex-col pb-20">
         
         {/* Header */}
         <div className="text-center max-w-2xl mx-auto mb-16 lg:mb-24">
@@ -220,8 +220,8 @@ export function HowItWorksSection() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: 0.1 }}
-            className="font-bold text-[#0F172A] tracking-tight mb-5"
-            style={{ fontSize: "clamp(1.8rem, 4vw, 2.75rem)" }}
+            className="text-[#0F172A] font-black tracking-tight mb-5"
+            style={{ fontSize: "clamp(2.25rem, 4vw, 3.75rem)", lineHeight: "1.1" }}
           >
             From document to mastery in <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#4F46E5] to-[#7C3AED]">3 steps</span>
           </motion.h2>

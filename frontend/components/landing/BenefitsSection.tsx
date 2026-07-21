@@ -93,7 +93,7 @@ function LiveDashboard() {
   }, []);
 
   return (
-    <div className="relative rounded-3xl bg-white border border-[#E2E8F0] shadow-2xl p-6 lg:p-8 overflow-hidden w-full max-w-[500px] mx-auto lg:mx-0">
+    <div className="relative rounded-[32px] bg-white border border-[#E2E8F0] shadow-[0_20px_60px_rgba(79,70,229,0.06)] p-6 lg:p-8 overflow-hidden w-full max-w-[500px] mx-auto lg:mx-0">
       
       {/* Decorative Dashboard Header */}
       <div className="absolute top-0 left-0 w-full h-[6px] bg-gradient-to-r from-[#168BFF] via-[#4F46E5] to-[#7C3AED]" />
@@ -120,7 +120,7 @@ function LiveDashboard() {
         </div>
         <div>
           <h3 className="text-lg font-bold text-[#0F172A] leading-tight">Weekly Progress</h3>
-          <p className="text-xs text-[#64748B]">Updated just now</p>
+          <p className="text-xs text-[#475569]">Updated just now</p>
         </div>
       </div>
 
@@ -165,7 +165,7 @@ function LiveDashboard() {
           
           <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] relative overflow-hidden group">
             <div className="absolute inset-0 bg-gradient-to-br from-[#168BFF]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            <p className="text-[11px] font-semibold text-[#64748B] mb-1 uppercase tracking-wider">Time Saved</p>
+            <p className="text-[11px] font-semibold text-[#475569] mb-1 uppercase tracking-wider">Time Saved</p>
             <div className="flex items-center gap-2">
               <p className="text-2xl font-black text-[#168BFF]">14.5<span className="text-sm font-bold">hr</span></p>
             </div>
@@ -173,10 +173,10 @@ function LiveDashboard() {
 
           <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] relative overflow-hidden group">
             <div className="absolute inset-0 bg-gradient-to-br from-[#f59e0b]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            <p className="text-[11px] font-semibold text-[#64748B] mb-1 uppercase tracking-wider">Study Streak</p>
+            <p className="text-[11px] font-semibold text-[#475569] mb-1 uppercase tracking-wider">Study Streak</p>
             <div className="flex items-center gap-2">
               <Flame className="w-5 h-5 text-amber-500 fill-amber-500/20" />
-              <p className="text-2xl font-black text-[#0F172A]">7 <span className="text-sm font-bold text-[#64748B]">days</span></p>
+              <p className="text-2xl font-black text-[#0F172A]">7 <span className="text-sm font-bold text-[#475569]">days</span></p>
             </div>
           </div>
 
@@ -217,7 +217,7 @@ export function BenefitsSection() {
         <div className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] bg-gradient-to-bl from-[#7C3AED]/5 to-transparent rounded-full blur-[100px]" />
       </div>
 
-      <div className="landing-container relative z-10">
+      <div className="mx-auto w-full max-w-[1400px] px-6 md:px-12 lg:px-16 relative z-10 flex flex-col pb-20">
         
         <div className="flex flex-col lg:flex-row items-center gap-16 xl:gap-24">
           
@@ -232,8 +232,8 @@ export function BenefitsSection() {
             {/* Header */}
             <div className="mb-12">
               <h2 
-                className="font-bold text-[#0F172A] tracking-tight mb-5 leading-[1.1]"
-                style={{ fontSize: "clamp(2rem, 4vw, 3rem)" }}
+                className="font-black text-[#0F172A] tracking-tight mb-5 leading-[1.1]"
+                style={{ fontSize: "clamp(2.25rem, 4vw, 3.75rem)", lineHeight: "1.1" }}
               >
                 Study smarter, not harder. <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#168BFF] to-[#4F46E5]">Seriously.</span>
               </h2>
@@ -248,7 +248,7 @@ export function BenefitsSection() {
                 <motion.div 
                   key={idx}
                   whileHover={{ y: -4 }}
-                  className="flex flex-col gap-4 p-5 rounded-[20px] bg-white border border-[#E2E8F0] shadow-sm hover:shadow-xl transition-all duration-300 ease-out relative group"
+                  className="flex flex-col gap-4 p-5 rounded-[24px] bg-white border border-[#E2E8F0] shadow-[0_20px_60px_rgba(79,70,229,0.06)] hover:shadow-xl transition-all duration-300 ease-out relative group"
                 >
                   <div className="flex items-start justify-between">
                     <div className={`w-12 h-12 rounded-2xl ${benefit.bgColor} flex items-center justify-center shrink-0 shadow-inner group-hover:scale-110 transition-transform duration-300`}>
@@ -262,7 +262,7 @@ export function BenefitsSection() {
                   
                   <div>
                     <h3 className="font-bold text-[#0F172A] mb-1.5 text-base group-hover:text-[#168BFF] transition-colors">{benefit.title}</h3>
-                    <p className="text-xs text-[#64748B] leading-[1.6]">{benefit.description}</p>
+                    <p className="text-xs text-[#475569] leading-[1.6]">{benefit.description}</p>
                   </div>
                 </motion.div>
               ))}

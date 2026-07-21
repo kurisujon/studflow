@@ -45,16 +45,17 @@ export function TestimonialSection() {
   ];
 
   return (
-    <section id="reviews" className="w-full py-[120px] bg-[#050816] flex flex-col items-center relative overflow-hidden border-t border-[rgba(255,255,255,.05)] isolate">
+    <section id="reviews" className="w-full py-[120px] bg-[#ffffff] flex flex-col items-center relative overflow-hidden isolate">
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#4F7BFF]/5 to-transparent pointer-events-none" />
       
-      <div className="w-full max-w-[1400px] px-6 md:px-12 lg:px-20 mx-auto relative z-10">
+      <div className="mx-auto w-full max-w-[1400px] px-6 md:px-12 lg:px-16 relative z-10 flex flex-col pb-20">
         <div className="text-center mb-[80px]">
           <motion.h2 
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-[48px] font-bold text-white tracking-tight mb-6 leading-[1.2]"
+            className="text-[#0F172A] font-black mb-6 tracking-tight"
+            style={{ fontSize: "clamp(2.25rem, 4vw, 3.75rem)", lineHeight: "1.1" }}
           >
             Loved by Students Everywhere
           </motion.h2>
@@ -63,7 +64,7 @@ export function TestimonialSection() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: 0.1 }}
-            className="text-[18px] text-white/60 max-w-[700px] mx-auto leading-[1.6]"
+            className="text-[18px] text-[#475569] max-w-[700px] mx-auto leading-[1.6]"
           >
             Join thousands of students who have already upgraded their study workflow.
           </motion.p>
@@ -77,23 +78,23 @@ export function TestimonialSection() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-50px" }}
               transition={{ delay: (idx % 3) * 0.1 }}
-              className="bg-[rgba(16,20,38,.65)] backdrop-blur-[20px] p-6 rounded-2xl border border-[rgba(255,255,255,.08)] shadow-[0_20px_60px_rgba(0,0,0,.25)] relative group hover:bg-[rgba(16,20,38,.85)] transition-colors break-inside-avoid"
+              className="bg-white p-8 rounded-[24px] border border-[#E2E8F0] shadow-[0_20px_60px_rgba(79,70,229,0.06)] relative group hover:shadow-[0_20px_60px_rgba(79,70,229,0.12)] transition-shadow duration-300 break-inside-avoid"
             >
-              <div className="flex gap-1 mb-4">
+              <div className="flex gap-1 mb-6">
                 {[1, 2, 3, 4, 5].map((star) => (
-                  <Star key={star} className="w-3.5 h-3.5 fill-[#4F7BFF] text-[#4F7BFF]" />
+                  <Star key={star} className="w-4 h-4 fill-[#F59E0B] text-[#F59E0B]" />
                 ))}
               </div>
-              <Quote className="w-8 h-8 text-white/[0.03] absolute top-6 right-6 group-hover:text-[#4F7BFF]/10 transition-colors" />
-              <p className="text-white/80 mb-6 leading-[1.6] text-[16px] font-light">&quot;{t.text}&quot;</p>
+              <Quote className="w-8 h-8 text-[#E2E8F0] absolute top-8 right-8 group-hover:text-[#4F7BFF]/20 transition-colors" />
+              <p className="text-[#334155] mb-8 leading-[1.6] text-[16px]">&quot;{t.text}&quot;</p>
               
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#4F7BFF] to-[#7C5CFF] flex items-center justify-center text-white font-bold text-sm shadow-inner">
+              <div className="flex items-center gap-4 mt-auto">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#4F7BFF] to-[#7C5CFF] flex items-center justify-center text-white font-bold text-lg shadow-sm">
                   {t.avatar}
                 </div>
                 <div>
-                  <div className="font-semibold text-white text-[15px]">{t.name}</div>
-                  <div className="text-[13px] text-white/50">{t.role}</div>
+                  <div className="font-bold text-[#0F172A] text-[16px]">{t.name}</div>
+                  <div className="text-[14px] text-[#64748B] font-medium">{t.role}</div>
                 </div>
               </div>
             </motion.div>
