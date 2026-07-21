@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 // @ts-expect-error - lucide-react types are outdated in this project
-import { ArrowRight, Sparkles, FileText, CheckCircle, PlayCircle, Loader2, BookOpen } from "lucide-react";
+import { ArrowRight, Sparkles, FileText, CheckCircle, PlayCircle, Loader2, BookOpen, Layers } from "lucide-react";
 
 // ── Workflow steps for the animated product preview ──────────────────────────
 const workflowSteps = [
