@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 // @ts-expect-error - lucide-react types are outdated in this project
@@ -38,7 +38,6 @@ function ProductPreview() {
   const [progress, setProgress] = useState(78);
 
   useEffect(() => {
-    const startTime = Date.now();
     const duration = 2000; // ms per step
 
     const progressInterval = setInterval(() => {
