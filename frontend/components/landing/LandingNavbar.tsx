@@ -76,7 +76,7 @@ export function LandingNavbar() {
               </Link>
               <Link
                 href="/sign-up"
-                className="group relative flex items-center justify-center gap-1.5 h-11 px-6 rounded-xl text-[14px] font-bold text-white bg-gradient-to-r from-[#5964FF] to-[#8640FF] shadow-md hover:shadow-lg hover:shadow-[#8640FF]/30 transition-all duration-300 ease-out hover:-translate-y-1.5 overflow-hidden"
+                className="group relative flex shrink-0 items-center justify-center gap-1.5 h-11 px-6 rounded-xl text-[14px] font-bold text-white bg-gradient-to-r from-[#5964FF] to-[#8640FF] shadow-md hover:shadow-lg hover:shadow-[#8640FF]/30 transition-all duration-300 ease-out hover:-translate-y-1.5 overflow-hidden"
               >
                 <div className="absolute top-0 left-0 right-0 h-[2px] bg-white/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 Get Started
@@ -138,7 +138,7 @@ export function LandingNavbar() {
                   </Link>
                   <Link
                     href="/sign-up"
-                    className="group relative flex items-center justify-center gap-1.5 w-full h-12 rounded-xl text-[15px] font-bold text-white bg-gradient-to-r from-[#5964FF] to-[#8640FF] shadow-md hover:shadow-lg hover:shadow-[#8640FF]/30 transition-all duration-300 ease-out hover:-translate-y-1.5 overflow-hidden"
+                    className="group relative flex shrink-0 items-center justify-center gap-1.5 w-full h-12 rounded-xl text-[15px] font-bold text-white bg-gradient-to-r from-[#5964FF] to-[#8640FF] shadow-md hover:shadow-lg hover:shadow-[#8640FF]/30 transition-all duration-300 ease-out hover:-translate-y-1.5 overflow-hidden"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     <div className="absolute top-0 left-0 right-0 h-[2px] bg-white/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
