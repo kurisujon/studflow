@@ -64,7 +64,7 @@ function ProductPreview() {
   const completedCount = stepIndex;
 
   return (
-    <div className="relative w-full max-w-[560px] mx-auto rounded-[32px] border border-white/60 shadow-[0_24px_80px_-12px_rgba(0,0,0,0.08)] bg-white/70 backdrop-blur-xl overflow-hidden flex flex-col text-left">
+    <div className="relative w-full max-w-[600px] mx-auto rounded-[32px] border border-white/60 shadow-[0_24px_80px_-12px_rgba(0,0,0,0.08)] bg-white/70 backdrop-blur-xl overflow-hidden flex flex-col text-left">
       
       {/* ── Floating Badges ── */}
       <motion.div 
@@ -182,33 +182,33 @@ export function HeroSection() {
     <section className="landing-section landing-hero relative w-full overflow-hidden bg-[#F8FAFC]">
       {/* ── Background glows ── */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-        <div className="absolute top-[-20%] right-[-10%] w-[800px] h-[800px] rounded-full bg-gradient-to-b from-[#168BFF]/10 to-[#7C3AED]/5 blur-[120px] opacity-70" />
-        <div className="absolute top-[20%] left-[-15%] w-[700px] h-[700px] rounded-full bg-gradient-to-t from-[#4F46E5]/10 to-transparent blur-[100px] opacity-60" />
+        <div className="absolute top-[10%] right-[-10%] w-[900px] h-[900px] rounded-full bg-gradient-to-b from-[#168BFF]/12 to-[#7C3AED]/6 blur-[130px] opacity-80" />
+        <div className="absolute bottom-[-20%] left-[-15%] w-[800px] h-[800px] rounded-full bg-gradient-to-t from-[#4F46E5]/10 to-transparent blur-[110px] opacity-70" />
       </div>
 
-      <div className="landing-container relative z-10 flex flex-col items-center">
+      <div className="landing-container relative z-10 flex flex-col lg:flex-row items-center justify-between gap-16 lg:gap-8">
         
-        {/* ── Top: Text Content (Centered) ─────────────────────────────── */}
+        {/* ── Left Side: Text Content ─────────────────────────────── */}
         <motion.div
-          className="w-full flex flex-col items-center text-center max-w-4xl mx-auto mb-16"
+          className="w-full lg:w-[50%] flex flex-col items-start text-left"
           variants={containerVariants}
           initial="hidden"
           animate="visible"
         >
-          {/* Badge */}
+          {/* Badge - Enlarged text-sm and px-6 py-2.5 */}
           <motion.div
             variants={itemVariants}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-[#E2E8F0] shadow-sm mb-8"
+            className="inline-flex items-center gap-2.5 px-6 py-2.5 rounded-full bg-white border border-[#E2E8F0] shadow-sm mb-10"
           >
             <Sparkles className="w-4 h-4 text-[#168BFF]" />
-            <span className="text-xs font-bold text-[#0F172A] tracking-wider uppercase">AI Study Platform for Students</span>
+            <span className="text-sm font-bold text-[#0F172A] tracking-wider uppercase">AI Study Platform for Students</span>
           </motion.div>
 
           {/* Headline */}
           <motion.h1
             variants={itemVariants}
-            className="font-black tracking-tight text-[#0F172A] leading-[1.1] mb-6 max-w-[800px]"
-            style={{ fontSize: "clamp(2.5rem, 6vw, 4.8rem)" }}
+            className="font-black tracking-tight text-[#0F172A] leading-[1.1] mb-8"
+            style={{ fontSize: "clamp(2.5rem, 5vw, 4.2rem)" }}
           >
             Turn Every Lecture Into{" "}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#168BFF] via-[#4F46E5] to-[#7C3AED]">
@@ -216,20 +216,20 @@ export function HeroSection() {
             </span>
           </motion.h1>
 
-          {/* Supporting text */}
+          {/* Supporting text - Increased margin bottom */}
           <motion.p
             variants={itemVariants}
-            className="mb-10 text-[#475569] leading-relaxed max-w-[640px] mx-auto"
-            style={{ fontSize: "clamp(1.125rem, 2vw, 1.25rem)" }}
+            className="mb-14 text-[#475569] leading-relaxed max-w-[580px]"
+            style={{ fontSize: "clamp(1.125rem, 1.8vw, 1.25rem)" }}
           >
             Upload your lecture notes, slides, or PDFs and let StudFlow instantly transform them into concise summaries, interactive flashcards, and personalized quizzes.
           </motion.p>
 
-          {/* CTA Buttons */}
-          <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full sm:w-auto mb-12">
+          {/* CTA Buttons - Resized correctly, using hover:-translate-y-2 */}
+          <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-center justify-start gap-5 w-full sm:w-auto mb-16">
             <Link
               href="/dashboard/upload"
-              className="landing-cta-primary group w-full sm:w-auto h-14 px-10 rounded-xl text-base font-bold bg-gradient-to-r from-[#168BFF] to-[#4F46E5] hover:shadow-2xl hover:shadow-[#168BFF]/40 transition-all duration-300 ease-out hover:-translate-y-1 flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-[#168BFF] focus-visible:outline-offset-2 whitespace-nowrap"
+              className="landing-cta-primary group w-full sm:w-auto h-auto py-4 px-10 rounded-xl text-[17px] font-bold bg-gradient-to-r from-[#168BFF] to-[#4F46E5] hover:shadow-2xl hover:shadow-[#168BFF]/40 transition-all duration-300 ease-out hover:-translate-y-2 flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-[#168BFF] focus-visible:outline-offset-2 whitespace-nowrap"
               aria-label="Start studying for free"
             >
               Start Studying Free
@@ -237,7 +237,7 @@ export function HeroSection() {
             </Link>
             <Link
               href="#how-it-works"
-              className="landing-cta-ghost w-full sm:w-auto h-14 px-10 rounded-xl text-base font-bold bg-white border-2 border-[#E2E8F0] hover:border-[#CBD5E1] hover:bg-[#F8FAFC] hover:shadow-lg transition-all duration-300 ease-out hover:-translate-y-1 flex items-center justify-center focus-visible:outline-2 focus-visible:outline-[#168BFF] focus-visible:outline-offset-2 whitespace-nowrap"
+              className="landing-cta-ghost w-full sm:w-auto h-auto py-4 px-10 rounded-xl text-[17px] font-bold bg-white border-2 border-[#E2E8F0] hover:border-[#CBD5E1] hover:bg-[#F8FAFC] hover:shadow-xl transition-all duration-300 ease-out hover:-translate-y-2 flex items-center justify-center focus-visible:outline-2 focus-visible:outline-[#168BFF] focus-visible:outline-offset-2 whitespace-nowrap"
             >
               See how it works
             </Link>
@@ -246,22 +246,22 @@ export function HeroSection() {
           {/* Trust indicators */}
           <motion.div
             variants={itemVariants}
-            className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4 pt-4"
+            className="flex flex-wrap items-center justify-start gap-x-8 gap-y-4"
           >
             {trustItems.map((item) => (
-              <span key={item.text} className="flex items-center gap-2 text-sm text-[#475569] font-semibold">
-                <span className="text-lg">{item.emoji}</span>
+              <span key={item.text} className="flex items-center gap-2 text-[15px] text-[#475569] font-semibold">
+                <span className="text-xl">{item.emoji}</span>
                 {item.text}
               </span>
             ))}
           </motion.div>
         </motion.div>
 
-        {/* ── Bottom: Interactive Product Preview ───────────────────────── */}
+        {/* ── Right Side: Interactive Product Preview ───────────────────────── */}
         <motion.div
-          className="w-full relative z-20"
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
+          className="w-full lg:w-[50%] relative z-20 flex justify-center lg:justify-end"
+          initial={{ opacity: 0, x: 40 }}
+          animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.8, delay: 0.3, ease: "easeOut" }}
         >
           <ProductPreview />

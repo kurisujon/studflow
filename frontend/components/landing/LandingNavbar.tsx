@@ -33,7 +33,7 @@ export function LandingNavbar() {
       className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${
         scrolled
           ? "bg-white/70 backdrop-blur-xl shadow-sm border-b border-[#E2E8F0]"
-          : "bg-white/90 border-b border-[#E2E8F0]/60"
+          : "bg-transparent border-b border-transparent"
       }`}
     >
       <div className="landing-container flex items-center justify-between h-[80px]">
@@ -61,7 +61,7 @@ export function LandingNavbar() {
           {isSignedIn ? (
             <Link
               href="/dashboard"
-              className="landing-cta-primary !h-11 !px-6 !rounded-md flex items-center justify-center !text-sm font-semibold bg-gradient-to-r from-[#168BFF] to-[#2563EB] hover:shadow-lg hover:shadow-[#168BFF]/30 transition-all duration-300 ease-out transform hover:-translate-y-1"
+              className="landing-cta-primary !h-11 !px-6 !rounded-md flex items-center justify-center !text-sm font-semibold bg-gradient-to-r from-[#168BFF] to-[#2563EB] hover:shadow-xl hover:shadow-[#168BFF]/30 transition-all duration-300 ease-out transform hover:-translate-y-1.5"
             >
               Go to Dashboard
             </Link>
@@ -69,13 +69,13 @@ export function LandingNavbar() {
             <>
               <Link
                 href="/sign-in"
-                className="landing-cta-ghost !h-11 !px-6 flex items-center justify-center !text-sm font-semibold hover:text-[#168BFF] transition-colors duration-300 ease-out"
+                className="landing-cta-ghost !h-11 !px-6 flex items-center justify-center !text-sm font-semibold hover:text-[#168BFF] transition-colors duration-300 ease-out transform hover:-translate-y-1"
               >
                 Sign In
               </Link>
               <Link
                 href="/sign-up"
-                className="landing-cta-dark !h-11 !px-6 !rounded-md flex items-center justify-center !text-sm font-semibold bg-[#0F172A] hover:bg-[#168BFF] hover:shadow-lg hover:shadow-[#168BFF]/30 transition-all duration-300 ease-out transform hover:-translate-y-1"
+                className="landing-cta-dark !h-11 !px-6 !rounded-md flex items-center justify-center !text-sm font-semibold bg-[#0F172A] hover:bg-[#168BFF] hover:shadow-xl hover:shadow-[#168BFF]/30 transition-all duration-300 ease-out transform hover:-translate-y-1.5"
               >
                 Get Started
               </Link>
@@ -118,7 +118,7 @@ export function LandingNavbar() {
               {isSignedIn ? (
                 <Link
                   href="/dashboard"
-                  className="landing-cta-primary w-full !h-12 !rounded-md flex items-center justify-center !text-sm font-semibold bg-gradient-to-r from-[#168BFF] to-[#2563EB] transition-all duration-300 ease-out hover:-translate-y-1"
+                  className="landing-cta-primary w-full !h-12 !rounded-md flex items-center justify-center !text-sm font-semibold bg-gradient-to-r from-[#168BFF] to-[#2563EB] hover:shadow-xl hover:shadow-[#168BFF]/30 transition-all duration-300 ease-out transform hover:-translate-y-1.5"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Go to Dashboard
@@ -127,14 +127,14 @@ export function LandingNavbar() {
                 <>
                   <Link
                     href="/sign-in"
-                    className="landing-cta-ghost w-full !h-12 !rounded-md flex items-center justify-center !text-sm font-semibold bg-[#F8FAFC] border border-[#E2E8F0] transition-all duration-300 ease-out hover:-translate-y-1"
+                    className="landing-cta-ghost w-full !h-12 !rounded-md flex items-center justify-center !text-sm font-semibold bg-[#F8FAFC] border border-[#E2E8F0] transition-all duration-300 ease-out transform hover:-translate-y-1"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     Sign In
                   </Link>
                   <Link
                     href="/sign-up"
-                    className="landing-cta-dark w-full !h-12 !rounded-md flex items-center justify-center !text-sm font-semibold bg-[#0F172A] transition-all duration-300 ease-out hover:-translate-y-1"
+                    className="landing-cta-dark w-full !h-12 !rounded-md flex items-center justify-center !text-sm font-semibold bg-[#0F172A] transition-all duration-300 ease-out transform hover:-translate-y-1.5"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     Get Started
