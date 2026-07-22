@@ -3,7 +3,12 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 // @ts-expect-error - lucide-react types are outdated in this project
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, HelpCircle } from "lucide-react";
+import { LandingSection } from "./ui/LandingSection";
+import { LandingContainer } from "./ui/LandingContainer";
+import { LandingHeading } from "./ui/LandingHeading";
+import { LandingBadge } from "./ui/LandingBadge";
+import { LandingCard } from "./ui/LandingCard";
 
 const faqs = [
   {
@@ -36,43 +41,44 @@ export function FAQSection() {
   };
 
   return (
-    <section id="faq" className="w-full py-24 md:py-32 bg-white relative overflow-hidden">
-      {/* Subtle background gradient */}
-      <div className="absolute inset-0 bg-gradient-to-b from-[#F8FAFC] to-white pointer-events-none" />
-      <div className="mx-auto w-full max-w-[1280px] px-6 md:px-10 lg:px-12 relative z-10 flex flex-col items-center pb-20">
-        
-        <div className="text-center mb-16 lg:mb-20 max-w-3xl">
-          <h2 
-            className="text-[#0F172A] font-black tracking-tight mb-6"
-            style={{ fontSize: "clamp(2.25rem, 4vw, 3.75rem)", lineHeight: "1.1" }}
-          >
-            Frequently Asked Questions
-          </h2>
-          <p className="text-[#475569] text-[clamp(1.125rem,2vw,1.25rem)] mb-8">
-            Got questions? We&apos;ve got answers.
-          </p>
-        </div>
+    <LandingSection id="faq" background="gradient" spacing="lg">
+      <LandingContainer variant="narrow" className="flex flex-col items-center">
+        <LandingHeading
+          level={2}
+          badge={
+            <LandingBadge variant="neutral" icon={<HelpCircle className="w-4 h-4 text-[#64748B]" />}>
+              Support & Answers
+            </LandingBadge>
+          }
+          subtitle="Got questions? We've got answers."
+        >
+          Frequently Asked Questions
+        </LandingHeading>
 
-        <div className="space-y-4 w-full max-w-4xl">
+        <div className="space-y-4 w-full">
           {faqs.map((faq, idx) => {
             const isOpen = openIndex === idx;
             return (
-              <div 
-                key={idx} 
-                className={`border rounded-[24px] md:rounded-[32px] overflow-hidden transition-all duration-300 ease-out bg-white ${
-                  isOpen ? "shadow-[0_20px_60px_rgba(79,70,229,0.06)] border-[#E2E8F0]" : "border-[#E2E8F0]/60 hover:shadow-[0_20px_60px_rgba(79,70,229,0.06)] hover:border-[#E2E8F0]"
+              <LandingCard
+                key={idx}
+                variant="default"
+                padding="none"
+                radius="xl"
+                hoverEffect={false}
+                className={`transition-all duration-300 ${
+                  isOpen ? "shadow-[0_20px_40px_rgba(15,23,42,0.06)] border-[#168BFF]/40" : "border-[#E2E8F0] hover:border-[#CBD5E1]"
                 }`}
               >
                 <button
                   onClick={() => toggleOpen(idx)}
-                  className="w-full flex items-center justify-between p-6 md:p-8 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50"
+                  className="w-full flex items-center justify-between p-6 md:p-8 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#168BFF]/50"
                 >
                   <span className="text-[1.125rem] md:text-[1.25rem] font-semibold text-[#0F172A]">
                     {faq.question}
                   </span>
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors shrink-0 ml-4 ${isOpen ? "bg-indigo-50" : "bg-[#F8FAFC]"}`}>
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors shrink-0 ml-4 ${isOpen ? "bg-[#F0F7FF] text-[#168BFF]" : "bg-[#F8FAFC] text-[#64748B]"}`}>
                     <ChevronDown 
-                      className={`w-5 h-5 transition-transform duration-300 ${isOpen ? "rotate-180 text-indigo-600" : "text-[#475569]"}`} 
+                      className={`w-5 h-5 transition-transform duration-300 ${isOpen ? "rotate-180 text-[#168BFF]" : "text-[#475569]"}`} 
                     />
                   </div>
                 </button>
@@ -84,18 +90,17 @@ export function FAQSection() {
                       exit={{ height: 0, opacity: 0 }}
                       transition={{ duration: 0.3 }}
                     >
-                      <div className="p-6 md:p-8 pt-0 md:pt-0 text-[#475569] text-base md:text-lg leading-relaxed">
+                      <div className="px-6 md:px-8 pb-6 md:pb-8 pt-0 text-[#475569] text-base md:text-lg leading-relaxed border-t border-[#F1F5F9] pt-4">
                         {faq.answer}
                       </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
-              </div>
+              </LandingCard>
             );
           })}
         </div>
-
-      </div>
-    </section>
+      </LandingContainer>
+    </LandingSection>
   );
 }

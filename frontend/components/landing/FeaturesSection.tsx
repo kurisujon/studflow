@@ -4,6 +4,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
 // @ts-expect-error - lucide-react types are outdated in this project
 import { FileText, Layers, CheckCircle, Edit3, MessageSquare, Video, Sparkles, RotateCcw } from "lucide-react";
+import { LandingSection } from "./ui/LandingSection";
+import { LandingContainer } from "./ui/LandingContainer";
+import { LandingHeading } from "./ui/LandingHeading";
+import { LandingBadge } from "./ui/LandingBadge";
+import { LandingCard } from "./ui/LandingCard";
 
 // ── Feature definitions ──────────────────────────────────────────────────────
 const standardFeatures = [
@@ -98,177 +103,169 @@ function FlashcardPreview() {
 
   return (
     <div className="mt-6 select-none">
-      {/* Counter */}
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-semibold text-[#64748B]">
-          Card {cardIndex + 1} of {sampleCards.length}
-        </span>
-        <div className="flex items-center gap-1.5">
-          <RotateCcw className="w-3 h-3 text-[#94A3B8]" />
-          <span className="text-xs text-[#94A3B8]">{flipped ? "Answer" : "Question"}</span>
-        </div>
-      </div>
+      <div className="relative h-[220px] sm:h-[200px] w-full [perspective:1000px]">
+        <AnimatePresence mode="wait">
+          {generating ? (
+            <motion.div
+              key="loader"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="absolute inset-0 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] flex flex-col items-center justify-center gap-3 p-6 text-center shadow-inner"
+            >
+              <RotateCcw className="w-6 h-6 text-[#7C3AED] animate-spin" />
+              <span className="text-xs font-semibold text-[#64748B]">Generating next active recall card...</span>
+            </motion.div>
+          ) : (
+            <motion.div
+              key={cardIndex}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3 }}
+              className="w-full h-full cursor-pointer"
+              onClick={() => setFlipped((f) => !f)}
+            >
+              <div
+                className={`relative w-full h-full rounded-2xl transition-all duration-500 [transform-style:preserve-3d] ${
+                  flipped ? "[transform:rotateY(180deg)]" : ""
+                }`}
+              >
+                {/* Front (Question) */}
+                <div className="absolute inset-0 rounded-2xl bg-white border border-[#E2E8F0] p-5 sm:p-6 flex flex-col justify-between [backface-visibility:hidden] shadow-sm hover:border-[#7C3AED]/40 hover:shadow-md transition-all">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-[#7C3AED] uppercase tracking-wider bg-[#F5F3FF] px-2.5 py-1 rounded-full border border-[#7C3AED]/20">
+                      Question · Card {cardIndex + 1} of 3
+                    </span>
+                    <span className="text-[11px] font-semibold text-[#94A3B8] flex items-center gap-1">
+                      <RotateCcw className="w-3 h-3" /> Tap to flip
+                    </span>
+                  </div>
+                  <p className="text-sm sm:text-base font-bold text-[#0F172A] leading-snug my-auto">
+                    {card.q}
+                  </p>
+                  <div className="flex items-center justify-between text-[11px] font-medium text-[#94A3B8] pt-3 border-t border-[#F1F5F9]">
+                    <span>Topic: Neuroscience</span>
+                    <span>Spaced Repetition Active</span>
+                  </div>
+                </div>
 
-      {/* Card */}
-      <AnimatePresence mode="wait">
-        {generating ? (
-          <motion.div
-            key="generating"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-4 min-h-[88px] flex items-center gap-3"
-          >
-            <div className="flex gap-1">
-              {[0, 1, 2].map((i) => (
-                <motion.div
-                  key={i}
-                  className="w-1.5 h-1.5 rounded-full bg-[#4F46E5]"
-                  animate={{ y: [0, -5, 0] }}
-                  transition={{ repeat: Infinity, duration: 0.6, delay: i * 0.15 }}
-                />
-              ))}
-            </div>
-            <span className="text-xs text-[#64748B]">Generating next card…</span>
-          </motion.div>
-        ) : (
-          <motion.div
-            key={`${cardIndex}-${flipped ? "back" : "front"}`}
-            initial={{ opacity: 0, rotateY: flipped ? -15 : 15, scale: 0.97 }}
-            animate={{ opacity: 1, rotateY: 0, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.3, ease: "easeOut" as const }}
-            className={`rounded-xl border p-4 min-h-[88px] flex flex-col justify-center ${
-              flipped
-                ? "border-[#4F46E5]/30 bg-gradient-to-br from-[#EEEDFC] to-white"
-                : "border-[#E2E8F0] bg-white"
-            }`}
-          >
-            <p className={`text-[11px] font-semibold uppercase tracking-wider mb-1.5 ${flipped ? "text-[#4F46E5]" : "text-[#94A3B8]"}`}>
-              {flipped ? "Answer" : "Question"}
-            </p>
-            <p className="text-sm font-medium text-[#0F172A] leading-snug">
-              {flipped ? card.a : card.q}
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Dots */}
-      <div className="flex justify-center gap-1.5 mt-3">
-        {sampleCards.map((_, i) => (
-          <div
-            key={i}
-            className={`h-1 rounded-full transition-all duration-300 ${i === cardIndex ? "w-4 bg-[#4F46E5]" : "w-1.5 bg-[#E2E8F0]"}`}
-          />
-        ))}
+                {/* Back (Answer) */}
+                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[#7C3AED] to-[#5964FF] text-white p-5 sm:p-6 flex flex-col justify-between [transform:rotateY(180deg)] [backface-visibility:hidden] shadow-md">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-white/90 uppercase tracking-wider bg-white/20 px-2.5 py-1 rounded-full backdrop-blur-sm">
+                      Answer · Tap to flip back
+                    </span>
+                    <span className="text-[11px] font-semibold text-white/70">Verified by AI</span>
+                  </div>
+                  <p className="text-xs sm:text-sm font-medium leading-relaxed my-auto text-white/95">
+                    {card.a}
+                  </p>
+                  <div className="flex items-center gap-2 pt-3 border-t border-white/20 text-[11px] font-semibold text-white/80">
+                    <CheckCircle className="w-3.5 h-3.5 text-[#10B981]" />
+                    <span>Rating: Good (Interval: +3 days)</span>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
 }
 
-// ── Variants ─────────────────────────────────────────────────────────────────
+// ── Animation Variants ────────────────────────────────────────────────────────
 const sectionVariants = {
   hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.08, delayChildren: 0.1 } },
+  visible: { opacity: 1, transition: { staggerChildren: 0.1, delayChildren: 0.1 } },
 };
 
-const cardVariants = {
-  hidden: { opacity: 0, y: 28, scale: 0.97 },
-  visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.5, ease: "easeOut" as const } },
+const itemVariants = {
+  hidden: { opacity: 0, y: 24 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" as const } },
 };
 
 const headingVariants = {
   hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.55, ease: "easeOut" as const } },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" as const } },
 };
 
-// ── Standard feature card ─────────────────────────────────────────────────────
+// ── Feature Card Component ────────────────────────────────────────────────────
 function FeatureCard({ feature }: { feature: typeof standardFeatures[0] }) {
   const Icon = feature.icon;
   return (
-    <motion.div
-      variants={cardVariants}
-      whileHover={{ y: -6 }}
-      className={`group relative flex flex-col rounded-[24px] bg-white border border-[#E2E8F0] overflow-hidden transition-all duration-300 ease-out hover:shadow-[0_20px_60px_rgba(79,70,229,0.06)] ${feature.borderGlow} cursor-default h-full`}
-      style={{ padding: "32px" }}
-    >
-      {/* Top gradient accent line */}
-      <div className={`absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r ${feature.accentGradient} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
+    <motion.div variants={itemVariants} className="h-full">
+      <LandingCard variant="default" padding="lg" radius="2xl" className="h-full flex flex-col justify-between group">
+        <div className={`absolute top-0 right-0 w-32 h-32 rounded-bl-full bg-gradient-to-br ${feature.iconBg} opacity-20 pointer-events-none transition-opacity duration-300 group-hover:opacity-40`} />
 
-      {/* Icon */}
-      <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${feature.iconBg} flex items-center justify-center mb-6 shrink-0 shadow-sm transition-transform duration-300 ease-out group-hover:scale-110 group-hover:-rotate-3`}>
-        <Icon className={`w-7 h-7 ${feature.color}`} />
-      </div>
+        <div>
+          <div className="flex items-center justify-between mb-6">
+            <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${feature.iconBg} flex items-center justify-center border border-[#E2E8F0] shadow-sm transition-transform duration-300 group-hover:scale-110`}>
+              <Icon className={`w-6 h-6 ${feature.color}`} />
+            </div>
+            <span className={`text-[12px] font-bold px-3 py-1 rounded-full border ${feature.labelBg} ${feature.labelColor} border-current/20`}>
+              {feature.label}
+            </span>
+          </div>
 
-      {/* Label */}
-      <span className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest ${feature.labelColor} ${feature.labelBg} px-2.5 py-1 rounded-full mb-3 w-fit`}>
-        {feature.label}
-      </span>
+          <h3 className="text-xl font-bold text-[#0F172A] mb-3 group-hover:text-[#168BFF] transition-colors">
+            {feature.title}
+          </h3>
 
-      {/* Title */}
-      <h3 className="text-xl font-bold text-[#0F172A] mb-3 leading-snug group-hover:text-[#168BFF] transition-colors duration-300">
-        {feature.title}
-      </h3>
+          <p className="text-sm text-[#64748B] leading-relaxed">
+            {feature.description}
+          </p>
+        </div>
 
-      {/* Description */}
-      <p className="text-[15px] text-[#475569] leading-relaxed flex-grow">
-        {feature.description}
-      </p>
+        <div className="mt-8 pt-4 border-t border-[#F1F5F9] flex items-center text-xs font-bold text-[#168BFF] group-hover:translate-x-1 transition-transform">
+          <span>Explore Feature</span>
+          <span className="ml-1">→</span>
+        </div>
+      </LandingCard>
     </motion.div>
   );
 }
 
-// ── Featured card (Smart Flashcards, spans full width) ────────────────────────────
+// ── Centerpiece Featured Card ─────────────────────────────────────────────────
 function FeaturedFlashcardCard() {
   return (
-    <motion.div
-      variants={cardVariants}
-      whileHover={{ y: -6 }}
-      className="group relative flex flex-col md:flex-row items-center gap-10 rounded-[32px] border border-[#4F46E5]/20 overflow-hidden cursor-default transition-all duration-300 ease-out hover:shadow-[0_20px_60px_rgba(79,70,229,0.06)] h-full"
-      style={{
-        padding: "40px",
-        background: "linear-gradient(135deg, #fafaff 0%, #f4f3ff 50%, #fafaff 100%)",
-      }}
-    >
-      {/* Top gradient bar — always visible on featured */}
-      <div className="absolute top-0 left-0 right-0 h-[4px] bg-gradient-to-r from-[#4F46E5] via-[#7C3AED] to-[#168BFF]" />
+    <motion.div variants={itemVariants}>
+      <LandingCard variant="elevated" padding="lg" radius="2xl" className="relative overflow-hidden bg-gradient-to-br from-white via-[#F8FAFC] to-[#F5F3FF] border-2 border-[#7C3AED]/20 hover:border-[#7C3AED]/40">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-[#7C3AED]/10 via-[#5964FF]/5 to-transparent rounded-full blur-3xl pointer-events-none" />
 
-      {/* Most Popular badge */}
-      <div className="absolute top-6 right-6 z-10">
-        <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-white bg-gradient-to-r from-[#4F46E5] to-[#7C3AED] px-3 py-1.5 rounded-full shadow-md shadow-[#4F46E5]/30">
-          ⚡ Most Popular
-        </span>
-      </div>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
+          <div className="lg:col-span-6 flex flex-col justify-center">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#F5F3FF] border border-[#7C3AED]/30 text-[#7C3AED] text-xs font-bold uppercase tracking-wider w-fit mb-4">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Core Core Feature · Spaced Repetition</span>
+            </div>
 
-      {/* Left Content Area */}
-      <div className="flex-1 flex flex-col w-full">
-        {/* Icon */}
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#EEEDFC] to-[#E0DEFF] flex items-center justify-center mb-6 shrink-0 shadow-sm transition-transform duration-300 ease-out group-hover:scale-110 group-hover:-rotate-3">
-          <Layers className="w-8 h-8 text-[#4F46E5]" />
+            <h3 className="text-2xl sm:text-3xl font-black text-[#0F172A] mb-4 tracking-tight leading-tight">
+              Interactive Flashcards with <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#7C3AED] to-[#5964FF]">Spaced Repetition</span>
+            </h3>
+
+            <p className="text-sm sm:text-base text-[#64748B] leading-relaxed mb-6">
+              Never forget what you study. StudFlow automatically extracts key terms from your documents, creates two-sided active recall cards, and schedules reviews using scientifically proven spaced repetition intervals.
+            </p>
+
+            <div className="flex flex-wrap gap-4 text-xs font-semibold text-[#0F172A]">
+              <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-xl border border-[#E2E8F0] shadow-sm">
+                <CheckCircle className="w-4 h-4 text-[#10B981]" />
+                <span>SM-2 Memory Algorithm</span>
+              </div>
+              <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-xl border border-[#E2E8F0] shadow-sm">
+                <Layers className="w-4 h-4 text-[#7C3AED]" />
+                <span>Auto-Generated from Documents</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="lg:col-span-6">
+            <FlashcardPreview />
+          </div>
         </div>
-
-        {/* Label */}
-        <span className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-widest text-[#4F46E5] bg-[#EEEDFC] px-3 py-1.5 rounded-full mb-4 w-fit">
-          Spaced Repetition
-        </span>
-
-        {/* Title + description */}
-        <h3 className="text-3xl font-extrabold text-[#0F172A] mb-4 leading-tight group-hover:text-[#4F46E5] transition-colors duration-300">
-          Smart Flashcards
-        </h3>
-        <p className="text-base md:text-lg text-[#475569] leading-relaxed max-w-lg">
-          Automatically generate active-recall flashcards from your documents, complete with Spaced Repetition to ensure long-term retention. Never forget what you learned.
-        </p>
-      </div>
-
-      {/* Right Live Preview */}
-      <div className="flex-1 w-full min-w-[280px] max-w-md mx-auto md:mx-0 mt-4 md:mt-0 relative z-10">
-        <div className="absolute inset-0 bg-gradient-to-r from-[#4F46E5]/10 to-[#7C3AED]/10 blur-2xl rounded-full transform scale-90" />
-        <div className="relative">
-          <FlashcardPreview />
-        </div>
-      </div>
+      </LandingCard>
     </motion.div>
   );
 }
@@ -276,52 +273,38 @@ function FeaturedFlashcardCard() {
 // ── Main export ───────────────────────────────────────────────────────────────
 export function FeaturesSection() {
   return (
-    <section id="features" className="w-full bg-white relative overflow-hidden py-16 lg:py-24">
+    <LandingSection id="features" background="card" spacing="lg">
       {/* Background decoration */}
       <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
         <div className="absolute -top-1/4 -right-1/4 w-[700px] h-[700px] rounded-full bg-gradient-to-b from-[#168BFF]/6 to-transparent blur-[100px]" />
         <div className="absolute -bottom-1/4 -left-1/4 w-[600px] h-[600px] rounded-full bg-gradient-to-t from-[#7C3AED]/6 to-transparent blur-[90px]" />
-        {/* Faint dot grid */}
-        <div
-          className="absolute inset-0 opacity-[0.025]"
-          style={{
-            backgroundImage: "radial-gradient(circle, #64748B 1px, transparent 1px)",
-            backgroundSize: "28px 28px",
-          }}
-        />
       </div>
 
-      <div className="mx-auto w-full max-w-[1280px] px-6 md:px-10 lg:px-12 relative z-10 flex flex-col pb-20">
-        {/* ── Section heading ── */}
+      <LandingContainer variant="wide" className="relative z-10 flex flex-col">
+        {/* Section heading */}
         <motion.div
-          className="text-center w-full max-w-3xl mx-auto mb-20 flex flex-col items-center"
           variants={headingVariants}
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-80px" }}
         >
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-[#E2E8F0] shadow-sm mb-8 hover:shadow-md transition-shadow">
-            <Sparkles className="w-4 h-4 text-[#168BFF]" />
-            <span className="text-xs font-bold text-[#0F172A] uppercase tracking-wider">AI-Powered Learning Tools</span>
-          </div>
-
-          <h2
-            className="font-black text-[#0F172A] tracking-tighter mb-6 drop-shadow-sm"
-            style={{ fontSize: "clamp(2.25rem, 4vw, 3.75rem)", lineHeight: "1.1" }}
+          <LandingHeading
+            level={2}
+            badge={
+              <LandingBadge variant="primary" icon={<Sparkles className="w-4 h-4 text-[#168BFF]" />}>
+                AI-Powered Learning Tools
+              </LandingBadge>
+            }
+            subtitle="Transform your study materials into summaries, flashcards, quizzes, and more with a complete AI-powered learning workspace designed for success."
           >
             Everything You Need to <br className="hidden sm:block" />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#168BFF] via-[#4F46E5] to-[#7C3AED]">
               Ace Every Exam
             </span>
-          </h2>
-
-          <p className="text-[#475569] leading-relaxed text-center mx-auto max-w-2xl" style={{ fontSize: "clamp(1.05rem, 2vw, 1.25rem)" }}>
-            Transform your study materials into summaries, flashcards, quizzes, and more with a complete AI-powered learning workspace designed for success.
-          </p>
+          </LandingHeading>
         </motion.div>
 
-        {/* ── Feature Grid ── */}
+        {/* Feature Grid */}
         <motion.div
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8"
           variants={sectionVariants}
@@ -329,7 +312,7 @@ export function FeaturesSection() {
           whileInView="visible"
           viewport={{ once: true, margin: "-60px" }}
         >
-          {/* Center of Attraction: Featured Card (Spans all columns) */}
+          {/* Featured Card */}
           <div className="col-span-1 md:col-span-2 lg:col-span-3">
             <FeaturedFlashcardCard />
           </div>
@@ -351,7 +334,7 @@ export function FeaturesSection() {
             <FeatureCard feature={standardFeatures[4]} />
           </div>
         </motion.div>
-      </div>
-    </section>
+      </LandingContainer>
+    </LandingSection>
   );
 }

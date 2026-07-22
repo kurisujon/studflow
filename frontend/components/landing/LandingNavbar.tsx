@@ -7,6 +7,8 @@ import { motion, AnimatePresence } from "framer-motion";
 // @ts-expect-error - lucide-react types are outdated in this project
 import { Menu, X, ArrowRight } from "lucide-react";
 import { useAuth } from "@clerk/nextjs";
+import { LandingContainer } from "./ui/LandingContainer";
+import { LandingButton } from "./ui/LandingButton";
 
 export function LandingNavbar() {
   const [scrolled, setScrolled] = useState(false);
@@ -32,12 +34,12 @@ export function LandingNavbar() {
     <header
       className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${
         scrolled
-          ? "bg-white/70 backdrop-blur-xl shadow-sm border-b border-[#E2E8F0]"
+          ? "bg-white/80 backdrop-blur-xl shadow-sm border-b border-[#E2E8F0]"
           : "bg-transparent border-b border-transparent"
       }`}
     >
-      <div className="mx-auto w-full max-w-[1280px] px-6 md:px-10 lg:px-12 flex items-center justify-between h-[80px]">
-        <Link href="/" className="flex items-center gap-2 group">
+      <LandingContainer variant="wide" className="flex items-center justify-between h-[80px]">
+        <Link href="/" className="flex items-center gap-2.5 group">
           <Image src="/studflow_logo.png" alt="StudFlow Logo" width={32} height={32} priority />
           <span className="text-xl font-bold tracking-tight text-[#0F172A]">
             StudFlow
@@ -57,31 +59,24 @@ export function LandingNavbar() {
           ))}
         </nav>
 
-        <div className="hidden md:flex items-center gap-4">
+        <div className="hidden md:flex items-center gap-3">
           {isSignedIn ? (
-            <Link
-              href="/dashboard"
-              className="group relative flex items-center justify-center gap-1.5 h-11 px-6 rounded-xl text-[14px] font-bold text-white bg-gradient-to-r from-[#5964FF] to-[#8640FF] shadow-md hover:shadow-lg hover:shadow-[#8640FF]/30 transition-all duration-300 ease-out hover:-translate-y-1.5 overflow-hidden"
-            >
-              <div className="absolute top-0 left-0 right-0 h-[2px] bg-white/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <LandingButton href="/dashboard" variant="primary" size="md">
               Go to Dashboard
-            </Link>
+            </LandingButton>
           ) : (
             <>
-              <Link
-                href="/sign-in"
-                className="text-[#4F46E5] h-11 px-6 flex items-center justify-center text-sm font-semibold hover:text-[#4338CA] transition-colors duration-300 ease-out transform hover:-translate-y-1"
-              >
+              <LandingButton href="/sign-in" variant="ghost" size="md">
                 Sign In
-              </Link>
-              <Link
+              </LandingButton>
+              <LandingButton
                 href="/sign-up"
-                className="group relative flex shrink-0 items-center justify-center gap-1.5 h-11 px-6 rounded-xl text-[14px] font-bold text-white bg-gradient-to-r from-[#5964FF] to-[#8640FF] shadow-md hover:shadow-lg hover:shadow-[#8640FF]/30 transition-all duration-300 ease-out hover:-translate-y-1.5 overflow-hidden"
+                variant="primary"
+                size="md"
+                icon={<ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />}
               >
-                <div className="absolute top-0 left-0 right-0 h-[2px] bg-white/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 Get Started
-                <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
-              </Link>
+              </LandingButton>
             </>
           )}
         </div>
@@ -94,7 +89,7 @@ export function LandingNavbar() {
         >
           {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
-      </div>
+      </LandingContainer>
 
       {/* Mobile Menu */}
       <AnimatePresence>
@@ -103,7 +98,7 @@ export function LandingNavbar() {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="absolute top-full left-0 w-full bg-white shadow-xl border-t border-[#E2E8F0] md:hidden flex flex-col px-5 py-6 gap-6"
+            className="absolute top-full left-0 w-full bg-white shadow-xl border-t border-[#E2E8F0] md:hidden flex flex-col px-6 py-6 gap-6"
           >
             <nav className="flex flex-col gap-4">
               {navLinks.map((link) => (
@@ -119,32 +114,36 @@ export function LandingNavbar() {
             </nav>
             <div className="flex flex-col gap-3 pt-4 border-t border-[#E2E8F0]">
               {isSignedIn ? (
-                <Link
+                <LandingButton
                   href="/dashboard"
-                  className="group relative flex items-center justify-center gap-1.5 w-full h-12 rounded-xl text-[15px] font-bold text-white bg-gradient-to-r from-[#5964FF] to-[#8640FF] shadow-md hover:shadow-lg hover:shadow-[#8640FF]/30 transition-all duration-300 ease-out hover:-translate-y-1.5 overflow-hidden"
+                  variant="primary"
+                  size="lg"
+                  className="w-full"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  <div className="absolute top-0 left-0 right-0 h-[2px] bg-white/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   Go to Dashboard
-                </Link>
+                </LandingButton>
               ) : (
                 <>
-                  <Link
+                  <LandingButton
                     href="/sign-in"
-                    className="text-[#4F46E5] w-full h-12 rounded-md flex items-center justify-center text-sm font-semibold bg-[#F8FAFC] border border-[#E2E8F0] transition-all duration-300 ease-out transform hover:-translate-y-1 hover:text-[#4338CA]"
+                    variant="outline"
+                    size="lg"
+                    className="w-full"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     Sign In
-                  </Link>
-                  <Link
+                  </LandingButton>
+                  <LandingButton
                     href="/sign-up"
-                    className="group relative flex shrink-0 items-center justify-center gap-1.5 w-full h-12 rounded-xl text-[15px] font-bold text-white bg-gradient-to-r from-[#5964FF] to-[#8640FF] shadow-md hover:shadow-lg hover:shadow-[#8640FF]/30 transition-all duration-300 ease-out hover:-translate-y-1.5 overflow-hidden"
+                    variant="primary"
+                    size="lg"
+                    className="w-full"
+                    icon={<ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />}
                     onClick={() => setMobileMenuOpen(false)}
                   >
-                    <div className="absolute top-0 left-0 right-0 h-[2px] bg-white/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                     Get Started
-                    <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
-                  </Link>
+                  </LandingButton>
                 </>
               )}
             </div>
