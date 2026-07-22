@@ -11,7 +11,7 @@ export function CTASection() {
       {/* Background Ambience */}
       <div className="absolute inset-0 pointer-events-none" aria-hidden="true" style={{ background: "radial-gradient(circle at 50% 50%, rgba(124, 58, 237, 0.03), transparent 60%), radial-gradient(circle at 50% 100%, rgba(22, 139, 255, 0.04), transparent 50%)" }} />
       
-      <div className="w-full max-w-[1400px] px-6 md:px-12 lg:px-16 relative z-10 mx-auto flex justify-center">
+      <div className="w-full max-w-[1280px] px-6 md:px-10 lg:px-12 relative z-10 mx-auto flex justify-center">
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}

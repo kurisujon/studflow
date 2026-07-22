@@ -217,7 +217,7 @@ export function BenefitsSection() {
         <div className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] bg-gradient-to-bl from-[#7C3AED]/5 to-transparent rounded-full blur-[100px]" />
       </div>
 
-      <div className="mx-auto w-full max-w-[1400px] px-6 md:px-12 lg:px-16 relative z-10 flex flex-col pb-20">
+      <div className="mx-auto w-full max-w-[1280px] px-6 md:px-10 lg:px-12 relative z-10 flex flex-col pb-20">
         
         <div className="flex flex-col lg:flex-row items-center gap-16 xl:gap-24">
           

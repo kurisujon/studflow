@@ -7,7 +7,7 @@ const { PlayCircle } = Lucide as unknown as Record<string, React.ElementType>;
 export function ProductDemoSection() {
   return (
     <section id="demo" className="w-full py-24 bg-[#F8FAFC] flex flex-col items-center">
-      <div className="mx-auto w-full max-w-[1400px] px-6 md:px-12 lg:px-16 relative z-10 flex flex-col items-center pb-20 text-center">
+      <div className="mx-auto w-full max-w-[1280px] px-6 md:px-10 lg:px-12 relative z-10 flex flex-col items-center pb-20 text-center">
         <h2 
           className="font-black text-[#0F172A] tracking-tight mb-6"
           style={{ fontSize: "clamp(2.25rem, 4vw, 3.75rem)", lineHeight: "1.1" }}

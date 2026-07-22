@@ -205,12 +205,12 @@ function ProductPreview() {
 // ── Main Export ─────────────────────────────────────────────────────────────
 export function HeroSection() {
   return (
-    <section className="relative w-full overflow-hidden bg-[#F8FAFC] pt-12 lg:pt-20">
+    <section className="relative w-full overflow-hidden bg-[#F8FAFC] pt-[140px] lg:pt-[160px] pb-16 lg:pb-24">
       {/* ── Background Patterns ── */}
       <div className="absolute inset-0 pointer-events-none" aria-hidden="true" style={{ background: "radial-gradient(circle at 75% 45%, rgba(124, 58, 237, 0.03), transparent 45%), radial-gradient(circle at 25% 60%, rgba(22, 139, 255, 0.03), transparent 45%)" }} />
 
       {/* Independent isolated container for the hero to prevent max-width overlap */}
-      <div className="mx-auto w-full max-w-[1400px] px-6 md:px-12 lg:px-16 relative z-10 flex flex-col pb-20">
+      <div className="mx-auto w-full max-w-[1280px] px-6 md:px-10 lg:px-12 relative z-10 flex flex-col">
         
         {/* Main Hero Content Split - Note: max w-[48%] + w-[52%] = 100% to prevent overflow */}
         <div className="flex flex-col lg:flex-row items-center justify-between gap-12 lg:gap-8">

@@ -291,7 +291,7 @@ export function FeaturesSection() {
         />
       </div>
 
-      <div className="mx-auto w-full max-w-[1400px] px-6 md:px-12 lg:px-16 relative z-10 flex flex-col pb-20">
+      <div className="mx-auto w-full max-w-[1280px] px-6 md:px-10 lg:px-12 relative z-10 flex flex-col pb-20">
         {/* ── Section heading ── */}
         <motion.div
           className="text-center w-full max-w-3xl mx-auto mb-20 flex flex-col items-center"

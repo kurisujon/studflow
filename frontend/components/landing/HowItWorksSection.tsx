@@ -201,7 +201,7 @@ export function HowItWorksSection() {
         <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-gradient-to-tr from-[#7C3AED]/5 to-transparent rounded-full blur-[80px]" />
       </div>
 
-      <div className="mx-auto w-full max-w-[1400px] px-6 md:px-12 lg:px-16 relative z-10 flex flex-col pb-20">
+      <div className="mx-auto w-full max-w-[1280px] px-6 md:px-10 lg:px-12 relative z-10 flex flex-col pb-20">
         
         {/* Header */}
         <div className="text-center max-w-2xl mx-auto mb-16 lg:mb-24">

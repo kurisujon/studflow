@@ -39,7 +39,7 @@ export function FAQSection() {
     <section id="faq" className="w-full py-24 md:py-32 bg-white relative overflow-hidden">
       {/* Subtle background gradient */}
       <div className="absolute inset-0 bg-gradient-to-b from-[#F8FAFC] to-white pointer-events-none" />
-      <div className="mx-auto w-full max-w-[1400px] px-6 md:px-12 lg:px-16 relative z-10 flex flex-col items-center pb-20">
+      <div className="mx-auto w-full max-w-[1280px] px-6 md:px-10 lg:px-12 relative z-10 flex flex-col items-center pb-20">
         
         <div className="text-center mb-16 lg:mb-20 max-w-3xl">
           <h2 

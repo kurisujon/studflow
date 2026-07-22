@@ -44,7 +44,7 @@ export function TrustSection() {
     <section className="w-full py-[120px] bg-[#F8FAFC] flex flex-col items-center relative overflow-hidden isolate">
       <div className="absolute inset-0 bg-gradient-to-br from-[#4F7BFF]/[0.02] to-transparent pointer-events-none" />
       
-      <div className="mx-auto w-full max-w-[1400px] px-6 md:px-12 lg:px-16 relative z-10 flex flex-col pb-20">
+      <div className="mx-auto w-full max-w-[1280px] px-6 md:px-10 lg:px-12 relative z-10 flex flex-col pb-20">
         
         {/* Animated Statistics */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-12 mb-[120px]">

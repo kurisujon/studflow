@@ -16,7 +16,7 @@ export function DashboardPreviewSection() {
       {/* Background Ambience */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[600px] bg-[#4F7BFF]/5 blur-[150px] rounded-full pointer-events-none" />
       
-      <div className="mx-auto w-full max-w-[1400px] px-6 md:px-12 lg:px-16 relative z-10 flex flex-col pb-20 items-center text-center">
+      <div className="mx-auto w-full max-w-[1280px] px-6 md:px-10 lg:px-12 relative z-10 flex flex-col pb-20 items-center text-center">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -47,7 +47,7 @@ export function DashboardPreviewSection() {
         </motion.p>
       </div>
 
-      <div className="mx-auto w-full max-w-[1400px] px-6 md:px-12 lg:px-16 relative z-10 h-[600px] md:h-[800px] flex justify-center">
+      <div className="mx-auto w-full max-w-[1280px] px-6 md:px-10 lg:px-12 relative z-10 h-[600px] md:h-[800px] flex justify-center">
         {/* Layer 1: Main PDF/Summary Reader (Back/Center) */}
         <motion.div 
           initial={{ opacity: 0, y: 60, scale: 0.95 }}
