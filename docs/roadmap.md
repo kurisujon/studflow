@@ -521,8 +521,8 @@ When a future agent completes a meaningful feature, they should update this file
 
 ### Update: 2026-07-22
 **What Changed:**
-- Updated [GUARDRAILS.md](file:///mnt/c/Users/CJK_LAPTOP/Personal_Projects/Javascript/studflow/docs/GUARDRAILS.md) to explicitly permit **Embeddings** (via Gemini `text-embedding-004`), **Vector Databases** (via PostgreSQL `pgvector`), **Semantic RAG**, and optimized background orchestration to support large 100+ page document uploads.
-- Updated [tasks.md](file:///mnt/c/Users/CJK_LAPTOP/Personal_Projects/Javascript/studflow/docs/tasks.md) with the **Phase 4 Execution Checklist**: `pgvector` migration, vector chunk storage, embedding generation pipeline, semantic RAG Q&A retrieval, and Celery task timeout tuning for long-document processing.
+- Updated [GUARDRAILS.md](file:///mnt/c/Users/CJK_LAPTOP/Personal_Projects/Javascript/studflow/docs/GUARDRAILS.md) to explicitly permit **Embeddings** (via Gemini `text-embedding-004`), **Vector Databases** (via PostgreSQL `pgvector`), **Semantic RAG**, and **Agent Orchestration** (Celery multi-step agent pipeline) to support large 100+ page document uploads.
+- Updated [tasks.md](file:///mnt/c/Users/CJK_LAPTOP/Personal_Projects/Javascript/studflow/docs/tasks.md) with the **Phase 4 Execution Checklist**: `pgvector` migration, vector chunk storage, embedding generation pipeline, Celery-native agent orchestrator (Analysis Agent → RAG Retrieval Agent → Synthesis & QC Agent), semantic RAG Q&A retrieval, and Celery task timeout tuning for long-document processing.
 
 **Contracts Changed:**
 - None yet (Documentation & Architectural Governance updated).
@@ -532,4 +532,5 @@ When a future agent completes a meaningful feature, they should update this file
 
 **What to do next:**
 - Implement Phase 4 starting with PostgreSQL `pgvector` migration and embedding generation service in the backend.
+
 

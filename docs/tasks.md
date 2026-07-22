@@ -140,13 +140,27 @@ Goal: Replace mock dashboard data with real user analytics, and give users contr
 
 Goal: Scale document processing to support 100+ page documents with high precision, fast retrieval, and lowered token consumption.
 
-#### Database & Storage
-- [ ] Enable `pgvector` extension in PostgreSQL / Alembic migrations
-- [ ] Add `embedding` vector column to `DocumentChunk` table (e.g. 768 dimensions for Gemini `text-embedding-004`)
+### Step 4.1: Database Schema & Vector Extension (`pgvector`)
+- [ ] Enable `pgvector` extension in PostgreSQL database
+- [ ] Create Alembic migration script to add `embedding` vector column (768 dimensions for Gemini `text-embedding-004`) to `DocumentChunk` table
+- [ ] Update `backend/models/tables.py` with `Vector` type definition for SQLModel / SQLAlchemy
+- [ ] Expand `Document.status` enum/field to support granular orchestration states (e.g., `uploaded`, `extracting`, `chunking`, `embedding`, `analyzing`, `generating`, `validating`, `completed`, `failed`)
 
-#### Backend Pipeline & RAG
-- [ ] Integrate Gemini Embedding API (`text-embedding-004`) in `ai_service.py` to generate chunk vectors during background document processing
-- [ ] Implement cosine similarity search function using `pgvector` in backend document services
-- [ ] Upgrade `Ask AI` document-level Q&A to retrieve top $K$ semantic chunks via vector similarity instead of basic SQL chunk matching
-- [ ] Optimize Celery task execution timeouts (`task_soft_time_limit`, `task_time_limit`) for batch embedding generation on 100+ page documents
+### Step 4.2: Embedding Service & Stateful Pipeline (`backend/services/ai_service.py`)
+- [ ] Implement batch embedding generator function `generate_embeddings_batch(chunks: list[str])` using Gemini API (`text-embedding-004`)
+- [ ] Update Celery task `process_document_task` to be **stateful and resumable** (e.g., if embedding fails at chunk 81, retry starts at 81, not 0)
+- [ ] Implement Celery-native AI Agent Orchestration pipeline that reads the current DB state, executes the next stage, and updates the state
+- [ ] Tune Celery worker soft/hard time limits (`task_soft_time_limit=300`, `task_time_limit=600`) to guarantee stability on 100+ page uploads
+
+### Step 4.3: Semantic Vector Search & RAG Service (`backend/services/documents.py`)
+- [ ] Implement `search_similar_chunks(document_id, query_embedding, top_k=5)` using `pgvector` cosine similarity search
+- [ ] Upgrade `Ask AI` endpoint (`POST /api/documents/{id}/ask`) to retrieve semantic top-K chunks via RAG agent retrieval
+
+### Step 4.4: Agent Orchestration, Synthesis & Quality Control
+- [ ] Build multi-step Agent reasoning loop for long documents (decomposing 100+ page PDFs into structured sub-topic tasks)
+- [ ] Enforce strict pipeline: `Retrieved Context -> Semantic Generation -> Pydantic Validation -> Quality Verification -> Final Result`
+- [ ] Optimize summary, flashcard, and quiz generation prompts to utilize top semantic vector clusters
+- [ ] Run backend verification tests (`pytest` / `py_compile`) validating resumability, vector storage, RAG retrieval, and quality control orchestration
+
+
 
