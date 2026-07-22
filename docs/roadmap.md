@@ -232,7 +232,11 @@ Most recent implemented changes:
 - `How Studflow works` section added to the homepage in `frontend/app/page.tsx`.
 - Static study workspace preview section added to the homepage in `frontend/app/page.tsx`.
 - FAQ section added to the homepage in `frontend/app/page.tsx`.
-- Final CTA section added to the homepage in `frontend/app/page.tsx`.
+- Landing page layout isolation and CSS override resolution completed:
+  - Created dedicated route group `frontend/app/(landing)/layout.tsx` with Google Font `Manrope` integration, cleanly bypassing dashboard navbar and ghost top-padding.
+  - Created dedicated route group `frontend/app/(app)/layout.tsx` for dashboard, upload, and auth routes.
+  - Removed destructive `!important` padding rules and scoped global element transitions in `frontend/app/globals.css`.
+  - Rebuilt landing sections (`HeroSection`, `FeaturesSection`, `HowItWorksSection`, `BenefitsSection`, `FAQSection`, `CTASection`, `ComparisonSection`, `LandingFooter`) with unified design system styling (`max-w-[1400px]`, `rounded-[24px]/[32px]`, `#0F172A`/`#475569` text, soft indigo drop shadows).
 
 Behavior of those changes:
 
