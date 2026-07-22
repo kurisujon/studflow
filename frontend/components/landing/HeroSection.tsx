@@ -69,7 +69,7 @@ function ProductPreview() {
 
       {/* ── Floating Badges ── */}
       <motion.div 
-        className="absolute -top-6 right-8 z-30 w-12 h-12 rounded-xl bg-gradient-to-br from-[#A78BFA] to-[#8B5CF6] flex items-center justify-center shadow-lg shadow-[#8B5CF6]/30 border border-white/20 shrink-0"
+        className="absolute -top-6 right-8 z-30 w-12 h-12 rounded-xl bg-[#A78BFA] flex items-center justify-center shadow-lg shadow-[#8B5CF6]/30 border border-white/20 shrink-0"
         animate={shouldReduceMotion ? {} : { y: [0, -8, 0] }}
         transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
       >
@@ -77,7 +77,7 @@ function ProductPreview() {
       </motion.div>
 
       <motion.div 
-        className="absolute -bottom-6 -right-6 z-30 w-14 h-14 rounded-2xl bg-gradient-to-br from-[#60A5FA] to-[#3B82F6] flex items-center justify-center shadow-xl shadow-[#3B82F6]/30 border border-white/20 shrink-0"
+        className="absolute -bottom-6 -right-6 z-30 w-14 h-14 rounded-2xl bg-[#60A5FA] flex items-center justify-center shadow-xl shadow-[#3B82F6]/30 border border-white/20 shrink-0"
         animate={shouldReduceMotion ? {} : { y: [0, 8, 0], rotate: [0, -5, 0] }}
         transition={{ repeat: Infinity, duration: 5, ease: "easeInOut", delay: 1 }}
       >
@@ -85,7 +85,7 @@ function ProductPreview() {
       </motion.div>
 
       {/* ── Main Card ── */}
-      <div className="relative rounded-[32px] border border-white/80 shadow-[0_32px_80px_-16px_rgba(0,0,0,0.1)] bg-white/95 backdrop-blur-2xl overflow-hidden flex flex-col text-left z-20 h-[500px]">
+      <div className="relative rounded-[32px] border border-white shadow-[0_32px_80px_-16px_rgba(0,0,0,0.08)] bg-white overflow-hidden flex flex-col text-left z-20 h-[500px]">
         <div className="p-6 sm:p-8 lg:px-10 lg:pt-10 lg:pb-8 flex flex-col w-full h-full justify-between">
           
           {/* Document Header */}
@@ -100,7 +100,7 @@ function ProductPreview() {
               </div>
             </div>
             <div className="shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#F8FAFC] border border-[#E2E8F0]">
-              <Layers className="w-3.5 h-3.5 text-[#4F46E5]" />
+              <Layers className="w-3.5 h-3.5 text-[#5964FF]" />
               <span className="text-[12px] font-bold text-[#0F172A]">24 Cards</span>
             </div>
           </div>
@@ -124,9 +124,9 @@ function ProductPreview() {
                       {/* Icon Indicator */}
                       <div className="w-8 h-8 rounded-full bg-white border-2 border-[#E2E8F0] flex items-center justify-center z-10 shrink-0">
                         {isDone ? (
-                          <CheckCircle className="w-5 h-5 text-[#3B82F6] fill-blue-50" />
+                          <CheckCircle className="w-5 h-5 text-[#5964FF] fill-blue-50" />
                         ) : isCurrent ? (
-                          <Loader2 className="w-4 h-4 text-[#7C3AED] animate-spin" />
+                          <Loader2 className="w-4 h-4 text-[#5964FF] animate-spin" />
                         ) : (
                           <div className="w-2 h-2 rounded-full bg-[#E2E8F0]" />
                         )}
@@ -145,7 +145,7 @@ function ProductPreview() {
                     <div className="pl-12 pr-2">
                       <div className="w-full h-1.5 bg-[#F1F5F9] rounded-full overflow-hidden">
                         <motion.div
-                          className="h-full rounded-full bg-gradient-to-r from-[#4F7BFF] to-[#7C3AED]"
+                          className="h-full rounded-full bg-[#5964FF]"
                           style={{ width: `${progress}%` }}
                         />
                       </div>
@@ -159,8 +159,8 @@ function ProductPreview() {
           {/* Bottom Retention Card */}
           <div className="w-full mt-6 flex items-center justify-between pt-6 border-t border-[#F1F5F9]">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-10 h-10 shrink-0 rounded-xl bg-indigo-50 flex items-center justify-center">
-                <svg className="w-5 h-5 text-[#4F46E5]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <div className="w-10 h-10 shrink-0 rounded-xl bg-[#F0F2FF] flex items-center justify-center">
+                <svg className="w-5 h-5 text-[#5964FF]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                 </svg>
               </div>
@@ -182,7 +182,7 @@ function ProductPreview() {
                 <motion.path
                   d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                   fill="none"
-                  stroke="#4F46E5"
+                  stroke="#5964FF"
                   strokeWidth="4"
                   strokeDasharray="100, 100"
                   initial={{ strokeDasharray: "0, 100" }}
@@ -205,9 +205,9 @@ function ProductPreview() {
 // ── Main Export ─────────────────────────────────────────────────────────────
 export function HeroSection() {
   return (
-    <section className="relative w-full overflow-hidden bg-[#F8FAFC] pt-6 lg:pt-10">
+    <section className="relative w-full overflow-hidden bg-[#F8FAFC] pt-12 lg:pt-20">
       {/* ── Background Patterns ── */}
-      <div className="absolute inset-0 pointer-events-none" aria-hidden="true" style={{ background: "radial-gradient(circle at 75% 45%, rgba(124, 58, 237, 0.05), transparent 45%), radial-gradient(circle at 25% 60%, rgba(22, 139, 255, 0.05), transparent 45%)" }} />
+      <div className="absolute inset-0 pointer-events-none" aria-hidden="true" style={{ background: "radial-gradient(circle at 75% 45%, rgba(124, 58, 237, 0.03), transparent 45%), radial-gradient(circle at 25% 60%, rgba(22, 139, 255, 0.03), transparent 45%)" }} />
 
       {/* Independent isolated container for the hero to prevent max-width overlap */}
       <div className="mx-auto w-full max-w-[1400px] px-6 md:px-12 lg:px-16 relative z-10 flex flex-col pb-20">
@@ -239,7 +239,7 @@ export function HeroSection() {
             >
               Turn Every Lecture<br />
               Into Your<br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#4F7BFF] to-[#7C5CFF]">
+              <span className="text-[#5964FF]">
                 Best Grade.
               </span>
             </motion.h1>
@@ -254,22 +254,19 @@ export function HeroSection() {
             </motion.p>
 
             {/* CTA Buttons */}
-            <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-center justify-start gap-4 mb-16">
+            <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-center justify-start gap-4 mb-10 w-full sm:w-auto">
               <Link
                 href="/dashboard/upload"
-                className="group relative flex shrink-0 items-center justify-center gap-2 w-full sm:w-fit h-12 px-6 rounded-xl text-[15px] font-bold text-white bg-gradient-to-r from-[#5964FF] to-[#8640FF] shadow-[0_8px_16px_-6px_rgba(89,100,255,0.4)] transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_12px_24px_-6px_rgba(89,100,255,0.6)] hover:border-[#8640FF]/30 border border-transparent overflow-hidden"
+                className="group relative flex shrink-0 items-center justify-center gap-2 w-full sm:w-fit h-[52px] px-8 rounded-xl text-[15px] font-bold text-white bg-[#5964FF] shadow-[0_8px_16px_-6px_rgba(89,100,255,0.4)] transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_12px_24px_-6px_rgba(89,100,255,0.6)] hover:bg-[#4F46E5] overflow-hidden"
               >
-                {/* Highlight bar effect */}
-                <div className="absolute top-0 left-0 right-0 h-[2px] bg-white/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 Start Studying Free
                 <ArrowRight className="w-5 h-5 transition-transform duration-300 group-hover:translate-x-1.5 shrink-0" />
               </Link>
               <Link
                 href="#how-it-works"
-                className="group relative flex shrink-0 items-center justify-center gap-2 w-full sm:w-fit h-12 px-6 rounded-xl text-[15px] font-bold text-[#4F46E5] bg-white border border-[#E2E8F0] shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-md hover:border-[#CBD5E1]"
+                className="group relative flex shrink-0 items-center justify-center gap-2 w-full sm:w-fit h-[52px] px-8 rounded-xl text-[15px] font-bold text-[#0F172A] bg-white border border-[#E2E8F0] shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-md hover:border-[#CBD5E1]"
               >
-                <div className="absolute top-0 left-0 right-0 h-[2px] bg-[#E2E8F0] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <PlayCircle className="w-5 h-5 text-[#4F46E5] shrink-0" />
+                <PlayCircle className="w-5 h-5 text-[#5964FF] shrink-0" />
                 See how it works
               </Link>
             </motion.div>
@@ -290,7 +287,7 @@ export function HeroSection() {
 
           {/* ── Right Side: Interactive Product Preview ───────────────────────── */}
           <motion.div
-            className="w-full lg:w-[50%] xl:w-[52%] shrink-0 relative z-20 flex justify-center lg:justify-end"
+            className="w-full lg:w-[50%] xl:w-[52%] shrink-0 relative z-20 flex justify-center lg:justify-end mt-12 lg:mt-0"
             initial={{ opacity: 0, x: 40 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, delay: 0.3, ease: "easeOut" }}
@@ -298,6 +295,43 @@ export function HeroSection() {
             <ProductPreview />
           </motion.div>
         </div>
+
+        {/* ── Bottom Banner: Universities ─────────────────────────────── */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.5, ease: "easeOut" }}
+          className="mt-20 lg:mt-32 w-full bg-white rounded-3xl p-6 lg:p-8 flex flex-col md:flex-row items-center justify-between gap-8 border border-[#E2E8F0] shadow-[0_8px_30px_rgba(0,0,0,0.02)]"
+        >
+          <span className="text-[14px] font-semibold text-[#64748B] shrink-0 uppercase tracking-wide">
+            Trusted by students from
+          </span>
+          
+          <div className="flex flex-wrap items-center justify-center gap-6 lg:gap-10 opacity-60 grayscale hover:grayscale-0 transition-all duration-500">
+            {/* Generic University Shields matching the image */}
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full border-2 border-current opacity-70 flex items-center justify-center text-[10px] font-bold">AU</div>
+              <span className="text-[13px] font-bold uppercase">Ateneo de Manila<br/>University</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full border-2 border-current opacity-70 flex items-center justify-center text-[10px] font-bold">UP</div>
+              <span className="text-[13px] font-bold uppercase">University of the<br/>Philippines</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full border-2 border-current opacity-70 flex items-center justify-center text-[10px] font-bold">DLSU</div>
+              <span className="text-[13px] font-bold uppercase">De La Salle<br/>University</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full border-2 border-current opacity-70 flex items-center justify-center text-[10px] font-bold">MU</div>
+              <span className="text-[13px] font-bold uppercase">Mapúa<br/>University</span>
+            </div>
+          </div>
+          
+          <span className="text-[14px] font-bold text-[#5964FF] shrink-0">
+            and 500+ more
+          </span>
+        </motion.div>
+        
       </div>
     </section>
   );
