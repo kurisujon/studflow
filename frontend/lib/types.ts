@@ -1,7 +1,7 @@
 export type DocumentListItem = {
   id: string;
   filename: string;
-  status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+  status: DocumentProcessingStatus;
   created_at: string;
   updated_at: string;
   page_count: number | null;
@@ -9,6 +9,18 @@ export type DocumentListItem = {
   flashcard_count: number;
   quiz_ready: boolean;
 };
+
+export type DocumentProcessingStatus =
+  | "PENDING"
+  | "PROCESSING"
+  | "EXTRACTING"
+  | "CHUNKING"
+  | "EMBEDDING"
+  | "ANALYZING"
+  | "GENERATING"
+  | "VALIDATING"
+  | "COMPLETED"
+  | "FAILED";
 
 export type StudyFlashcard = {
   id: string;
@@ -42,7 +54,7 @@ export type QuizAttemptSummary = {
 export type StudyDocument = {
   id: string;
   filename: string;
-  status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+  status: DocumentProcessingStatus;
   created_at: string;
   summary: string | null;
   summary_data: {

@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -38,6 +39,16 @@ class Settings(BaseSettings):
     gemini_model: str = "gemini-2.5-flash"
     gemini_fallback_models: str = ""
     gemini_max_retries: int = 3
+    gemini_embedding_model: str = "text-embedding-004"
+    embedding_dimensions: int = 768
+    embedding_batch_size: int = 24
+    rag_top_k: int = 5
+    rag_cluster_max_chunks: int = 5
+
+    # Long-running document processing
+    document_processing_max_retries: int = 3
+    celery_task_soft_time_limit: int = 300
+    celery_task_time_limit: int = 600
 
     @property
     def gemini_api_keys(self) -> list[str]:
@@ -64,6 +75,14 @@ class Settings(BaseSettings):
 
     # CORS
     allowed_origins: list[str] = ["http://localhost:3000", "http://localhost:3002"]
+
+    @model_validator(mode="after")
+    def validate_pgvector_dimensions(self) -> "Settings":
+        if self.embedding_dimensions != 768:
+            raise ValueError(
+                "EMBEDDING_DIMENSIONS must remain 768 to match document_chunks.embedding."
+            )
+        return self
 
 
 settings = Settings()

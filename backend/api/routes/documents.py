@@ -11,6 +11,7 @@ from sqlmodel import Session, select
 
 from core.database import engine
 from core.auth import get_current_user, CurrentUser
+from core.config import settings
 from models.tables import (
     AIHistory,
     Document,
@@ -35,8 +36,9 @@ from services.ai_service import (
     ComprehensiveSummary,
     answer_document_question,
     explain_selection,
+    generate_query_embedding,
 )
-from services.documents import create_flashcard
+from services.documents import create_flashcard, search_similar_chunks
 
 router = APIRouter()
 
@@ -370,6 +372,16 @@ def _infer_processing_stage(document: Document, summary: Summary | None, flashca
         return "FAILED"
     if document.status == DocumentStatus.COMPLETED:
         return "COMPLETED"
+    phase_stages = {
+        DocumentStatus.EXTRACTING: "EXTRACTING_TEXT",
+        DocumentStatus.CHUNKING: "CHUNKING_DOCUMENT",
+        DocumentStatus.EMBEDDING: "EMBEDDING_DOCUMENT",
+        DocumentStatus.ANALYZING: "ANALYZING_DOCUMENT",
+        DocumentStatus.GENERATING: "GENERATING_STUDY_SET",
+        DocumentStatus.VALIDATING: "VALIDATING_STUDY_SET",
+    }
+    if document.status in phase_stages:
+        return phase_stages[document.status]
     if summary is None:
         return "EXTRACTING_TEXT"
     if flashcard_count == 0:
@@ -722,21 +734,26 @@ def ask_ai_about_document(
 ) -> ExplainSelectionResponse:
     with Session(engine) as session:
         _get_owned_document(session, document_id, current_user)
-        chunks = session.exec(
-            select(DocumentChunk)
-            .where(DocumentChunk.document_id == document_id)
-            .order_by(DocumentChunk.order_index.asc())
-        ).all()
+        try:
+            query_embedding = generate_query_embedding(payload.question)
+            chunks = search_similar_chunks(
+                session=session,
+                document_id=document_id,
+                query_embedding=query_embedding,
+                top_k=settings.rag_top_k,
+            )
+        except AIServiceError as exc:
+            _raise_ai_http_error(exc)
 
         if not chunks:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Document chunks not found.",
+                status_code=status.HTTP_409_CONFLICT,
+                detail="The document search index is still being prepared. Please try again shortly.",
             )
 
         try:
             answer = answer_document_question(
-                chunks=[chunk.content for chunk in chunks],
+                chunks=[(chunk.order_index, chunk.content) for chunk in chunks],
                 user_question=payload.question,
             )
         except AIServiceError as exc:

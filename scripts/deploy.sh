@@ -62,13 +62,35 @@ if [ -n "${GHCR_USERNAME:-}" ] && [ -n "${GHCR_TOKEN:-}" ]; then
 fi
 
 if [ "$compose_build_on_server" = "true" ]; then
-  docker compose --env-file "$ENV_PATH" up -d --build --remove-orphans
+  echo "Building images on server..."
+  docker compose --env-file "$ENV_PATH" build
 else
+  echo "Pulling pre-built images..."
   docker compose --env-file "$ENV_PATH" pull frontend backend worker postgres redis
-  docker compose --env-file "$ENV_PATH" up -d --remove-orphans
+fi
+
+echo "Starting database services..."
+docker compose --env-file "$ENV_PATH" up -d postgres redis
+
+echo "Waiting for PostgreSQL to accept connections..."
+postgres_ready=false
+for attempt in $(seq 1 30); do
+  if docker compose --env-file "$ENV_PATH" exec -T postgres sh -c 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"' >/dev/null 2>&1; then
+    postgres_ready=true
+    break
+  fi
+  sleep 2
+done
+
+if [ "$postgres_ready" != "true" ]; then
+  echo "PostgreSQL did not become ready before the migration timeout." >&2
+  exit 1
 fi
 
 echo "Running database migrations..."
-docker compose --env-file "$ENV_PATH" exec -T backend alembic upgrade head
+docker compose --env-file "$ENV_PATH" run --rm backend alembic upgrade head
+
+echo "Starting application services..."
+docker compose --env-file "$ENV_PATH" up -d --remove-orphans
 
 docker compose --env-file "$ENV_PATH" ps

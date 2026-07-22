@@ -79,6 +79,7 @@ studflow/
 ### AI and Storage
 
 - Gemini for study material generation and explain-selection flows
+- Gemini `text-embedding-004` and pgvector for document semantic retrieval
 - Supabase Storage for uploaded files
 - YouTube API for related learning videos
 
@@ -188,6 +189,24 @@ cd backend
 ```
 
 If `alembic` is not available on your PATH, use the virtualenv Python module form above.
+
+### Phase 4 semantic retrieval setup
+
+The Phase 4 migration enables PostgreSQL's `vector` extension, adds a 768-dimension
+embedding to each extracted document chunk, and creates the cosine-search index used by
+document Q&A. The Docker Compose `postgres` service uses `pgvector/pgvector:pg16`, so
+run the migration after pulling the updated image:
+
+```bash
+docker compose pull postgres
+cd backend
+.venv312/bin/python -m alembic upgrade head
+```
+
+The API and Celery worker use the same embedding and pipeline settings. The relevant
+variables are documented in `backend/.env.example`: `GEMINI_EMBEDDING_MODEL`,
+`EMBEDDING_BATCH_SIZE`, `RAG_TOP_K`, `RAG_CLUSTER_MAX_CHUNKS`, and the Celery retry/time
+limits. `EMBEDDING_DIMENSIONS` is fixed at `768` to match the migrated database column.
 
 ## Docker Compose Runtime
 

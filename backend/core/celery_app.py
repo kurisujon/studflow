@@ -15,5 +15,7 @@ celery_app.conf.update(
     result_serializer="json",
     timezone="UTC",
     enable_utc=True,
+    task_soft_time_limit=settings.celery_task_soft_time_limit,
+    task_time_limit=settings.celery_task_time_limit,
     imports=("tasks.document_processing",),
 )

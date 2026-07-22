@@ -639,7 +639,7 @@ select {
    ------------------------------------------------------------------------- */
 .landing-container {
   width: 100%;
-  max-width: 80rem; /* 1280px */
+  max-width: 1400px;
   margin-inline: auto;
   padding-inline: clamp(1.25rem, 5vw, 6rem);
 }

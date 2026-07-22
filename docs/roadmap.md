@@ -1,6 +1,6 @@
 # Studflow Roadmap and Handoff
 
-Last updated: 2026-06-11
+Last updated: 2026-07-22
 
 ## Purpose
 
@@ -158,6 +158,21 @@ Workstream constraints:
 - color, motion, and data surfaces are approved — use them purposefully
 
 ## Latest Completed Update
+
+### Phase 4: Semantic RAG Infrastructure
+
+- PostgreSQL now runs with pgvector support through the `pgvector/pgvector:pg16` Compose image.
+- Alembic migration `20260722_0001` enables the extension, adds 768-dimension chunk embeddings,
+  creates a cosine-distance index, and adds granular durable pipeline statuses.
+- The Celery pipeline now checkpoints extraction, chunking, embeddings, analysis, generation, and
+  validation. Retries resume from persisted chunks and only embed chunks still missing vectors.
+- Long-document synthesis groups embedded chunks into bounded semantic clusters, then performs
+  hierarchical summary synthesis before generating flashcards and quizzes from the resulting guide.
+- Document Ask AI now embeds the question, retrieves the nearest five chunk vectors with pgvector
+  cosine distance, and only sends that grounded context to Gemini.
+- Deterministic quality checks run after Pydantic validation, and `backend/test_phase4_rag.py`
+  covers vector query compilation, semantic clustering, resumable embedding checkpoints, and the
+  quality gate.
 
 Most recent implemented changes:
 
@@ -536,5 +551,4 @@ When a future agent completes a meaningful feature, they should update this file
 
 **What to do next:**
 - Implement Phase 4 starting with PostgreSQL `pgvector` migration and embedding generation service in the backend.
-
 

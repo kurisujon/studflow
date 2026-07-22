@@ -22,7 +22,7 @@ It starts six services:
 - `frontend`: Next.js internal service on port `3000`
 - `backend`: FastAPI internal service on port `8000`
 - `worker`: Celery worker
-- `postgres`: PostgreSQL 16
+- `postgres`: PostgreSQL 16 with pgvector extension (uses `pgvector/pgvector:pg16` image)
 - `redis`: Redis 7
 
 The browser entrypoint is:

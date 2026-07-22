@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import itertools
 import time
-from typing import Iterable
+from collections.abc import Sequence
+from typing import Iterable, Literal
 
 from google import genai
 from google.genai import errors as genai_errors
@@ -14,6 +15,10 @@ from core.config import settings
 
 class AIServiceError(Exception):
     """Raised when Gemini generation fails."""
+
+
+class StudyMaterialQualityError(AIServiceError):
+    """Raised when otherwise valid AI output is not usable study material."""
 
 
 class TopicDetail(BaseModel):
@@ -185,8 +190,81 @@ def _generate_structured(
     raise AIServiceError("Gemini generation failed after retries and fallbacks.") from last_error
 
 
-def _join_chunks(chunks: Iterable[str]) -> str:
-    return "\n\n".join(f"Chunk {index + 1}:\n{chunk}" for index, chunk in enumerate(chunks))
+def _embed_contents(
+    contents: Sequence[str],
+    *,
+    task_type: Literal["RETRIEVAL_DOCUMENT", "RETRIEVAL_QUERY"],
+) -> list[list[float]]:
+    if not contents:
+        return []
+
+    last_error: Exception | None = None
+    current_key = _get_api_key()
+
+    for attempt in range(settings.gemini_max_retries):
+        client = _get_client(api_key=current_key)
+        try:
+            response = client.models.embed_content(
+                model=settings.gemini_embedding_model,
+                contents=list(contents),
+                config=types.EmbedContentConfig(task_type=task_type),
+            )
+            embeddings = response.embeddings or []
+            vectors = [list(embedding.values or []) for embedding in embeddings]
+
+            if len(vectors) != len(contents):
+                raise AIServiceError(
+                    "Gemini returned a different number of embeddings than requested."
+                )
+            if any(len(vector) != settings.embedding_dimensions for vector in vectors):
+                raise AIServiceError(
+                    "Gemini returned embeddings with an unexpected dimension."
+                )
+
+            return [[float(value) for value in vector] for vector in vectors]
+        except AIServiceError:
+            raise
+        except Exception as exc:  # pragma: no cover - third-party SDK/network errors vary
+            last_error = exc
+            if _is_retryable_error(exc) and attempt < settings.gemini_max_retries - 1:
+                status_code = getattr(exc, "code", getattr(exc, "status_code", None))
+                if status_code in {401, 403, 429}:
+                    current_key = _get_api_key()
+                    time.sleep(0.5)
+                else:
+                    time.sleep(2**attempt)
+                continue
+            break
+
+    raise AIServiceError("Gemini embedding generation failed after retries.") from last_error
+
+
+def generate_embeddings_batch(chunks: list[str]) -> list[list[float]]:
+    """Embed a bounded batch of stored document chunks for semantic retrieval."""
+    if len(chunks) > settings.embedding_batch_size:
+        raise AIServiceError(
+            f"Embedding batch exceeds configured limit of {settings.embedding_batch_size}."
+        )
+    return _embed_contents(chunks, task_type="RETRIEVAL_DOCUMENT")
+
+
+def generate_query_embedding(query: str) -> list[float]:
+    if not query.strip():
+        raise AIServiceError("A search query is required to generate an embedding.")
+    return _embed_contents([query.strip()], task_type="RETRIEVAL_QUERY")[0]
+
+
+def _join_chunks(chunks: Iterable[str | tuple[int, str]]) -> str:
+    rendered_chunks: list[str] = []
+    for index, item in enumerate(chunks, start=1):
+        chunk_index, chunk = item if isinstance(item, tuple) else (index - 1, item)
+        rendered_chunks.append(f"Chunk {chunk_index}:\n{chunk}")
+    return "\n\n".join(rendered_chunks)
+
+
+def _batched(items: Sequence[ComprehensiveSummary], batch_size: int) -> Iterable[Sequence[ComprehensiveSummary]]:
+    for start in range(0, len(items), batch_size):
+        yield items[start : start + batch_size]
 
 
 def _summary_prompt(source_text: str) -> str:
@@ -213,15 +291,22 @@ def _summary_guides_to_text(guides: Iterable[ComprehensiveSummary]) -> str:
     return "\n\n".join(sections)
 
 
-def generate_summary(chunks: list[str]) -> ComprehensiveSummary:
+def generate_summary(
+    chunks: list[str],
+    *,
+    semantic_clusters: list[list[str]] | None = None,
+) -> ComprehensiveSummary:
     if not chunks:
         raise AIServiceError("Cannot generate a summary without document chunks.")
 
     chunk_guides: list[ComprehensiveSummary] = []
+    cluster_groups = semantic_clusters or [chunks[index : index + 4] for index in range(0, len(chunks), 4)]
 
-    for index, chunk in enumerate(chunks, start=1):
+    for index, cluster in enumerate(cluster_groups, start=1):
         prompt = _summary_prompt(
-            f"Chunk number: {index}\n\nStudy document text:\n{chunk}"
+            "Semantic document cluster "
+            f"{index}. Cover every provided chunk, retaining details that distinguish one topic from another.\n\n"
+            f"Study document text:\n{_join_chunks(cluster)}"
         )
         response = _generate_structured(
             prompt=prompt,
@@ -229,17 +314,25 @@ def generate_summary(chunks: list[str]) -> ComprehensiveSummary:
         )
         chunk_guides.append(ComprehensiveSummary.model_validate_json(response.text))
 
-    final_prompt = _summary_prompt(
-        "Combine these chunk-level study guides into one unified comprehensive study guide. "
-        "Merge overlapping topics, preserve important technical details, and ensure the final "
-        "guide fully covers the entire document.\n\n"
-        f"{_summary_guides_to_text(chunk_guides)}"
-    )
-    response = _generate_structured(
-        prompt=final_prompt,
-        response_schema=ComprehensiveSummary,
-    )
-    return ComprehensiveSummary.model_validate_json(response.text)
+    # Hierarchical synthesis keeps a long document below the context limit at every step.
+    current_guides = chunk_guides
+    while len(current_guides) > 1:
+        next_guides: list[ComprehensiveSummary] = []
+        for guide_batch in _batched(current_guides, batch_size=6):
+            final_prompt = _summary_prompt(
+                "Combine these semantic-cluster study guides into one unified comprehensive study guide. "
+                "Merge overlapping topics, preserve important technical details, and ensure the final "
+                "guide fully covers the supplied material.\n\n"
+                f"{_summary_guides_to_text(guide_batch)}"
+            )
+            response = _generate_structured(
+                prompt=final_prompt,
+                response_schema=ComprehensiveSummary,
+            )
+            next_guides.append(ComprehensiveSummary.model_validate_json(response.text))
+        current_guides = next_guides
+
+    return current_guides[0]
 
 
 def generate_flashcards(chunks: list[str]) -> list[FlashcardPayload]:
@@ -280,6 +373,57 @@ def generate_quiz(chunks: list[str]) -> list[QuizQuestionPayload]:
     return questions
 
 
+def _summary_context(summary: ComprehensiveSummary) -> str:
+    return _summary_guides_to_text([summary])
+
+
+def generate_flashcards_from_summary(summary: ComprehensiveSummary) -> list[FlashcardPayload]:
+    """Generate recall prompts from the semantically synthesized document guide."""
+    prompt = (
+        "Generate exactly 15 flashcards from this semantic study guide.\n"
+        "Cover the guide broadly, prioritize high-value concepts, and avoid duplicates. "
+        "Return only valid JSON.\n\n"
+        f"{_summary_context(summary)}"
+    )
+    response = _generate_structured(prompt=prompt, response_schema=list[FlashcardPayload])
+    flashcards = [FlashcardPayload.model_validate(item) for item in response.parsed or []]
+    if len(flashcards) != 15:
+        raise AIServiceError("Gemini did not return exactly 15 flashcards.")
+    return flashcards
+
+
+def generate_quiz_from_summary(summary: ComprehensiveSummary) -> list[QuizQuestionPayload]:
+    """Generate a balanced quiz from the semantically synthesized document guide."""
+    prompt = (
+        "Generate exactly 10 multiple-choice quiz questions from this semantic study guide.\n"
+        "Cover the guide broadly. Each question must have exactly 4 distinct options and one correct "
+        "answer index. Avoid duplicates. Return only valid JSON.\n\n"
+        f"{_summary_context(summary)}"
+    )
+    response = _generate_structured(prompt=prompt, response_schema=list[QuizQuestionPayload])
+    questions = [QuizQuestionPayload.model_validate(item) for item in response.parsed or []]
+    if len(questions) != 10:
+        raise AIServiceError("Gemini did not return exactly 10 quiz questions.")
+    return questions
+
+
+def verify_study_materials(
+    *,
+    summary: ComprehensiveSummary,
+    flashcards: Sequence[FlashcardPayload],
+    questions: Sequence[QuizQuestionPayload],
+) -> None:
+    """Apply deterministic checks after Pydantic schema validation and before completion."""
+    if not summary.overall_overview.strip() or not summary.detailed_sections:
+        raise StudyMaterialQualityError("The generated summary does not contain usable study sections.")
+    if len(flashcards) != 15 or len({card.front.strip().casefold() for card in flashcards}) != 15:
+        raise StudyMaterialQualityError("Generated flashcards are incomplete or duplicated.")
+    if len(questions) != 10:
+        raise StudyMaterialQualityError("Generated quiz is incomplete.")
+    if any(len(question.options) != 4 or len(set(question.options)) != 4 for question in questions):
+        raise StudyMaterialQualityError("Generated quiz contains invalid answer options.")
+
+
 def explain_selection(
     *,
     highlighted_text: str,
@@ -318,7 +462,7 @@ def explain_selection(
 
 def answer_document_question(
     *,
-    chunks: list[str],
+    chunks: list[tuple[int, str]],
     user_question: str,
 ) -> DocumentQuestionAnswer:
     if not chunks:
@@ -338,7 +482,13 @@ def answer_document_question(
         prompt=prompt,
         response_schema=DocumentQuestionAnswer,
     )
-    return DocumentQuestionAnswer.model_validate_json(response.text)
+    answer = DocumentQuestionAnswer.model_validate_json(response.text)
+    available_chunk_indexes = {chunk_index for chunk_index, _ in chunks}
+    if not answer.supporting_chunks or any(
+        item.chunk_index not in available_chunk_indexes for item in answer.supporting_chunks
+    ):
+        raise AIServiceError("Gemini returned invalid supporting document references.")
+    return answer
 
 
 def extract_youtube_search_query(document_text_or_summary: str) -> YouTubeSearchQuery:

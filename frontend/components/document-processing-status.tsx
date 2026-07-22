@@ -6,7 +6,12 @@ import type { DocumentStatusResponse } from "@/hooks/use-document-status";
 
 const STAGE_COPY: Record<DocumentStatusResponse["processing_stage"], string> = {
   QUEUED: "Queueing your study workflow...",
-  EXTRACTING_TEXT: "Extracting text and shaping the summary...",
+  EXTRACTING_TEXT: "Extracting text from your study file...",
+  CHUNKING_DOCUMENT: "Organizing the document into study sections...",
+  EMBEDDING_DOCUMENT: "Building the semantic search index...",
+  ANALYZING_DOCUMENT: "Analyzing connected topics across the document...",
+  GENERATING_STUDY_SET: "Generating your summary, flashcards, and quiz...",
+  VALIDATING_STUDY_SET: "Checking the quality of your study set...",
   GENERATING_FLASHCARDS: "Generating flashcards for active recall...",
   GENERATING_QUIZ: "Building the quiz and explanations...",
   FINALIZING: "Finalizing your study set...",

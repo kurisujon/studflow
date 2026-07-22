@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import math
 import uuid
+from collections.abc import Sequence
 from datetime import datetime
 
 from sqlmodel import Session, select
@@ -143,6 +145,119 @@ def save_document_chunks(
     session.add_all(records)
     session.commit()
     return records
+
+
+def get_document_chunks(
+    *,
+    session: Session,
+    document_id: uuid.UUID,
+) -> list[DocumentChunk]:
+    return session.exec(
+        select(DocumentChunk)
+        .where(DocumentChunk.document_id == document_id)
+        .order_by(DocumentChunk.order_index.asc())
+    ).all()
+
+
+def get_unembedded_document_chunks(
+    *,
+    session: Session,
+    document_id: uuid.UUID,
+) -> list[DocumentChunk]:
+    return session.exec(
+        select(DocumentChunk)
+        .where(DocumentChunk.document_id == document_id)
+        .where(DocumentChunk.embedding.is_(None))
+        .order_by(DocumentChunk.order_index.asc())
+    ).all()
+
+
+def save_chunk_embeddings(
+    *,
+    session: Session,
+    chunks: Sequence[DocumentChunk],
+    embeddings: Sequence[Sequence[float]],
+) -> None:
+    if len(chunks) != len(embeddings):
+        raise ValueError("Each document chunk must receive exactly one embedding.")
+
+    for chunk, embedding in zip(chunks, embeddings, strict=True):
+        chunk.embedding = list(embedding)
+        session.add(chunk)
+
+    # Each committed batch is a resumable checkpoint for long uploads.
+    session.commit()
+
+
+def search_similar_chunks(
+    *,
+    session: Session,
+    document_id: uuid.UUID,
+    query_embedding: Sequence[float],
+    top_k: int = 5,
+) -> list[DocumentChunk]:
+    """Return the closest indexed chunks using pgvector cosine distance."""
+    if top_k < 1:
+        raise ValueError("top_k must be at least one.")
+
+    return session.exec(
+        select(DocumentChunk)
+        .where(DocumentChunk.document_id == document_id)
+        .where(DocumentChunk.embedding.is_not(None))
+        .order_by(DocumentChunk.embedding.cosine_distance(query_embedding))
+        .limit(top_k)
+    ).all()
+
+
+def _cosine_similarity(left: Sequence[float], right: Sequence[float]) -> float:
+    numerator = sum(left_value * right_value for left_value, right_value in zip(left, right, strict=True))
+    left_magnitude = math.sqrt(sum(value * value for value in left))
+    right_magnitude = math.sqrt(sum(value * value for value in right))
+    if not left_magnitude or not right_magnitude:
+        return -1.0
+    return numerator / (left_magnitude * right_magnitude)
+
+
+def build_semantic_chunk_clusters(
+    chunks: Sequence[DocumentChunk],
+    *,
+    max_chunks_per_cluster: int,
+) -> list[list[str]]:
+    """Group embedded chunks around distributed semantic anchors for long-document synthesis."""
+    if max_chunks_per_cluster < 1:
+        raise ValueError("max_chunks_per_cluster must be at least one.")
+    if not chunks:
+        return []
+    if any(chunk.embedding is None for chunk in chunks):
+        raise ValueError("All chunks must be embedded before semantic clustering.")
+
+    cluster_count = max(1, math.ceil(len(chunks) / max_chunks_per_cluster))
+    anchor_indexes = {
+        min(len(chunks) - 1, round(index * (len(chunks) - 1) / max(cluster_count - 1, 1)))
+        for index in range(cluster_count)
+    }
+    anchors = [chunks[index] for index in sorted(anchor_indexes)]
+    assignments: list[list[DocumentChunk]] = [[] for _ in anchors]
+
+    for chunk in chunks:
+        best_anchor_index = max(
+            range(len(anchors)),
+            key=lambda anchor_index: _cosine_similarity(
+                chunk.embedding or [],
+                anchors[anchor_index].embedding or [],
+            ),
+        )
+        assignments[best_anchor_index].append(chunk)
+
+    clusters: list[list[str]] = []
+    for assignment in assignments:
+        ordered_assignment = sorted(assignment, key=lambda chunk: chunk.order_index)
+        for start in range(0, len(ordered_assignment), max_chunks_per_cluster):
+            clusters.append(
+                [chunk.content for chunk in ordered_assignment[start : start + max_chunks_per_cluster]]
+            )
+
+    return clusters
 
 
 def save_quiz(

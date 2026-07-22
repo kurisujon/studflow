@@ -7,10 +7,25 @@ import { useAuth } from "@clerk/nextjs";
 
 export type DocumentStatusResponse = {
   document_id: string;
-  status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+  status:
+    | "PENDING"
+    | "PROCESSING"
+    | "EXTRACTING"
+    | "CHUNKING"
+    | "EMBEDDING"
+    | "ANALYZING"
+    | "GENERATING"
+    | "VALIDATING"
+    | "COMPLETED"
+    | "FAILED";
   processing_stage:
     | "QUEUED"
     | "EXTRACTING_TEXT"
+    | "CHUNKING_DOCUMENT"
+    | "EMBEDDING_DOCUMENT"
+    | "ANALYZING_DOCUMENT"
+    | "GENERATING_STUDY_SET"
+    | "VALIDATING_STUDY_SET"
     | "GENERATING_FLASHCARDS"
     | "GENERATING_QUIZ"
     | "FINALIZING"

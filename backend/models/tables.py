@@ -1,9 +1,11 @@
 import enum
 import uuid
 from datetime import datetime
+from collections.abc import Sequence
 from typing import Optional
 
-from sqlalchemy import Column, Enum as SAEnum
+from sqlalchemy import Column, Enum as SAEnum, Float, bindparam
+from sqlalchemy.types import UserDefinedType
 from sqlmodel import Field, Relationship, SQLModel
 
 
@@ -14,9 +16,68 @@ from sqlmodel import Field, Relationship, SQLModel
 
 class DocumentStatus(str, enum.Enum):
     PENDING = "PENDING"
-    PROCESSING = "PROCESSING"
+    PROCESSING = "PROCESSING"  # Retained for documents created before Phase 4.
+    EXTRACTING = "EXTRACTING"
+    CHUNKING = "CHUNKING"
+    EMBEDDING = "EMBEDDING"
+    ANALYZING = "ANALYZING"
+    GENERATING = "GENERATING"
+    VALIDATING = "VALIDATING"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
+
+
+class Vector(UserDefinedType):
+    """Minimal PostgreSQL pgvector type with cosine-distance support.
+
+    Keeping this local avoids adding another ORM dependency while preserving typed
+    bindings and preventing malformed embeddings from reaching PostgreSQL.
+    """
+
+    cache_ok = True
+
+    def __init__(self, dimensions: int) -> None:
+        self.dimensions = dimensions
+
+    def get_col_spec(self, **_kwargs: object) -> str:
+        return f"vector({self.dimensions})"
+
+    @property
+    def python_type(self) -> type[list[float]]:
+        return list
+
+    def bind_processor(self, dialect: object):
+        def process(value: Sequence[float] | None) -> str | None:
+            if value is None:
+                return None
+
+            values = [float(item) for item in value]
+            if len(values) != self.dimensions:
+                raise ValueError(
+                    f"Expected a {self.dimensions}-dimension embedding, got {len(values)}."
+                )
+
+            return "[" + ",".join(format(item, ".10g") for item in values) + "]"
+
+        return process
+
+    def result_processor(self, dialect: object, coltype: object):
+        def process(value: object) -> list[float] | None:
+            if value is None:
+                return None
+            if isinstance(value, (list, tuple)):
+                return [float(item) for item in value]
+
+            raw_value = str(value).strip().strip("[]")
+            return [float(item) for item in raw_value.split(",") if item]
+
+        return process
+
+    class comparator_factory(UserDefinedType.Comparator):
+        def cosine_distance(self, value: Sequence[float]):
+            return self.expr.op("<=>", return_type=Float())(
+                bindparam(None, value, type_=self.type),
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -183,6 +244,10 @@ class DocumentChunk(SQLModel, table=True):
     )
     order_index: int = Field(default=0, nullable=False)
     content: str = Field(nullable=False)
+    embedding: list[float] | None = Field(
+        default=None,
+        sa_column=Column(Vector(768), nullable=True),
+    )
     created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
 
     # Relationships
