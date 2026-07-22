@@ -209,7 +209,7 @@ function LiveDashboard() {
 // ── Main Export ─────────────────────────────────────────────────────────────
 export function BenefitsSection() {
   return (
-    <section id="benefits" className="landing-section w-full bg-white relative overflow-hidden">
+    <section id="benefits" className="w-full bg-white relative overflow-hidden py-20 lg:py-28">
       
       {/* Subtle Background Gradients */}
       <div className="absolute inset-0 pointer-events-none" aria-hidden="true">

@@ -452,9 +452,8 @@ select {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  *,
-  *::before,
-  *::after {
+  .study-stage-shell *,
+  .study-reading-surface * {
     transition-property: background-color, border-color, color;
     transition-duration: 160ms;
     transition-timing-function: ease-out;
@@ -636,83 +635,8 @@ select {
 }
 
 /* -------------------------------------------------------------------------
-   Landing Page Overrides
-   These override the global h1/h2/p rules ONLY within landing sections
-   so Tailwind utility classes work as expected.
+   Landing Page Utilities & Container
    ------------------------------------------------------------------------- */
-.landing-section h1,
-.landing-section h2,
-.landing-section h3 {
-  font-size: unset;
-  font-weight: unset;
-  line-height: unset;
-  letter-spacing: unset;
-  color: unset;
-}
-
-.landing-section p {
-  color: unset;
-  line-height: unset;
-}
-
-/* Enforce section vertical spacing regardless of global reset */
-.landing-section {
-  padding-top: 6rem !important;
-  padding-bottom: 6rem !important;
-}
-
-@media (min-width: 768px) {
-  .landing-section {
-    padding-top: 8rem !important;
-    padding-bottom: 8rem !important;
-  }
-}
-
-/* Override for hero which has custom top padding to clear the navbar */
-.landing-section.landing-hero {
-  padding-top: 100px !important;
-  padding-bottom: 72px !important;
-}
-
-@media (min-width: 768px) {
-  .landing-section.landing-hero {
-    padding-top: 130px !important;
-    padding-bottom: 90px !important;
-  }
-}
-
-@media (min-width: 1024px) {
-  .landing-section.landing-hero {
-    padding-top: 170px !important;
-    padding-bottom: 120px !important;
-  }
-}
-
-/* Feature/benefit cards — ensure internal padding is never stripped */
-.landing-card {
-  padding: 2rem !important;
-}
-
-/* Features section specific padding: 100px top, 120px bottom on desktop */
-#features.landing-section {
-  padding-top: 64px !important;
-  padding-bottom: 64px !important;
-}
-
-@media (min-width: 768px) {
-  #features.landing-section {
-    padding-top: 80px !important;
-    padding-bottom: 80px !important;
-  }
-}
-
-@media (min-width: 1024px) {
-  #features.landing-section {
-    padding-top: 100px !important;
-    padding-bottom: 120px !important;
-  }
-}
-
 .landing-container {
   width: 100%;
   max-width: 80rem; /* 1280px */

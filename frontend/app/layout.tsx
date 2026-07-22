@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Inter } from "next/font/google";
-import { Navbar } from "@/components/navbar";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { ClerkProvider } from "@clerk/nextjs";
 
@@ -30,7 +29,7 @@ export const metadata: Metadata = {
     siteName: "Studflow",
     images: [
       {
-        url: "/og-image.png", // Add a nice OpenGraph image to the public/ folder later!
+        url: "/og-image.png",
         width: 1200,
         height: 630,
         alt: "Studflow — AI Study Workflow",
@@ -71,15 +70,7 @@ export default function RootLayout({
       >
         <body>
           <ThemeProvider>
-            <Navbar />
-            <main
-              style={{
-                minHeight: "calc(100dvh - var(--nav-height))",
-                paddingTop: "var(--nav-height)",
-              }}
-            >
-              {children}
-            </main>
+            {children}
           </ThemeProvider>
         </body>
       </html>

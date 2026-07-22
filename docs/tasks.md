@@ -135,3 +135,18 @@ Goal: Replace mock dashboard data with real user analytics, and give users contr
 #### Frontend: Dashboard & Settings
 - [x] Connect the `DashboardPage` widgets (Streak, Stats, Queue) to the new real-time backend endpoints
 - [x] Build a `/dashboard/settings` page allowing users to configure their study algorithm variables and appearance
+
+## Phase 4: Vector Embeddings, pgvector & Semantic RAG Infrastructure (Planned)
+
+Goal: Scale document processing to support 100+ page documents with high precision, fast retrieval, and lowered token consumption.
+
+#### Database & Storage
+- [ ] Enable `pgvector` extension in PostgreSQL / Alembic migrations
+- [ ] Add `embedding` vector column to `DocumentChunk` table (e.g. 768 dimensions for Gemini `text-embedding-004`)
+
+#### Backend Pipeline & RAG
+- [ ] Integrate Gemini Embedding API (`text-embedding-004`) in `ai_service.py` to generate chunk vectors during background document processing
+- [ ] Implement cosine similarity search function using `pgvector` in backend document services
+- [ ] Upgrade `Ask AI` document-level Q&A to retrieve top $K$ semantic chunks via vector similarity instead of basic SQL chunk matching
+- [ ] Optimize Celery task execution timeouts (`task_soft_time_limit`, `task_time_limit`) for batch embedding generation on 100+ page documents
+

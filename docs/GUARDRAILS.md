@@ -16,16 +16,18 @@ This document serves as the strict guardrails for the entire development lifecyc
 - No new programming languages.
 - No GraphQL (Stick to RESTful JSON endpoints).
 - No Kubernetes (Deploy on simple PaaS providers like Vercel/Render/Railway or use basic Docker Compose).
-- Do not add new libraries unless absolutely necessary and discussed first.
+- Approved AI & Database extensions: `pgvector` extension for PostgreSQL and Gemini Embedding APIs (`text-embedding-004`) for RAG & semantic search.
 
 ## 4. Code Simplicity Rules (KISS)
 - **KISS:** Keep It Simple, Stupid.
 - Strict typing is mandatory: TypeScript on the frontend, Python type hints & Pydantic on the backend.
 - Modularity: Keep routes, services, and database operations in separate, logically organized modules.
 
-## 5. AI Boundaries
-- **No Direct DB Access for AI:** The LLM never touches the database directly.
+## 5. AI Boundaries & RAG Infrastructure
+- **No Direct DB Access for AI:** The LLM never touches the database directly. Database queries and vector lookups are controlled via backend services.
 - **Validation is Mandatory:** The backend must parse and validate all JSON outputs from Gemini using Pydantic before saving to the database. Never trust raw AI output.
+- **Semantic RAG & Vector Storage:** Embeddings and `pgvector` similarity search are approved for semantic chunk retrieval, long document processing (e.g., 100+ page PDFs), and grounded Q&A.
+- **AI Pipelines & Orchestration:** Background processing pipelines (Celery) and function-calling loops may be optimized for multi-step AI reasoning and long-document execution.
 
 ## 6. UI/UX Design Direction
 - **Design Language:** Clean, informational, and lively. The UI must feel alive and purposeful without being distracting. Think structured clarity with warm, purposeful color accents.

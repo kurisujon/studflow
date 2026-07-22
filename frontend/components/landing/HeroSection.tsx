@@ -205,7 +205,7 @@ function ProductPreview() {
 // ── Main Export ─────────────────────────────────────────────────────────────
 export function HeroSection() {
   return (
-    <section className="landing-section landing-hero relative w-full overflow-hidden bg-[#F8FAFC]">
+    <section className="relative w-full overflow-hidden bg-[#F8FAFC] pt-6 lg:pt-10">
       {/* ── Background Patterns ── */}
       <div className="absolute inset-0 pointer-events-none" aria-hidden="true" style={{ background: "radial-gradient(circle at 75% 45%, rgba(124, 58, 237, 0.05), transparent 45%), radial-gradient(circle at 25% 60%, rgba(22, 139, 255, 0.05), transparent 45%)" }} />
 
