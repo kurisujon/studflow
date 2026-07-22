@@ -70,7 +70,7 @@ export function LandingNavbar() {
             <>
               <Link
                 href="/sign-in"
-                className="landing-cta-ghost !h-11 !px-6 flex items-center justify-center !text-sm font-semibold hover:text-[#168BFF] transition-colors duration-300 ease-out transform hover:-translate-y-1"
+                className="text-[#4F46E5] h-11 px-6 flex items-center justify-center text-sm font-semibold hover:text-[#4338CA] transition-colors duration-300 ease-out transform hover:-translate-y-1"
               >
                 Sign In
               </Link>
@@ -131,7 +131,7 @@ export function LandingNavbar() {
                 <>
                   <Link
                     href="/sign-in"
-                    className="landing-cta-ghost w-full !h-12 !rounded-md flex items-center justify-center !text-sm font-semibold bg-[#F8FAFC] border border-[#E2E8F0] transition-all duration-300 ease-out transform hover:-translate-y-1"
+                    className="text-[#4F46E5] w-full h-12 rounded-md flex items-center justify-center text-sm font-semibold bg-[#F8FAFC] border border-[#E2E8F0] transition-all duration-300 ease-out transform hover:-translate-y-1 hover:text-[#4338CA]"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     Sign In
