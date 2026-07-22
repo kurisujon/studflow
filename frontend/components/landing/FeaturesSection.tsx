@@ -276,7 +276,7 @@ function FeaturedFlashcardCard() {
 // ── Main export ───────────────────────────────────────────────────────────────
 export function FeaturesSection() {
   return (
-    <section id="features" className="w-full bg-white relative overflow-hidden py-20 lg:py-28">
+    <section id="features" className="w-full bg-white relative overflow-hidden py-16 lg:py-24">
       {/* Background decoration */}
       <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
         <div className="absolute -top-1/4 -right-1/4 w-[700px] h-[700px] rounded-full bg-gradient-to-b from-[#168BFF]/6 to-transparent blur-[100px]" />

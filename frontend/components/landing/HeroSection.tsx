@@ -254,10 +254,10 @@ export function HeroSection() {
             </motion.p>
 
             {/* CTA Buttons */}
-            <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-center justify-start gap-4 w-full sm:w-auto mb-16">
+            <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-center justify-start gap-4 mb-16">
               <Link
                 href="/dashboard/upload"
-                className="group relative flex shrink-0 items-center justify-center gap-2 w-full sm:w-auto h-[58px] px-8 rounded-[14px] text-[16px] font-bold text-white bg-gradient-to-r from-[#5964FF] to-[#8640FF] shadow-[0_12px_24px_-8px_rgba(89,100,255,0.4)] transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-[0_20px_32px_-8px_rgba(89,100,255,0.6)] hover:border-[#8640FF]/30 border border-transparent overflow-hidden"
+                className="group relative flex shrink-0 items-center justify-center gap-2 w-full sm:w-fit h-12 px-6 rounded-xl text-[15px] font-bold text-white bg-gradient-to-r from-[#5964FF] to-[#8640FF] shadow-[0_8px_16px_-6px_rgba(89,100,255,0.4)] transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_12px_24px_-6px_rgba(89,100,255,0.6)] hover:border-[#8640FF]/30 border border-transparent overflow-hidden"
               >
                 {/* Highlight bar effect */}
                 <div className="absolute top-0 left-0 right-0 h-[2px] bg-white/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -266,10 +266,10 @@ export function HeroSection() {
               </Link>
               <Link
                 href="#how-it-works"
-                className="group relative flex shrink-0 items-center justify-center gap-2 w-full sm:w-auto h-[58px] px-8 rounded-[14px] text-[16px] font-bold text-[#0F172A] bg-white border border-[#E2E8F0] shadow-sm transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-lg hover:border-[#CBD5E1]"
+                className="group relative flex shrink-0 items-center justify-center gap-2 w-full sm:w-fit h-12 px-6 rounded-xl text-[15px] font-bold text-[#4F46E5] bg-white border border-[#E2E8F0] shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-md hover:border-[#CBD5E1]"
               >
                 <div className="absolute top-0 left-0 right-0 h-[2px] bg-[#E2E8F0] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <PlayCircle className="w-5 h-5 text-[#0F172A] shrink-0" />
+                <PlayCircle className="w-5 h-5 text-[#4F46E5] shrink-0" />
                 See how it works
               </Link>
             </motion.div>

@@ -193,7 +193,7 @@ export function HowItWorksSection() {
   const lineHeight = useTransform(scrollYProgress, [0, 1], ["0%", "100%"]);
 
   return (
-    <section id="how-it-works" className="w-full bg-[#F8FAFC] relative overflow-hidden py-20 lg:py-28" ref={containerRef}>
+    <section id="how-it-works" className="w-full bg-[#F8FAFC] relative overflow-hidden py-16 lg:py-24" ref={containerRef}>
       
       {/* Background embellishments */}
       <div className="absolute inset-0 pointer-events-none" aria-hidden="true">

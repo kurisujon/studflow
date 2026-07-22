@@ -7,7 +7,7 @@ import { ArrowRight, Sparkles } from "lucide-react";
 
 export function CTASection() {
   return (
-    <section className="w-full py-[120px] bg-white relative overflow-hidden flex flex-col items-center">
+    <section className="w-full py-16 lg:py-24 bg-white relative overflow-hidden flex flex-col items-center">
       {/* Background Ambience */}
       <div className="absolute inset-0 pointer-events-none" aria-hidden="true" style={{ background: "radial-gradient(circle at 50% 50%, rgba(124, 58, 237, 0.03), transparent 60%), radial-gradient(circle at 50% 100%, rgba(22, 139, 255, 0.04), transparent 50%)" }} />
       
@@ -49,7 +49,7 @@ export function CTASection() {
           <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto z-10">
             <Link
               href="/sign-up"
-              className="group relative flex shrink-0 items-center justify-center gap-2 w-full sm:w-auto h-[58px] px-10 rounded-[14px] text-[16px] font-bold text-white bg-gradient-to-r from-[#5964FF] to-[#8640FF] shadow-[0_12px_24px_-8px_rgba(89,100,255,0.4)] transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-[0_20px_32px_-8px_rgba(89,100,255,0.6)] hover:border-[#8640FF]/30 border border-transparent overflow-hidden"
+              className="group relative flex shrink-0 items-center justify-center gap-2 w-full sm:w-fit h-12 px-8 rounded-xl text-[15px] font-bold text-white bg-gradient-to-r from-[#5964FF] to-[#8640FF] shadow-[0_8px_16px_-6px_rgba(89,100,255,0.4)] transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_12px_24px_-6px_rgba(89,100,255,0.6)] hover:border-[#8640FF]/30 border border-transparent overflow-hidden"
             >
               <div className="absolute top-0 left-0 right-0 h-[2px] bg-white/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               Start Learning Free
