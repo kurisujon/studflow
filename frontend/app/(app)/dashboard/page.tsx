@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { RetryDocumentButton } from "@/components/retry-document-button";
 import { fetchDocuments, fetchUserStats, fetchUserQueue } from "@/lib/server-api";
 
 export default async function DashboardPage() {
@@ -23,10 +24,22 @@ export default async function DashboardPage() {
           <h1 style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>Study Dashboard and Review Workflow</h1>
         </div>
 
-        {/* Top Row: Continue Studying Cards */}
+        {/* Top Row: Document workflow cards */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "1.5rem", marginBottom: "1.5rem" }}>
-          {documents.filter(doc => doc.status !== "COMPLETED").slice(0, 3).map((doc) => {
-            const progress = doc.quiz_ready ? 85 : 40; // Mock progress for visual consistency
+          {documents.slice(0, 3).map((doc) => {
+            const isCompleted = doc.status === "COMPLETED";
+            const isFailed = doc.status === "FAILED";
+            const workflowLabel = isCompleted
+              ? "Continue Studying"
+              : isFailed
+                ? "Processing failed"
+                : "Processing";
+            const workflowDescription = isCompleted
+              ? `Study set ready with ${doc.flashcard_count} flashcards.`
+              : isFailed
+                ? "Your file is saved, but its study materials are not ready yet."
+                : `Studflow is processing this document (${doc.status.toLowerCase()}).`;
+
             return (
               <div key={doc.id} style={{ 
                 padding: "1.25rem", 
@@ -37,37 +50,69 @@ export default async function DashboardPage() {
                 display: "flex", flexDirection: "column", gap: "1rem"
               }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontWeight: 600, fontSize: "1.05rem" }}>Continue Studying</span>
-                  <span style={{ color: "var(--distill-text-secondary)", cursor: "pointer" }}>•••</span>
+                  <span style={{ fontWeight: 600, fontSize: "1.05rem" }}>{workflowLabel}</span>
+                  <span
+                    style={{
+                      padding: "0.2rem 0.55rem",
+                      borderRadius: "999px",
+                      backgroundColor: isFailed
+                        ? "rgba(180, 35, 24, 0.1)"
+                        : isCompleted
+                          ? "rgba(16, 185, 129, 0.12)"
+                          : "var(--theme-soft)",
+                      color: isFailed
+                        ? "#b42318"
+                        : isCompleted
+                          ? "#047857"
+                          : "var(--theme-primary)",
+                      fontSize: "0.72rem",
+                      fontWeight: 700,
+                    }}
+                  >
+                    {doc.status}
+                  </span>
                 </div>
                 
-                {/* Image Placeholder / Banner */}
                 <div style={{ height: "60px", borderRadius: "12px", background: "linear-gradient(90deg, #1e1b4b, #312e81)", overflow: "hidden", position: "relative" }}>
                    <div style={{ position: "absolute", inset: 0, opacity: 0.3, backgroundImage: "url('/feature-dashboard.jpg')", backgroundSize: "cover", backgroundPosition: "center" }} />
-                </div>
-                
-                {/* Progress Bar */}
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                  <div style={{ flex: 1, height: "6px", backgroundColor: "var(--theme-soft)", borderRadius: "99px", overflow: "hidden" }}>
-                    <div style={{ width: `${progress}%`, height: "100%", backgroundColor: "var(--theme-primary)", borderRadius: "99px" }} />
-                  </div>
-                  <span style={{ fontSize: "0.8rem", fontWeight: 600 }}>{progress}%</span>
                 </div>
 
                 <div>
                   <h3 style={{ fontSize: "1.1rem", marginBottom: "0.25rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{doc.filename.replace(/\.[^/.]+$/, "")}</h3>
                   <p style={{ fontSize: "0.85rem", color: "var(--distill-text-secondary)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                    {"Content summary and key concepts ready for review."}
+                    {workflowDescription}
                   </p>
                 </div>
                 
-                <Link href={`/dashboard/study/${doc.id}`} style={{
-                  marginTop: "auto",
-                  display: "block", textAlign: "center", padding: "0.65rem", borderRadius: "12px",
-                  backgroundColor: "var(--theme-primary)", color: "white", fontWeight: 600, fontSize: "0.95rem"
-                }}>
-                  Continue
-                </Link>
+                {isCompleted ? (
+                  <Link href={`/dashboard/study/${doc.id}`} style={{
+                    marginTop: "auto",
+                    display: "block", textAlign: "center", padding: "0.65rem", borderRadius: "12px",
+                    backgroundColor: "var(--theme-primary)", color: "white", fontWeight: 600, fontSize: "0.95rem"
+                  }}>
+                    Continue
+                  </Link>
+                ) : isFailed ? (
+                  <div style={{ marginTop: "auto" }}>
+                    <RetryDocumentButton documentId={doc.id} />
+                  </div>
+                ) : (
+                  <p
+                    aria-live="polite"
+                    style={{
+                      marginTop: "auto",
+                      padding: "0.65rem",
+                      borderRadius: "12px",
+                      backgroundColor: "var(--theme-soft)",
+                      color: "var(--distill-text-secondary)",
+                      textAlign: "center",
+                      fontSize: "0.9rem",
+                      fontWeight: 600,
+                    }}
+                  >
+                    Processing in the background
+                  </p>
+                )}
               </div>
             );
           })}

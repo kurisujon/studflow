@@ -25,10 +25,15 @@ export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
   const [documentId, setDocumentId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [retryQueued, setRetryQueued] = useState(false);
   const hasRedirectedRef = useRef(false);
   const [pollingEnabled, setPollingEnabled] = useState(true);
   const { getToken } = useAuth();
-  const { data: statusData } = useDocumentStatus(documentId, {
+  const {
+    data: statusData,
+    error: statusError,
+    clearError: clearStatusError,
+  } = useDocumentStatus(documentId, {
     enabled: documentId !== null && pollingEnabled,
   });
 
@@ -53,7 +58,8 @@ export default function UploadPage() {
 
     setPollingEnabled(false);
     setIsUploading(false);
-    setError("Processing failed. Please try another file or review extraction quality.");
+    setRetryQueued(false);
+    setError("Processing failed. Your file is saved and can be retried.");
   });
 
   useEffect(() => {
@@ -85,6 +91,24 @@ export default function UploadPage() {
     };
   }, [statusData]);
 
+  useEffect(() => {
+    if (
+      !retryQueued ||
+      !statusData ||
+      statusData.status === "FAILED"
+    ) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setRetryQueued(false);
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [retryQueued, statusData]);
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -97,6 +121,7 @@ export default function UploadPage() {
     formData.append("file", file);
 
     setError(null);
+    setRetryQueued(false);
     setIsUploading(true);
 
     try {
@@ -134,6 +159,9 @@ export default function UploadPage() {
   }
 
   if (documentId) {
+    const isAwaitingRetryStatus =
+      retryQueued && statusData?.status === "FAILED";
+
     return (
       <section
         style={{
@@ -146,7 +174,19 @@ export default function UploadPage() {
             "radial-gradient(circle at top left, var(--theme-shadow), transparent 24%), linear-gradient(180deg, var(--background), color-mix(in srgb, var(--background) 82%, var(--theme-soft)))",
         }}
       >
-        <DocumentProcessingStatus status={statusData} />
+        <DocumentProcessingStatus
+          status={statusData}
+          error={error ?? statusError}
+          retryDocumentId={documentId}
+          retryQueued={isAwaitingRetryStatus}
+          onRetrySuccess={() => {
+            setError(null);
+            clearStatusError();
+            setRetryQueued(true);
+            setIsUploading(true);
+            setPollingEnabled(true);
+          }}
+        />
       </section>
     );
   }

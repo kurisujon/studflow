@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 
 import type { DocumentStatusResponse } from "@/hooks/use-document-status";
+import { RetryDocumentButton } from "@/components/retry-document-button";
 
 const STAGE_COPY: Record<DocumentStatusResponse["processing_stage"], string> = {
   QUEUED: "Queueing your study workflow...",
@@ -21,10 +22,23 @@ const STAGE_COPY: Record<DocumentStatusResponse["processing_stage"], string> = {
 
 export function DocumentProcessingStatus({
   status,
+  error,
+  retryDocumentId,
+  retryQueued = false,
+  onRetrySuccess,
 }: {
   status: DocumentStatusResponse | null;
+  error?: string | null;
+  retryDocumentId?: string;
+  retryQueued?: boolean;
+  onRetrySuccess?: () => void;
 }) {
-  const message = status ? STAGE_COPY[status.processing_stage] : STAGE_COPY.QUEUED;
+  const isFailed = status?.status === "FAILED" && !retryQueued;
+  const message = retryQueued
+    ? "Retry queued."
+    : status
+      ? STAGE_COPY[status.processing_stage]
+      : STAGE_COPY.QUEUED;
 
   return (
     <motion.section
@@ -44,19 +58,34 @@ export function DocumentProcessingStatus({
         backdropFilter: "blur(12px)",
       }}
     >
-      <motion.div
-        initial={{ scaleX: 0.1 }}
-        animate={{ scaleX: 1 }}
-        transition={{ duration: 1.6, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
-        style={{
-          height: "3px",
-          transformOrigin: "left center",
-          borderRadius: "999px",
-          background:
-            "linear-gradient(90deg, var(--distill-text-primary), var(--distill-text-muted))",
-          marginBottom: "1.5rem",
-        }}
-      />
+      {isFailed ? (
+        <div
+          style={{
+            height: "3px",
+            borderRadius: "999px",
+            background: "#b42318",
+            marginBottom: "1.5rem",
+          }}
+        />
+      ) : (
+        <motion.div
+          initial={{ scaleX: 0.1 }}
+          animate={{ scaleX: 1 }}
+          transition={{
+            duration: 1.6,
+            repeat: Number.POSITIVE_INFINITY,
+            ease: "easeInOut",
+          }}
+          style={{
+            height: "3px",
+            transformOrigin: "left center",
+            borderRadius: "999px",
+            background:
+              "linear-gradient(90deg, var(--distill-text-primary), var(--distill-text-muted))",
+            marginBottom: "1.5rem",
+          }}
+        />
+      )}
 
       <p
         style={{
@@ -67,7 +96,7 @@ export function DocumentProcessingStatus({
           marginBottom: "0.75rem",
         }}
       >
-        AI Processing
+        {isFailed ? "Processing stopped" : "AI Processing"}
       </p>
 
       <h2
@@ -86,8 +115,25 @@ export function DocumentProcessingStatus({
           marginBottom: "1.75rem",
         }}
       >
-        Studflow is turning the uploaded material into a summary, flashcards, and a quiz.
+        {isFailed
+          ? "Your file is still saved. Retry processing to resume from its existing checkpoints."
+          : retryQueued
+            ? "Studflow will resume this saved file from its existing checkpoints."
+            : "Studflow is turning the uploaded material into a summary, flashcards, and a quiz."}
       </p>
+
+      {error ? (
+        <p
+          role="alert"
+          style={{
+            marginBottom: "1rem",
+            color: "#b42318",
+            fontSize: "0.92rem",
+          }}
+        >
+          {error}
+        </p>
+      ) : null}
 
       <div
         style={{
@@ -144,6 +190,15 @@ export function DocumentProcessingStatus({
           </motion.div>
         ))}
       </div>
+
+      {isFailed && retryDocumentId ? (
+        <div style={{ marginTop: "1.25rem" }}>
+          <RetryDocumentButton
+            documentId={retryDocumentId}
+            onSuccess={onRetrySuccess}
+          />
+        </div>
+      ) : null}
     </motion.section>
   );
 }

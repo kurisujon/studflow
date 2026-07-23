@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import uuid
 from datetime import datetime
 from typing import Literal, cast
@@ -38,9 +39,16 @@ from services.ai_service import (
     explain_selection,
     generate_query_embedding,
 )
-from services.documents import create_flashcard, search_similar_chunks
+from services.documents import (
+    claim_failed_document_for_retry,
+    create_flashcard,
+    search_similar_chunks,
+    update_document_status,
+)
+from tasks.document_processing import process_document_task
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 class DocumentListItem(BaseModel):
@@ -63,6 +71,11 @@ class DocumentStatusResponse(BaseModel):
     summary_ready: bool
     flashcard_count: int
     quiz_ready: bool
+
+
+class RetryDocumentResponse(BaseModel):
+    document_id: uuid.UUID
+    status: str
 
 
 class FlashcardResponse(BaseModel):
@@ -500,19 +513,65 @@ def get_document_status(document_id: uuid.UUID, current_user: CurrentUser = Depe
         )
 
 
+@router.post(
+    "/documents/{document_id}/retry",
+    response_model=RetryDocumentResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def retry_document_processing(
+    document_id: uuid.UUID,
+    current_user: CurrentUser = Depends(get_current_user),
+) -> RetryDocumentResponse:
+    with Session(engine) as session:
+        document = _get_owned_document(session, document_id, current_user)
+
+        if document.status != DocumentStatus.FAILED:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Only failed documents can be retried.",
+            )
+
+        if not claim_failed_document_for_retry(
+            session=session,
+            document_id=document.id,
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Document processing has already been retried.",
+            )
+
+        try:
+            process_document_task.delay(str(document.id))
+        except Exception as exc:
+            logger.exception(
+                "Retry queue failure for document '%s' and user '%s'.",
+                document.id,
+                current_user.clerk_user_id,
+            )
+            update_document_status(
+                session=session,
+                document=document,
+                status=DocumentStatus.FAILED,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Retry could not be queued. Please try again.",
+            ) from exc
+
+        return RetryDocumentResponse(
+            document_id=document.id,
+            status=DocumentStatus.PENDING.value,
+        )
+
+
 @router.get("/documents/{document_id}/study", response_model=StudyDocumentResponse)
 def get_study_document(document_id: uuid.UUID, current_user: CurrentUser = Depends(get_current_user)) -> StudyDocumentResponse:
     with Session(engine) as session:
-        document = session.exec(
-            select(Document)
-            .where(Document.id == document_id)
-            .where(Document.clerk_user_id == current_user.clerk_user_id)
-        ).first()
-
-        if document is None:
+        document = _get_owned_document(session, document_id, current_user)
+        if document.status != DocumentStatus.COMPLETED:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Document not found.",
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Document study materials are not ready.",
             )
 
         summary = session.exec(

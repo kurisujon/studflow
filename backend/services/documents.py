@@ -6,6 +6,7 @@ import uuid
 from collections.abc import Sequence
 from datetime import datetime
 
+from sqlalchemy import update
 from sqlmodel import Session, select
 
 from models.tables import (
@@ -65,6 +66,30 @@ def update_document_status(
     session.commit()
     session.refresh(document)
     return document
+
+
+def claim_failed_document_for_retry(
+    *,
+    session: Session,
+    document_id: uuid.UUID,
+) -> bool:
+    """Atomically claim a failed document so only one retry can be queued."""
+    try:
+        result = session.exec(
+            update(Document)
+            .where(Document.id == document_id)
+            .where(Document.status == DocumentStatus.FAILED)
+            .values(
+                status=DocumentStatus.PENDING,
+                updated_at=datetime.utcnow(),
+            )
+        )
+        claimed = result.rowcount == 1
+        session.commit()
+        return claimed
+    except Exception:
+        session.rollback()
+        raise
 
 
 def save_summary(
@@ -266,26 +291,44 @@ def save_quiz(
     document_id: uuid.UUID,
     questions: list[QuizQuestionPayload],
 ) -> Quiz:
-    quiz = Quiz(document_id=document_id)
-    session.add(quiz)
-    session.commit()
-    session.refresh(quiz)
+    try:
+        quiz = session.exec(
+            select(Quiz)
+            .where(Quiz.document_id == document_id)
+            .with_for_update()
+        ).first()
 
-    quiz_question_records = [
-        QuizQuestion(
-            quiz_id=quiz.id,
-            question=question.question,
-            options=json.dumps(question.options),
-            correct_answer_index=question.correct_answer_index,
-            explanation=question.explanation,
-            order_index=index,
-        )
-        for index, question in enumerate(questions)
-    ]
-    session.add_all(quiz_question_records)
-    session.commit()
-    session.refresh(quiz)
-    return quiz
+        if quiz is not None:
+            existing_question = session.exec(
+                select(QuizQuestion).where(QuizQuestion.quiz_id == quiz.id)
+            ).first()
+            if existing_question is not None:
+                raise ValueError(
+                    "Stored quiz already contains questions and cannot be replaced."
+                )
+        else:
+            quiz = Quiz(document_id=document_id)
+            session.add(quiz)
+            session.flush()
+
+        quiz_question_records = [
+            QuizQuestion(
+                quiz_id=quiz.id,
+                question=question.question,
+                options=json.dumps(question.options),
+                correct_answer_index=question.correct_answer_index,
+                explanation=question.explanation,
+                order_index=index,
+            )
+            for index, question in enumerate(questions)
+        ]
+        session.add_all(quiz_question_records)
+        session.commit()
+        session.refresh(quiz)
+        return quiz
+    except Exception:
+        session.rollback()
+        raise
 
 
 def save_related_videos(

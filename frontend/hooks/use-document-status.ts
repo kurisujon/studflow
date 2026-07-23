@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useEffectEvent, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useState } from "react";
 
 import { API_BASE_URL, buildAPIError } from "@/lib/api";
 import { useAuth } from "@clerk/nextjs";
@@ -52,6 +52,9 @@ export function useDocumentStatus(
   const [error, setError] = useState<string | null>(null);
 
   const { getToken } = useAuth();
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
 
   const fetchStatus = useEffectEvent(async () => {
     if (!documentId || !enabled) {
@@ -117,5 +120,6 @@ export function useDocumentStatus(
     data,
     error,
     isLoading,
+    clearError,
   };
 }

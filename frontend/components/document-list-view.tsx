@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { FileTextIcon, FolderPlusIcon } from "@/components/home/icon-registry";
+import { RetryDocumentButton } from "@/components/retry-document-button";
 import type { DocumentListItem } from "@/lib/types";
 
 /* ─── Inline SVG Icons ─── */
@@ -555,14 +556,15 @@ export function DocumentListView({
               ) : (
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "1rem" }}>
                   {recentDocs.map((doc) => {
-                    const statusColor = doc.status === "COMPLETED" ? "#22c55e" : doc.status === "PROCESSING" ? "#f59e0b" : "#94a3b8";
-                    return (
-                      <Link
-                        key={doc.id}
-                        href={`/dashboard/study/${doc.id}?tab=${targetTab}`}
-                        className="recent-file-card"
-                        style={{ backgroundColor: "var(--card)", border: "1px solid var(--theme-border)", borderRadius: "14px", padding: "1.25rem 1rem", display: "flex", flexDirection: "column", gap: "0.75rem", textDecoration: "none", color: "inherit" }}
-                      >
+                    const isCompleted = doc.status === "COMPLETED";
+                    const isFailed = doc.status === "FAILED";
+                    const statusColor = isCompleted
+                      ? "#22c55e"
+                      : isFailed
+                        ? "#ef4444"
+                        : "#f59e0b";
+                    const fileDetails = (
+                      <>
                         <div style={{ padding: "0.75rem", backgroundColor: "color-mix(in srgb, var(--theme-soft) 50%, transparent)", borderRadius: "10px", width: "fit-content" }}>
                           <PdfIcon />
                         </div>
@@ -572,10 +574,43 @@ export function DocumentListView({
                           </p>
                           <p style={{ fontSize: "0.72rem", color: "var(--distill-text-secondary)", display: "flex", alignItems: "center", gap: "0.3rem" }}>
                             <span style={{ display: "inline-block", width: "5px", height: "5px", borderRadius: "50%", backgroundColor: statusColor, flexShrink: 0 }} />
-                            {new Date(doc.created_at).toLocaleDateString()}
+                            {doc.status} &bull; {new Date(doc.created_at).toLocaleDateString()}
                           </p>
                         </div>
-                      </Link>
+                      </>
+                    );
+
+                    return (
+                      <div
+                        key={doc.id}
+                        className="recent-file-card"
+                        style={{ backgroundColor: "var(--card)", border: "1px solid var(--theme-border)", borderRadius: "14px", padding: "1.25rem 1rem", display: "flex", flexDirection: "column", gap: "0.75rem", textDecoration: "none", color: "inherit" }}
+                      >
+                        {isCompleted ? (
+                          <Link
+                            href={`/dashboard/study/${doc.id}?tab=${targetTab}`}
+                            aria-label={`Open ${doc.filename}`}
+                            style={{ display: "flex", flexDirection: "column", gap: "0.75rem", textDecoration: "none", color: "inherit" }}
+                          >
+                            {fileDetails}
+                          </Link>
+                        ) : (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                            {fileDetails}
+                          </div>
+                        )}
+
+                        {isFailed ? (
+                          <RetryDocumentButton documentId={doc.id} />
+                        ) : !isCompleted ? (
+                          <p
+                            aria-live="polite"
+                            style={{ marginTop: "auto", color: "var(--distill-text-secondary)", fontSize: "0.78rem", fontWeight: 600 }}
+                          >
+                            Processing in the background
+                          </p>
+                        ) : null}
+                      </div>
                     );
                   })}
                 </div>
@@ -614,26 +649,54 @@ function FileRow({
   onMove: (id: string, folder: string) => void;
   onDelete: (doc: DocumentListItem) => void;
 }) {
-  const statusColor = doc.status === "COMPLETED" ? "#22c55e" : doc.status === "PROCESSING" ? "#f59e0b" : "#94a3b8";
+  const isCompleted = doc.status === "COMPLETED";
+  const isFailed = doc.status === "FAILED";
+  const statusColor = isCompleted ? "#22c55e" : isFailed ? "#ef4444" : "#f59e0b";
   const currentFolder = Object.entries(folders).find(([, ids]) => ids.includes(doc.id))?.[0] ?? "Unorganized";
+  const fileDetails = (
+    <>
+      <div style={{ padding: "0.5rem", backgroundColor: "color-mix(in srgb, var(--theme-soft) 50%, transparent)", borderRadius: "8px", flexShrink: 0 }}>
+        <FileTextIcon size={18} color="var(--theme-primary)" />
+      </div>
+      <div style={{ minWidth: 0 }}>
+        <p style={{ fontWeight: 600, fontSize: "0.9rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginBottom: "0.2rem" }}>{doc.filename}</p>
+        <p style={{ fontSize: "0.75rem", color: "var(--distill-text-secondary)", display: "flex", alignItems: "center", gap: "0.35rem" }}>
+          <span style={{ display: "inline-block", width: "5px", height: "5px", borderRadius: "50%", backgroundColor: statusColor, flexShrink: 0 }} />
+          {doc.status} &bull; {new Date(doc.created_at).toLocaleDateString()}
+        </p>
+      </div>
+    </>
+  );
 
   return (
     <div
       className="file-card"
       style={{ display: "flex", alignItems: "center", gap: "0.875rem", padding: "0.75rem 1rem", backgroundColor: "var(--background)", borderRadius: "12px", border: "1px solid var(--theme-border)" }}
     >
-      <Link href={`/dashboard/study/${doc.id}?tab=${targetTab}`} style={{ display: "flex", alignItems: "center", gap: "0.875rem", flex: 1, textDecoration: "none", color: "inherit", minWidth: 0 }}>
-        <div style={{ padding: "0.5rem", backgroundColor: "color-mix(in srgb, var(--theme-soft) 50%, transparent)", borderRadius: "8px", flexShrink: 0 }}>
-          <FileTextIcon size={18} color="var(--theme-primary)" />
+      {isCompleted ? (
+        <Link
+          href={`/dashboard/study/${doc.id}?tab=${targetTab}`}
+          aria-label={`Open ${doc.filename}`}
+          style={{ display: "flex", alignItems: "center", gap: "0.875rem", flex: 1, textDecoration: "none", color: "inherit", minWidth: 0 }}
+        >
+          {fileDetails}
+        </Link>
+      ) : (
+        <div style={{ display: "flex", alignItems: "center", gap: "0.875rem", flex: 1, minWidth: 0 }}>
+          {fileDetails}
         </div>
-        <div style={{ minWidth: 0 }}>
-          <p style={{ fontWeight: 600, fontSize: "0.9rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginBottom: "0.2rem" }}>{doc.filename}</p>
-          <p style={{ fontSize: "0.75rem", color: "var(--distill-text-secondary)", display: "flex", alignItems: "center", gap: "0.35rem" }}>
-            <span style={{ display: "inline-block", width: "5px", height: "5px", borderRadius: "50%", backgroundColor: statusColor, flexShrink: 0 }} />
-            {doc.status} &bull; {new Date(doc.created_at).toLocaleDateString()}
-          </p>
-        </div>
-      </Link>
+      )}
+
+      {isFailed ? (
+        <RetryDocumentButton documentId={doc.id} />
+      ) : !isCompleted ? (
+        <span
+          aria-live="polite"
+          style={{ color: "var(--distill-text-secondary)", fontSize: "0.78rem", fontWeight: 600, flexShrink: 0 }}
+        >
+          Processing
+        </span>
+      ) : null}
 
       <select
         className="move-select"
