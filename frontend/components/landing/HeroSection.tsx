@@ -170,7 +170,7 @@ function ProductPreview() {
 // ── Main Export ─────────────────────────────────────────────────────────────
 export function HeroSection() {
   return (
-    <LandingSection spacing="none" className="pt-[140px] lg:pt-[160px] pb-20 sm:pb-32 lg:pb-40 bg-[#F8FAFC]">
+    <LandingSection spacing="none" className="pt-[140px] lg:pt-[160px] pb-16 sm:pb-24 lg:pb-32 bg-[#F8FAFC]">
       {/* Background Patterns */}
       <div
         className="absolute inset-0 pointer-events-none"

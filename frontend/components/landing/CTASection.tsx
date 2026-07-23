@@ -11,7 +11,7 @@ import { LandingCard } from "./ui/LandingCard";
 
 export function CTASection() {
   return (
-    <LandingSection background="card" spacing="xl" className="relative overflow-hidden">
+    <LandingSection background="card" spacing="lg" className="relative overflow-hidden">
       {/* Background Ambience */}
       <div
         className="absolute inset-0 pointer-events-none"

@@ -158,7 +158,7 @@ export function HowItWorksSection() {
   const lineHeight = useTransform(scrollYProgress, [0, 1], ["0%", "100%"]);
 
   return (
-    <LandingSection id="how-it-works" background="default" spacing="xl" ref={containerRef}>
+    <LandingSection id="how-it-works" background="default" spacing="lg" ref={containerRef}>
       {/* Background embellishments */}
       <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-bl from-[#168BFF]/5 to-transparent rounded-full blur-[80px]" />

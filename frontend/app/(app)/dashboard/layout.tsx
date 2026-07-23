@@ -12,6 +12,7 @@ import {
   LayersIcon,
   ChevronLeftIcon,
 } from "@/components/home/icon-registry";
+import { Button } from "@/components/ui/button";
 
 const SIDEBAR_LINKS = [
   { label: "Dashboard", href: "/dashboard", icon: FolderOpenIcon },
@@ -38,6 +39,8 @@ export default function DashboardLayout({
     <div style={{ display: "flex", minHeight: "calc(100dvh - var(--nav-height))" }}>
       {/* Sidebar */}
       <aside
+        id="dashboard-sidebar"
+        aria-label="Dashboard navigation"
         style={{
           width: `${sidebarWidth}px`,
           height: "100vh",
@@ -140,46 +143,44 @@ export default function DashboardLayout({
           );
         })}
 
-        {/* Collapse toggle — pinned to bottom */}
-        <div style={{ flex: 1 }} />
-        <button
-          type="button"
-          onClick={() => setCollapsed((c) => !c)}
-          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "0.75rem",
-            borderRadius: "12px",
-            color: "var(--distill-text-muted)",
-            backgroundColor: "transparent",
-            border: "none",
-            cursor: "pointer",
-            width: "100%",
-            transition: "color var(--transition-fast), background-color var(--transition-fast)",
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.color = "var(--distill-text-primary)";
-            (e.currentTarget as HTMLButtonElement).style.backgroundColor =
-              "color-mix(in srgb, var(--border) 60%, transparent)";
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.color = "var(--distill-text-muted)";
-            (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent";
-          }}
-        >
-          <ChevronLeftIcon
-            size={18}
-            strokeWidth={1.8}
-            style={{
-              flexShrink: 0,
-              transform: collapsed ? "rotate(180deg)" : "rotate(0deg)",
-              transition: "transform 240ms cubic-bezier(0.4, 0, 0.2, 1)",
-            }}
-          />
-        </button>
       </aside>
+
+      <Button
+        type="button"
+        variant={collapsed ? "outline" : "ghost"}
+        size="icon"
+        onClick={() => setCollapsed((current) => !current)}
+        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        aria-controls="dashboard-sidebar"
+        aria-expanded={!collapsed}
+        title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        className={
+          collapsed
+            ? "size-8 rounded-full bg-background shadow-sm"
+            : "size-8 rounded-lg"
+        }
+        style={{
+          position: "fixed",
+          top: "calc((var(--nav-height) - 32px) / 2)",
+          left: collapsed
+            ? `${SIDEBAR_COLLAPSED_WIDTH - 16}px`
+            : `${SIDEBAR_EXPANDED_WIDTH - 44}px`,
+          zIndex: 110,
+          color: "var(--distill-text-muted)",
+          transition:
+            "left 240ms cubic-bezier(0.4, 0, 0.2, 1), color var(--transition-fast), background-color var(--transition-fast), box-shadow var(--transition-fast)",
+        }}
+      >
+        <ChevronLeftIcon
+          aria-hidden="true"
+          size={18}
+          strokeWidth={1.8}
+          style={{
+            transform: collapsed ? "rotate(180deg)" : "rotate(0deg)",
+            transition: "transform 240ms cubic-bezier(0.4, 0, 0.2, 1)",
+          }}
+        />
+      </Button>
 
       {/* Main Content — shifts in sync with sidebar width */}
       <main

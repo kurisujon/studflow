@@ -209,7 +209,7 @@ function LiveDashboard() {
 // ── Main Export ─────────────────────────────────────────────────────────────
 export function BenefitsSection() {
   return (
-    <LandingSection id="benefits" background="card" spacing="xl">
+    <LandingSection id="benefits" background="card" spacing="lg">
       {/* Subtle Background Gradients */}
       <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
         <div className="absolute top-[20%] left-[-10%] w-[600px] h-[600px] bg-gradient-to-tr from-[#168BFF]/5 to-transparent rounded-full blur-[100px]" />

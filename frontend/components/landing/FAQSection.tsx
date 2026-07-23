@@ -41,7 +41,7 @@ export function FAQSection() {
   };
 
   return (
-    <LandingSection id="faq" background="gradient" spacing="xl">
+    <LandingSection id="faq" background="gradient" spacing="lg">
       <LandingContainer variant="narrow" className="flex flex-col items-center">
         <LandingHeading
           level={2}
