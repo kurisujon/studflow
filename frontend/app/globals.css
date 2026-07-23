@@ -182,8 +182,6 @@
 *::before,
 *::after {
   box-sizing: border-box;
-  margin: 0;
-  padding: 0;
 }
 
 html {
@@ -224,18 +222,6 @@ body {
 .study-reading-copy p {
   color: var(--distill-text-secondary);
   line-height: 1.7;
-}
-
-a {
-  color: inherit;
-  text-decoration: none;
-}
-
-button,
-input,
-textarea,
-select {
-  color: inherit;
 }
 
 /* -------------------------------------------------------------------------
@@ -670,5 +656,4 @@ select {
     @apply font-sans;
   }
 }
-
 

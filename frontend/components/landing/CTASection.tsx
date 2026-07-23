@@ -37,7 +37,7 @@ export function CTASection() {
             className="text-center flex flex-col items-center shadow-[0_20px_60px_rgba(79,70,229,0.06)] relative overflow-hidden"
           >
             <LandingBadge variant="primary" icon={<Sparkles className="w-4 h-4 text-[#168BFF]" />} className="mb-8">
-              Join thousands of smart students
+              Your AI-powered study workflow
             </LandingBadge>
 
             <h2 className="font-black tracking-tight text-[#0F172A] mb-6 max-w-[800px] text-3xl sm:text-4xl lg:text-5xl leading-[1.1]">

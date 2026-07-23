@@ -238,7 +238,7 @@ function FeaturedFlashcardCard() {
           <div className="lg:col-span-6 flex flex-col justify-center">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#F5F3FF] border border-[#7C3AED]/30 text-[#7C3AED] text-xs font-bold uppercase tracking-wider w-fit mb-4">
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Core Core Feature · Spaced Repetition</span>
+              <span>Core Feature · Spaced Repetition</span>
             </div>
 
             <h3 className="text-2xl sm:text-3xl font-black text-[#0F172A] mb-4 tracking-tight leading-tight">
@@ -306,31 +306,31 @@ export function FeaturesSection() {
 
         {/* Feature Grid */}
         <motion.div
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8"
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 lg:gap-8"
           variants={sectionVariants}
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-60px" }}
         >
           {/* Featured Card */}
-          <div className="col-span-1 md:col-span-2 lg:col-span-3">
+          <div className="col-span-1 md:col-span-2 lg:col-span-6">
             <FeaturedFlashcardCard />
           </div>
 
           {/* Standard cards */}
-          <div className="col-span-1">
+          <div className="col-span-1 lg:col-span-2">
             <FeatureCard feature={standardFeatures[0]} />
           </div>
-          <div className="col-span-1">
+          <div className="col-span-1 lg:col-span-2">
             <FeatureCard feature={standardFeatures[1]} />
           </div>
-          <div className="col-span-1">
+          <div className="col-span-1 lg:col-span-2">
             <FeatureCard feature={standardFeatures[2]} />
           </div>
-          <div className="col-span-1 lg:col-start-2">
+          <div className="col-span-1 lg:col-span-2 lg:col-start-2">
             <FeatureCard feature={standardFeatures[3]} />
           </div>
-          <div className="col-span-1 md:col-span-2 lg:col-span-1">
+          <div className="col-span-1 md:col-span-2 lg:col-span-2">
             <FeatureCard feature={standardFeatures[4]} />
           </div>
         </motion.div>

@@ -1,7 +1,6 @@
 "use client";
 
 import { motion, useReducedMotion } from "framer-motion";
-import Link from "next/link";
 import { useEffect, useState } from "react";
 // @ts-expect-error - lucide-react types are outdated in this project
 import { ArrowRight, Sparkles, FileText, CheckCircle, PlayCircle, Loader2, GraduationCap } from "lucide-react";
@@ -9,7 +8,6 @@ import { LandingSection } from "./ui/LandingSection";
 import { LandingContainer } from "./ui/LandingContainer";
 import { LandingBadge } from "./ui/LandingBadge";
 import { LandingButton } from "./ui/LandingButton";
-import { LandingCard } from "./ui/LandingCard";
 
 // ── Workflow steps for the animated product preview ──────────────────────────
 const workflowSteps = [
@@ -21,7 +19,7 @@ const workflowSteps = [
 
 // ── Trust indicators ────────────────────────────────────────────────────────
 const trustItems = [
-  { emoji: "⭐", text: "Trusted by 10K+ students" },
+  { emoji: "🎯", text: "Document-grounded learning" },
   { emoji: "📄", text: "Supports PDF & DOCX" },
   { emoji: "⚡", text: "AI results in seconds" },
 ];
@@ -268,43 +266,6 @@ export function HeroSection() {
           </motion.div>
         </div>
 
-        {/* Bottom Banner: Universities */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.5, ease: "easeOut" }}
-          className="mt-20 lg:mt-32 w-full"
-        >
-          <LandingCard variant="default" padding="md" radius="2xl" hoverEffect={false} className="flex flex-col md:flex-row items-center justify-between gap-8">
-            <span className="text-[14px] font-semibold text-[#64748B] shrink-0 uppercase tracking-wide">
-              Trusted by students from
-            </span>
-            
-            <div className="flex flex-wrap items-center justify-center gap-6 lg:gap-10 opacity-60 grayscale hover:grayscale-0 transition-all duration-500">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full border-2 border-current opacity-70 flex items-center justify-center text-[10px] font-bold">AU</div>
-                <span className="text-[13px] font-bold uppercase">Ateneo de Manila<br/>University</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full border-2 border-current opacity-70 flex items-center justify-center text-[10px] font-bold">UP</div>
-                <span className="text-[13px] font-bold uppercase">University of the<br/>Philippines</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full border-2 border-current opacity-70 flex items-center justify-center text-[10px] font-bold">DLSU</div>
-                <span className="text-[13px] font-bold uppercase">De La Salle<br/>University</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full border-2 border-current opacity-70 flex items-center justify-center text-[10px] font-bold">MU</div>
-                <span className="text-[13px] font-bold uppercase">Mapúa<br/>University</span>
-              </div>
-            </div>
-            
-            <span className="text-[14px] font-bold text-[#5964FF] shrink-0">
-              and 500+ more
-            </span>
-          </LandingCard>
-        </motion.div>
-        
       </LandingContainer>
     </LandingSection>
   );

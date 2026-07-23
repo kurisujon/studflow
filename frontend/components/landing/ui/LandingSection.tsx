@@ -40,7 +40,7 @@ export const LandingSection = React.forwardRef<HTMLElement, LandingSectionProps>
       <section
         ref={ref}
         id={id}
-        className={`relative w-full ${spacingClasses} ${backgroundClasses} ${className}`}
+        className={`relative w-full scroll-mt-20 ${spacingClasses} ${backgroundClasses} ${className}`}
         {...props}
       >
         {children}
