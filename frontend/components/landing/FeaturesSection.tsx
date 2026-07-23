@@ -280,7 +280,7 @@ export function FeaturesSection() {
         <div className="absolute -bottom-1/4 -left-1/4 w-[600px] h-[600px] rounded-full bg-gradient-to-t from-[#7C3AED]/6 to-transparent blur-[90px]" />
       </div>
 
-      <LandingContainer variant="wide" className="relative z-10 flex flex-col">
+      <LandingContainer variant="default" className="relative z-10 flex flex-col">
         {/* Section heading */}
         <motion.div
           variants={headingVariants}

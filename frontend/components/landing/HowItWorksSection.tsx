@@ -165,7 +165,7 @@ export function HowItWorksSection() {
         <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-gradient-to-tr from-[#7C3AED]/5 to-transparent rounded-full blur-[80px]" />
       </div>
 
-      <LandingContainer variant="wide" className="relative z-10 flex flex-col">
+      <LandingContainer variant="default" className="relative z-10 flex flex-col">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}

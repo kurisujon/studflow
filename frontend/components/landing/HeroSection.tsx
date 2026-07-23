@@ -172,7 +172,7 @@ function ProductPreview() {
 // ── Main Export ─────────────────────────────────────────────────────────────
 export function HeroSection() {
   return (
-    <LandingSection spacing="none" className="pt-[140px] lg:pt-[160px] pb-16 lg:pb-24 bg-[#F8FAFC]">
+    <LandingSection spacing="none" className="pt-[140px] lg:pt-[160px] pb-16 sm:pb-24 lg:pb-32 bg-[#F8FAFC]">
       {/* Background Patterns */}
       <div
         className="absolute inset-0 pointer-events-none"
@@ -183,7 +183,7 @@ export function HeroSection() {
         }}
       />
 
-      <LandingContainer variant="wide" className="relative z-10 flex flex-col">
+      <LandingContainer variant="default" className="relative z-10 flex flex-col">
         {/* Main Hero Content Split */}
         <div className="flex flex-col lg:flex-row items-center justify-between gap-12 lg:gap-8">
           

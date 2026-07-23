@@ -38,7 +38,7 @@ export function LandingNavbar() {
           : "bg-transparent border-b border-transparent"
       }`}
     >
-      <LandingContainer variant="wide" className="flex items-center justify-between h-[80px]">
+      <LandingContainer variant="default" className="flex items-center justify-between h-[80px]">
         <Link href="/" className="flex items-center gap-2.5 group">
           <Image src="/studflow_logo.png" alt="StudFlow Logo" width={32} height={32} priority />
           <span className="text-xl font-bold tracking-tight text-[#0F172A]">

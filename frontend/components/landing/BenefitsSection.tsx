@@ -216,7 +216,7 @@ export function BenefitsSection() {
         <div className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] bg-gradient-to-bl from-[#7C3AED]/5 to-transparent rounded-full blur-[100px]" />
       </div>
 
-      <LandingContainer variant="wide" className="relative z-10 flex flex-col">
+      <LandingContainer variant="default" className="relative z-10 flex flex-col">
         <div className="flex flex-col lg:flex-row items-center gap-16 xl:gap-24">
           {/* Left Column: Benefits Content */}
           <motion.div 
