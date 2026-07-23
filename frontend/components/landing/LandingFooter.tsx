@@ -6,7 +6,7 @@ export function LandingFooter() {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="w-full bg-[#F8FAFC] border-t border-[#E2E8F0] pt-16 sm:pt-24 lg:pt-32 pb-12">
+    <footer className="w-full bg-[#F8FAFC] border-t border-[#E2E8F0] pt-20 sm:pt-32 lg:pt-40 pb-12">
       <LandingContainer variant="default">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-12 mb-16">
           <div className="md:col-span-2 lg:col-span-1">
