@@ -24,10 +24,10 @@ export function LandingNavbar() {
   }, []);
 
   const navLinks = [
-    { label: "Features", href: "#features" },
-    { label: "How It Works", href: "#how-it-works" },
-    { label: "Benefits", href: "#benefits" },
-    { label: "FAQ", href: "#faq" },
+    { label: "Features", href: "/#features" },
+    { label: "How It Works", href: "/#how-it-works" },
+    { label: "Benefits", href: "/#benefits" },
+    { label: "FAQ", href: "/#faq" },
   ];
 
   return (
@@ -83,9 +83,11 @@ export function LandingNavbar() {
 
         {/* Mobile Menu Toggle */}
         <button
-          className="md:hidden p-2 text-[#0F172A]"
+          className="md:hidden rounded-lg p-2 text-[#0F172A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5964FF] focus-visible:ring-offset-2"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           aria-label="Toggle menu"
+          aria-expanded={mobileMenuOpen}
+          aria-controls="landing-mobile-menu"
         >
           {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
@@ -95,6 +97,7 @@ export function LandingNavbar() {
       <AnimatePresence>
         {mobileMenuOpen && (
           <motion.div
+            id="landing-mobile-menu"
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}

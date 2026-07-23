@@ -19,8 +19,9 @@ export function LandingButton({
   icon,
   ...props
 }: LandingButtonProps) {
+  const { onClick, ...buttonProps } = props;
   const baseClasses =
-    "inline-flex items-center justify-center font-bold transition-all duration-300 ease-out select-none active:scale-[0.98]";
+    "inline-flex items-center justify-center font-bold transition-all duration-300 ease-out select-none active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5964FF] focus-visible:ring-offset-2";
 
   const variantClasses = {
     primary:
@@ -54,6 +55,7 @@ export function LandingButton({
       <Link
         href={href}
         className={`${baseClasses} ${variantClasses} ${sizeClasses} ${className}`}
+        onClick={onClick as unknown as React.MouseEventHandler<HTMLAnchorElement>}
       >
         {content}
       </Link>
@@ -63,7 +65,8 @@ export function LandingButton({
   return (
     <button
       className={`${baseClasses} ${variantClasses} ${sizeClasses} ${className}`}
-      {...props}
+      onClick={onClick}
+      {...buttonProps}
     >
       {content}
     </button>
