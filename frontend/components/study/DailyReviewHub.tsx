@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import type { StudyFlashcard } from "@/lib/types";
@@ -19,13 +19,17 @@ export function DailyReviewHub({
   const [isFlipped, setIsFlipped] = useState(false);
   const [isChangingCard, setIsChangingCard] = useState(false);
   const [isReviewing, setIsReviewing] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
   const router = useRouter();
+  const reduceMotion = useReducedMotion();
+  const flipDurationMs = reduceMotion ? 0 : CARD_FLIP_DURATION_MS;
 
   const handleReview = useCallback(
     async (rating: "again" | "hard" | "good" | "easy") => {
       if (isReviewing || isChangingCard) return;
 
       setIsReviewing(true);
+      setReviewError(null);
       try {
         await reviewFlashcardAction(flashcards[0].id, rating);
 
@@ -36,14 +40,14 @@ export function DailyReviewHub({
           setFlashcards((prev) => prev.slice(1));
           setIsChangingCard(false);
           setIsReviewing(false);
-        }, CARD_FLIP_DURATION_MS);
+        }, flipDurationMs);
       } catch (error) {
         console.error(error);
         setIsReviewing(false);
-        alert("Failed to save review. Please try again.");
+        setReviewError("The review could not be saved. Your current card is still here, so you can try again.");
       }
     },
-    [isReviewing, isChangingCard, flashcards]
+    [isReviewing, isChangingCard, flashcards, flipDurationMs]
   );
 
   useEffect(() => {
@@ -57,6 +61,9 @@ export function DailyReviewHub({
         (target &&
           (target.tagName === "INPUT" ||
             target.tagName === "TEXTAREA" ||
+            target.tagName === "SELECT" ||
+            target.tagName === "BUTTON" ||
+            target.tagName === "A" ||
             target.isContentEditable))
       ) {
         return;
@@ -83,8 +90,6 @@ export function DailyReviewHub({
       window.removeEventListener("keydown", handleFlashcardShortcuts);
     };
   }, [isFlipped, isChangingCard, isReviewing, handleReview]);
-
-  // Removed since we moved it above
 
   if (flashcards.length === 0) {
     return (
@@ -134,6 +139,11 @@ export function DailyReviewHub({
           {initialFlashcards.length - flashcards.length} reviewed · {flashcards.length} remaining
         </p>
         <div
+          role="progressbar"
+          aria-label="Daily review progress"
+          aria-valuemin={0}
+          aria-valuemax={initialFlashcards.length}
+          aria-valuenow={initialFlashcards.length - flashcards.length}
           style={{
             flex: 1,
             maxWidth: "280px",
@@ -160,6 +170,12 @@ export function DailyReviewHub({
         Shortcuts: Space flips the card. Number keys 1-4 to rate when flipped.
       </p>
 
+      {reviewError ? (
+        <div role="alert" className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm font-medium text-red-700 dark:text-red-300">
+          {reviewError}
+        </div>
+      ) : null}
+
       <div style={{ perspective: "1400px", marginBottom: "1.5rem" }}>
         <motion.button
           type="button"
@@ -172,7 +188,7 @@ export function DailyReviewHub({
           }}
           animate={{ rotateY: isFlipped ? 180 : 0 }}
           transition={{
-            duration: CARD_FLIP_DURATION_MS / 1000,
+            duration: flipDurationMs / 1000,
             ease: "easeInOut",
           }}
           style={{
@@ -196,6 +212,7 @@ export function DailyReviewHub({
           ].map((face) => (
             <div
               key={face.label}
+              aria-hidden={face.rotate === 180 ? !isFlipped : isFlipped}
               style={{
                 position: "absolute",
                 inset: 0,
@@ -207,7 +224,7 @@ export function DailyReviewHub({
                 transform: `rotateY(${face.rotate}deg)`,
               }}
             >
-              <p className="study-meta-label">{face.label}</p>
+              <p className="study-meta-label">{face.label} side</p>
               <p
                 style={{
                   fontSize: "clamp(1.4rem, 3vw, 2.25rem)",
@@ -235,19 +252,14 @@ export function DailyReviewHub({
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            style={{
-              display: "flex",
-              justifyContent: "center",
-              gap: "0.75rem",
-              flexWrap: "wrap",
-            }}
+            transition={{ duration: reduceMotion ? 0 : 0.2 }}
+            className="grid grid-cols-2 gap-3 sm:grid-cols-4"
           >
             <Button
               variant="outline"
               disabled={isReviewing || isChangingCard}
               onClick={() => handleReview("again")}
-              className="study-utility-pill"
-              style={{ minWidth: "100px", color: "red", borderColor: "red" }}
+              className="study-utility-pill border-red-500/50 bg-red-500/5 text-red-700 hover:bg-red-500/10 dark:text-red-300"
             >
               Again (1)
             </Button>
@@ -255,8 +267,7 @@ export function DailyReviewHub({
               variant="outline"
               disabled={isReviewing || isChangingCard}
               onClick={() => handleReview("hard")}
-              className="study-utility-pill"
-              style={{ minWidth: "100px", color: "orange", borderColor: "orange" }}
+              className="study-utility-pill border-amber-500/50 bg-amber-500/5 text-amber-800 hover:bg-amber-500/10 dark:text-amber-300"
             >
               Hard (2)
             </Button>
@@ -264,8 +275,7 @@ export function DailyReviewHub({
               variant="outline"
               disabled={isReviewing || isChangingCard}
               onClick={() => handleReview("good")}
-              className="study-utility-pill"
-              style={{ minWidth: "100px", color: "green", borderColor: "green" }}
+              className="study-utility-pill border-emerald-500/50 bg-emerald-500/5 text-emerald-800 hover:bg-emerald-500/10 dark:text-emerald-300"
             >
               Good (3)
             </Button>
@@ -273,8 +283,7 @@ export function DailyReviewHub({
               variant="outline"
               disabled={isReviewing || isChangingCard}
               onClick={() => handleReview("easy")}
-              className="study-utility-pill"
-              style={{ minWidth: "100px", color: "blue", borderColor: "blue" }}
+              className="study-utility-pill border-blue-500/50 bg-blue-500/5 text-blue-700 hover:bg-blue-500/10 dark:text-blue-300"
             >
               Easy (4)
             </Button>

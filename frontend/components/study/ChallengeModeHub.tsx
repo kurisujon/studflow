@@ -1,7 +1,7 @@
 "use client";
 
 import { CheckCircle2 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -15,6 +15,7 @@ export function ChallengeModeHub({
 }) {
   const PASSING_SCORE_RATIO = 0.7;
   const router = useRouter();
+  const reduceMotion = useReducedMotion();
   const [activeIndex, setActiveIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
   const [showScore, setShowScore] = useState(false);
@@ -68,6 +69,9 @@ export function ChallengeModeHub({
         (target &&
           (target.tagName === "INPUT" ||
             target.tagName === "TEXTAREA" ||
+            target.tagName === "SELECT" ||
+            target.tagName === "BUTTON" ||
+            target.tagName === "A" ||
             target.isContentEditable)) ||
         showScore ||
         question === null
@@ -124,13 +128,13 @@ export function ChallengeModeHub({
           No Challenge Available
         </h2>
         <p className="study-body-copy" style={{ marginBottom: "2.5rem" }}>
-          You need to generate quizzes for your documents first before you can play Challenge Mode!
+          Generate a quiz from an uploaded document before starting a mixed challenge.
         </p>
         <Button
-          onClick={() => router.push("/dashboard")}
+          onClick={() => router.push("/dashboard/docs")}
           className="study-utility-pill"
         >
-          Back to Dashboard
+          Browse documents
         </Button>
       </div>
     );
@@ -166,7 +170,8 @@ export function ChallengeModeHub({
         className="study-stage-shell"
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.25, ease: "easeOut" }}
+        transition={{ duration: reduceMotion ? 0 : 0.25, ease: "easeOut" }}
+        aria-live="polite"
         style={{
           width: "100%",
           maxWidth: "800px",
@@ -215,9 +220,20 @@ export function ChallengeModeHub({
         </h3>
         <p className="study-body-copy" style={{ marginBottom: "2.25rem", maxWidth: "42ch" }}>
           {passed
-            ? "Excellent work! You've mastered your weakest topics."
+            ? "Excellent work. You passed this mixed challenge."
             : "Review the materials and try again. Practice makes perfect."}
         </p>
+
+        <div className="mb-6 grid gap-3 sm:grid-cols-2">
+          <div className="rounded-2xl border border-[var(--theme-border)] bg-[var(--background)] p-4">
+            <p className="study-meta-label">Score</p>
+            <p className="mt-2 text-2xl font-bold text-[var(--foreground)]">{score} / {questions.length}</p>
+          </div>
+          <div className="rounded-2xl border border-[var(--theme-border)] bg-[var(--background)] p-4">
+            <p className="study-meta-label">Accuracy</p>
+            <p className="mt-2 text-2xl font-bold text-[var(--foreground)]">{Math.round((score / questions.length) * 100)}%</p>
+          </div>
+        </div>
 
         <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginBottom: "2.5rem" }}>
           <Button onClick={handleRetake} className="study-utility-pill" style={{ minWidth: "120px" }}>
@@ -252,6 +268,11 @@ export function ChallengeModeHub({
           Question {activeIndex + 1} of {questions.length}
         </p>
         <div
+          role="progressbar"
+          aria-label="Challenge progress"
+          aria-valuemin={0}
+          aria-valuemax={questions.length}
+          aria-valuenow={activeIndex + 1}
           style={{
             flex: 1,
             maxWidth: "280px",
@@ -321,6 +342,7 @@ export function ChallengeModeHub({
                 type="button"
                 onClick={() => handleSelectOption(index)}
                 disabled={answered}
+                aria-pressed={isSelected}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -373,10 +395,12 @@ export function ChallengeModeHub({
           y: answered ? 0 : 8,
           pointerEvents: answered ? "auto" : "none",
         }}
-        transition={{ duration: 0.2 }}
+        transition={{ duration: reduceMotion ? 0 : 0.2 }}
       >
         {answered && (
           <div
+            role="status"
+            aria-live="polite"
             style={{
               padding: "1.25rem",
               borderRadius: "16px",

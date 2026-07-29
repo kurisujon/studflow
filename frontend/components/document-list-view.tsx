@@ -1,724 +1,767 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { FileTextIcon, FolderPlusIcon } from "@/components/home/icon-registry";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
+} from "react";
+
+import { DashboardFeatureShell } from "@/components/dashboard/DashboardFeatureShell";
 import { RetryDocumentButton } from "@/components/retry-document-button";
 import type { DocumentListItem } from "@/lib/types";
 
-/* ─── Inline SVG Icons ─── */
-function SearchIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
-    </svg>
-  );
-}
-function TrashIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="3 6 5 6 21 6" />
-      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-      <path d="M10 11v6M14 11v6" />
-      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-    </svg>
-  );
-}
-function XIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-    </svg>
-  );
-}
-function FolderSolidIcon({ color = "#f59e0b" }: { color?: string }) {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill={color} stroke="none">
-      <path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2z" />
-    </svg>
-  );
-}
-function ChevronRightIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="9 18 15 12 9 6" />
-    </svg>
-  );
-}
-function ArrowLeftIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
-    </svg>
-  );
-}
-function PdfIcon() {
-  return (
-    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-      <polyline points="14 2 14 8 20 8" />
-      <line x1="9" y1="15" x2="15" y2="15" />
-      <line x1="9" y1="11" x2="15" y2="11" />
-    </svg>
-  );
-}
-function PencilIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-    </svg>
-  );
-}
-
-/* ─── Types ─── */
+type ViewVariant = "documents" | "summaries";
+type LibraryFilter = "all" | "ready" | "processing" | "failed";
 type Folders = Record<string, string[]>;
-type ConfirmPayload = { type: "folder" | "file"; id: string; label: string } | null;
+type FolderDialog = { mode: "create" } | { mode: "delete"; name: string } | null;
 
-/* ─── Main Component ─── */
+type DocumentListViewProps = {
+  documents: DocumentListItem[];
+  variant: ViewVariant;
+};
+
+function Icon({
+  children,
+  className = "size-4",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={className}
+    >
+      {children}
+    </svg>
+  );
+}
+
+const SearchIcon = () => (
+  <Icon><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></Icon>
+);
+const FolderIcon = () => (
+  <Icon className="size-5"><path d="M3 6h6l2 2h10v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></Icon>
+);
+const PencilIcon = () => (
+  <Icon><path d="m4 20 4.5-1 11-11a2.1 2.1 0 0 0-3-3l-11 11z" /></Icon>
+);
+const TrashIcon = () => (
+  <Icon><path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" /></Icon>
+);
+const FileIcon = () => (
+  <Icon className="size-5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6M8 13h8M8 17h6" /></Icon>
+);
+const CheckIcon = () => (
+  <Icon><path d="m5 12 4 4L19 6" /></Icon>
+);
+
+function isProcessing(document: DocumentListItem) {
+  return document.status !== "COMPLETED" && document.status !== "FAILED";
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(value));
+}
+
 export function DocumentListView({
   documents,
-  title,
-  targetTab,
-}: {
-  documents: DocumentListItem[];
-  title: string;
-  targetTab: "summary" | "flashcards" | "quiz";
-}) {
-  const [folders, setFolders] = useState<Folders>({ Unorganized: documents.map((d) => d.id) });
+  variant,
+}: DocumentListViewProps) {
+  return <DocumentLibrary documents={documents} variant={variant} />;
+}
+
+function DocumentLibrary({
+  documents,
+  variant,
+}: DocumentListViewProps) {
+  const [folders, setFolders] = useState<Folders>({
+    Unorganized: documents.map((document) => document.id),
+  });
   const [search, setSearch] = useState("");
-  const [showAddFolder, setShowAddFolder] = useState(false);
-  const [newFolderName, setNewFolderName] = useState("");
   const [openFolder, setOpenFolder] = useState<string | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<ConfirmPayload>(null);
-  const [hoveredFolder, setHoveredFolder] = useState<string | null>(null);
+  const [dialog, setDialog] = useState<FolderDialog>(null);
+  const [folderName, setFolderName] = useState("");
   const [editingFolder, setEditingFolder] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
-  const [showAllFolders, setShowAllFolders] = useState(false);
-  const modalRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const renameInputRef = useRef<HTMLInputElement>(null);
+  const [filter, setFilter] = useState<LibraryFilter>("all");
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
+  const triggerRef = useRef<HTMLElement | null>(null);
 
-  /* ── Persist folders in localStorage ── */
   useEffect(() => {
-    const saved = localStorage.getItem("studflow-folders");
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved) as Folders;
-        const allSaved = new Set(Object.values(parsed).flat());
-        const orphaned: string[] = [];
-        documents.forEach((d) => { if (!allSaved.has(d.id)) orphaned.push(d.id); });
-        parsed["Unorganized"] = [...(parsed["Unorganized"] || []), ...orphaned];
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setFolders(parsed);
-      } catch { /* ignored */ }
-    } else {
-      setFolders({ Unorganized: documents.map((d) => d.id) });
+    const saved = window.localStorage.getItem("studflow-folders");
+    if (!saved) return;
+
+    let nextFolders: Folders;
+    try {
+      const parsed = JSON.parse(saved) as Folders;
+      const validIds = new Set(documents.map((document) => document.id));
+      const next: Folders = {};
+      const assigned = new Set<string>();
+
+      Object.entries(parsed).forEach(([name, ids]) => {
+        next[name] = ids.filter((id) => validIds.has(id) && !assigned.has(id));
+        next[name].forEach((id) => assigned.add(id));
+      });
+      next.Unorganized = [
+        ...(next.Unorganized ?? []),
+        ...documents
+          .map((document) => document.id)
+          .filter((id) => !assigned.has(id)),
+      ];
+      nextFolders = next;
+    } catch {
+      nextFolders = { Unorganized: documents.map((document) => document.id) };
     }
+
+    const hydrationTimer = window.setTimeout(() => setFolders(nextFolders), 0);
+    return () => window.clearTimeout(hydrationTimer);
   }, [documents]);
 
-  /* ── Auto-focus modal input ── */
   useEffect(() => {
-    if (showAddFolder) setTimeout(() => inputRef.current?.focus(), 50);
-  }, [showAddFolder]);
+    if (!dialog) return;
 
-  const closeAddFolder = () => { setShowAddFolder(false); setNewFolderName(""); };
+    const previous = document.activeElement as HTMLElement | null;
+    window.setTimeout(() => folderInputRef.current?.focus(), 0);
 
-  /* ── Close modal on outside click ── */
-  useEffect(() => {
-    function onClickOutside(e: MouseEvent) {
-      if (showAddFolder && modalRef.current && !modalRef.current.contains(e.target as Node)) {
-        closeAddFolder();
+    function handleKeyDown(event: globalThis.KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setDialog(null);
       }
     }
-    document.addEventListener("mousedown", onClickOutside);
-    return () => document.removeEventListener("mousedown", onClickOutside);
-  }, [showAddFolder]);
 
-  const saveFolders = (next: Folders) => { setFolders(next); localStorage.setItem("studflow-folders", JSON.stringify(next)); };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      (triggerRef.current ?? previous)?.focus();
+    };
+  }, [dialog]);
 
-  const handleCreateFolder = () => {
-    const name = newFolderName.trim();
-    if (name && !folders[name]) { saveFolders({ ...folders, [name]: [] }); closeAddFolder(); }
-  };
+  function saveFolders(next: Folders) {
+    setFolders(next);
+    window.localStorage.setItem("studflow-folders", JSON.stringify(next));
+  }
 
-  const handleMoveToFolder = (docId: string, target: string) => {
+  function openDialog(next: FolderDialog, trigger: HTMLElement) {
+    triggerRef.current = trigger;
+    setFolderName("");
+    setDialog(next);
+  }
+
+  function createFolder() {
+    const name = folderName.trim();
+    if (!name || folders[name]) return;
+    saveFolders({ ...folders, [name]: [] });
+    setDialog(null);
+  }
+
+  function deleteFolder(name: string) {
     const next = { ...folders };
-    Object.keys(next).forEach((f) => { next[f] = next[f].filter((id) => id !== docId); });
-    if (!next[target]) next[target] = [];
-    next[target].push(docId);
-    saveFolders(next);
-  };
-
-  const handleDeleteFolder = (name: string) => {
-    const next = { ...folders };
-    const orphaned = next[name] || [];
+    const movedIds = next[name] ?? [];
     delete next[name];
-    next["Unorganized"] = [...(next["Unorganized"] || []), ...orphaned];
+    next.Unorganized = Array.from(
+      new Set([...(next.Unorganized ?? []), ...movedIds]),
+    );
     saveFolders(next);
     if (openFolder === name) setOpenFolder(null);
-    setConfirmDelete(null);
-  };
+    setDialog(null);
+  }
 
-  const handleDeleteFile = (docId: string) => {
-    const next = { ...folders };
-    Object.keys(next).forEach((f) => { next[f] = next[f].filter((id) => id !== docId); });
+  function moveDocument(documentId: string, folderName: string) {
+    const next = Object.fromEntries(
+      Object.entries(folders).map(([name, ids]) => [
+        name,
+        ids.filter((id) => id !== documentId),
+      ]),
+    ) as Folders;
+    next[folderName] = [...(next[folderName] ?? []), documentId];
     saveFolders(next);
-    setConfirmDelete(null);
-  };
+  }
 
-  const handleStartRename = (name: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setEditingFolder(name);
-    setRenameValue(name);
-    setTimeout(() => renameInputRef.current?.focus(), 50);
-  };
-
-  const handleRenameFolder = (oldName: string) => {
-    const newName = renameValue.trim();
-    if (!newName || newName === oldName || folders[newName]) {
+  function renameFolder(name: string) {
+    const nextName = renameValue.trim();
+    if (!nextName || nextName === name || folders[nextName]) {
       setEditingFolder(null);
       return;
     }
-    const next: Folders = {};
-    Object.keys(folders).forEach((k) => {
-      next[k === oldName ? newName : k] = folders[k];
-    });
+    const next = Object.fromEntries(
+      Object.entries(folders).map(([key, ids]) => [
+        key === name ? nextName : key,
+        ids,
+      ]),
+    ) as Folders;
     saveFolders(next);
-    if (openFolder === oldName) setOpenFolder(newName);
+    if (openFolder === name) setOpenFolder(nextName);
     setEditingFolder(null);
-  };
+  }
 
-  /* ── Derived data ── */
-  const recentDocs = [...documents]
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-    .slice(0, 8);
+  const summaryReadyCount = documents.filter(
+    (document) => document.summary_ready,
+  ).length;
+  const totalFlashcards = documents.reduce(
+    (total, document) => total + document.flashcard_count,
+    0,
+  );
+  const quizReadyCount = documents.filter(
+    (document) => document.quiz_ready,
+  ).length;
 
-  const filteredDocs = search.trim()
-    ? documents.filter((d) => d.filename.toLowerCase().includes(search.trim().toLowerCase()))
-    : null;
+  const visibleDocuments = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase();
+    return [...documents]
+      .sort((left, right) => {
+        if (variant === "summaries" && left.summary_ready !== right.summary_ready) {
+          return Number(right.summary_ready) - Number(left.summary_ready);
+        }
+        return (
+          new Date(right.updated_at).getTime() -
+          new Date(left.updated_at).getTime()
+        );
+      })
+      .filter((document) => {
+        if (
+          normalizedSearch &&
+          !document.filename.toLowerCase().includes(normalizedSearch)
+        ) {
+          return false;
+        }
+        if (filter === "ready") {
+          return variant === "summaries"
+            ? document.summary_ready
+            : document.status === "COMPLETED";
+        }
+        if (filter === "processing") {
+          return variant === "summaries"
+            ? !document.summary_ready && document.status !== "FAILED"
+            : isProcessing(document);
+        }
+        if (filter === "failed") return document.status === "FAILED";
+        return true;
+      });
+  }, [documents, filter, search, variant]);
 
-  const namedFolders = Object.entries(folders).filter(([n]) => n !== "Unorganized");
-  const unorganizedDocs = (folders["Unorganized"] || [])
-    .map((id) => documents.find((d) => d.id === id))
-    .filter(Boolean) as DocumentListItem[];
+  const folderEntries = Object.entries(folders).filter(
+    ([name]) => name !== "Unorganized",
+  );
+  const openFolderIds = openFolder ? folders[openFolder] ?? [] : [];
+  const openFolderDocuments = visibleDocuments.filter((document) =>
+    openFolderIds.includes(document.id),
+  );
 
-  const openFolderDocs = openFolder
-    ? ((folders[openFolder] || []).map((id) => documents.find((d) => d.id === id)).filter(Boolean) as DocumentListItem[])
-    : [];
+  const filterLabels: Array<{ value: LibraryFilter; label: string }> = [
+    { value: "all", label: "All" },
+    { value: "ready", label: variant === "summaries" ? "Summary ready" : "Ready" },
+    { value: "processing", label: "Processing" },
+    { value: "failed", label: "Needs attention" },
+  ];
 
   return (
-    <section
-      style={{
-        minHeight: "calc(100dvh - var(--nav-height))",
-        padding: "2rem 1.5rem 3rem",
-        background:
-          "radial-gradient(circle at top left, var(--theme-shadow), transparent 24%), linear-gradient(180deg, var(--background), color-mix(in srgb, var(--background) 82%, var(--theme-soft)))",
+    <DashboardFeatureShell
+      tone={variant}
+      eyebrow={variant === "documents" ? "Study library" : "Generated study notes"}
+      title={variant === "documents" ? "Your study library" : "Generated summaries"}
+      description={
+        variant === "documents"
+          ? "Organize uploaded materials and see exactly which learning tools are ready."
+          : "Find source-backed summaries and track documents that are still being prepared."
+      }
+      count={{
+        value: variant === "documents" ? documents.length : documents.filter((d) => d.summary_ready).length,
+        label: variant === "documents" ? (documents.length === 1 ? "document" : "documents") : "ready",
       }}
+      action={{ href: "/dashboard/upload", label: "Upload document" }}
     >
-      {/* ── Confirm Delete Overlay ── */}
-      {confirmDelete && (
-        <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ backgroundColor: "var(--card)", border: "1px solid var(--theme-border)", borderRadius: "20px", padding: "2rem", maxWidth: "400px", width: "90%", boxShadow: "0 24px 80px rgba(0,0,0,0.35)", animation: "fadeSlideUp 0.2s ease" }}>
-            <h3 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "0.75rem" }}>
-              {confirmDelete.type === "folder" ? "Delete Folder?" : "Remove File?"}
-            </h3>
-            <p style={{ fontSize: "0.875rem", color: "var(--distill-text-secondary)", marginBottom: "1.5rem", lineHeight: 1.6 }}>
-              {confirmDelete.type === "folder"
-                ? `"${confirmDelete.label}" will be deleted. Its files move back to Unorganized.`
-                : `"${confirmDelete.label}" will be removed from this library view. The document itself is not deleted.`}
-            </p>
-            <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
-              <button onClick={() => setConfirmDelete(null)} style={{ padding: "0.5rem 1.25rem", borderRadius: "8px", border: "1px solid var(--border)", backgroundColor: "transparent", cursor: "pointer", fontWeight: 500 }}>Cancel</button>
-              <button onClick={() => confirmDelete.type === "folder" ? handleDeleteFolder(confirmDelete.id) : handleDeleteFile(confirmDelete.id)} style={{ padding: "0.5rem 1.25rem", borderRadius: "8px", border: "none", backgroundColor: "#ef4444", color: "white", cursor: "pointer", fontWeight: 600 }}>
-                {confirmDelete.type === "folder" ? "Delete Folder" : "Remove"}
-              </button>
+      {dialog ? (
+        <FolderDialogView
+          dialog={dialog}
+          dialogRef={dialogRef}
+          inputRef={folderInputRef}
+          folderName={folderName}
+          setFolderName={setFolderName}
+          onClose={() => setDialog(null)}
+          onCreate={createFolder}
+          onDelete={deleteFolder}
+        />
+      ) : null}
+
+      <LibraryStats
+        total={documents.length}
+        summaryReady={summaryReadyCount}
+        flashcards={totalFlashcards}
+        quizzes={quizReadyCount}
+        variant={variant}
+      />
+
+      <section aria-labelledby="library-resources" className="space-y-5">
+        <div className="flex flex-col gap-4 rounded-2xl border border-[var(--theme-border)] bg-[var(--card)] p-4 shadow-[0_14px_36px_var(--theme-shadow)] lg:flex-row lg:items-end lg:justify-between">
+          <div className="w-full max-w-xl">
+            <label htmlFor="library-search" className="text-sm font-semibold text-[var(--foreground)]">
+              Search {variant === "summaries" ? "summaries" : "documents"}
+            </label>
+            <div className="relative mt-2">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted-foreground)]">
+                <SearchIcon />
+              </span>
+              <input
+                id="library-search"
+                type="search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search by filename"
+                className="min-h-11 w-full rounded-xl border border-[var(--theme-border)] bg-[var(--background)] py-2 pl-10 pr-3 text-sm text-[var(--foreground)] outline-none transition focus:border-[var(--theme-primary)] focus:ring-2 focus:ring-[var(--theme-shadow)]"
+              />
             </div>
           </div>
-        </div>
-      )}
-
-      {/* ── Add Folder Modal ── */}
-      {showAddFolder && (
-        <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.4)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div ref={modalRef} style={{ backgroundColor: "var(--card)", border: "1px solid var(--theme-border)", borderRadius: "20px", padding: "2rem", width: "360px", boxShadow: "0 24px 72px rgba(0,0,0,0.28)", animation: "fadeSlideUp 0.2s ease" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
-              <h3 style={{ fontSize: "1.1rem", fontWeight: 700, display: "flex", alignItems: "center", gap: "0.6rem" }}>
-                <FolderSolidIcon color="var(--theme-primary)" /> New Folder
-              </h3>
-              <button onClick={closeAddFolder} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--distill-text-secondary)", padding: "0.25rem", borderRadius: "6px" }}>
-                <XIcon />
-              </button>
-            </div>
-            <label style={{ fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--distill-text-secondary)", display: "block", marginBottom: "0.5rem" }}>Folder Name</label>
-            <input
-              ref={inputRef}
-              type="text"
-              placeholder="e.g. Biology 101"
-              value={newFolderName}
-              onChange={(e) => setNewFolderName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleCreateFolder()}
-              style={{ width: "100%", padding: "0.75rem 1rem", borderRadius: "10px", border: "1.5px solid var(--border)", backgroundColor: "var(--background)", fontSize: "0.95rem", outline: "none", boxSizing: "border-box", transition: "border-color 0.15s" }}
-            />
-            <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.25rem" }}>
-              <button onClick={closeAddFolder} style={{ flex: 1, padding: "0.65rem", borderRadius: "10px", border: "1px solid var(--border)", backgroundColor: "transparent", cursor: "pointer", fontWeight: 500 }}>Cancel</button>
+          <div className="flex flex-wrap gap-2" aria-label="Resource filters">
+            {filterLabels.map((item) => (
               <button
-                onClick={handleCreateFolder}
-                disabled={!newFolderName.trim() || !!folders[newFolderName.trim()]}
-                style={{ flex: 1, padding: "0.65rem", borderRadius: "10px", border: "none", backgroundColor: newFolderName.trim() && !folders[newFolderName.trim()] ? "var(--theme-primary)" : "#d1d5db", color: "white", cursor: newFolderName.trim() ? "pointer" : "not-allowed", fontWeight: 600, transition: "background-color 0.2s" }}
+                key={item.value}
+                type="button"
+                onClick={() => setFilter(item.value)}
+                aria-pressed={filter === item.value}
+                className={`min-h-10 rounded-full border px-3 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)] ${
+                  filter === item.value
+                    ? "border-[var(--theme-primary)] bg-[var(--theme-soft)] text-[var(--theme-primary)]"
+                    : "border-[var(--theme-border)] bg-[var(--background)] text-[var(--muted-foreground)] hover:border-[var(--theme-primary)]"
+                }`}
               >
-                Create
+                {item.label}
               </button>
-            </div>
+            ))}
           </div>
         </div>
-      )}
 
-      {/* ── Animation Keyframes ── */}
-      <style>{`
-        @keyframes fadeSlideUp {
-          from { opacity: 0; transform: translateY(12px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes folderPanelIn {
-          from { opacity: 0; transform: translateY(8px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        .folder-tile {
-          transition: background-color 0.15s, box-shadow 0.15s, transform 0.12s;
-          cursor: pointer;
-          user-select: none;
-        }
-        .folder-tile:hover {
-          background-color: color-mix(in srgb, var(--theme-soft) 60%, transparent) !important;
-          box-shadow: 0 4px 16px color-mix(in srgb, var(--theme-shadow) 20%, transparent);
-          transform: translateY(-1px);
-        }
-        .folder-tile:active {
-          transform: scale(0.98) translateY(0);
-        }
-        .file-card {
-          transition: background-color 0.15s, box-shadow 0.15s, transform 0.12s;
-        }
-        .file-card:hover {
-          background-color: color-mix(in srgb, var(--theme-soft) 35%, var(--card)) !important;
-          box-shadow: 0 2px 12px color-mix(in srgb, var(--theme-shadow) 15%, transparent);
-          transform: translateY(-1px);
-        }
-        .file-card:active {
-          transform: scale(0.99);
-        }
-        .icon-btn {
-          transition: opacity 0.15s, color 0.15s, background-color 0.15s;
-          opacity: 0;
-        }
-        .folder-tile:hover .icon-btn,
-        .file-card:hover .icon-btn {
-          opacity: 1;
-        }
-        .move-select {
-          transition: border-color 0.15s;
-        }
-        .move-select:focus {
-          outline: none;
-          border-color: var(--theme-primary) !important;
-        }
-        .recent-file-card {
-          transition: background-color 0.15s, box-shadow 0.15s, transform 0.15s;
-          text-decoration: none;
-        }
-        .recent-file-card:hover {
-          background-color: color-mix(in srgb, var(--theme-soft) 50%, var(--card)) !important;
-          box-shadow: 0 6px 20px color-mix(in srgb, var(--theme-shadow) 20%, transparent);
-          transform: translateY(-2px);
-        }
-        .recent-file-card:active {
-          transform: scale(0.97);
-        }
-        .add-folder-btn {
-          transition: background-color 0.15s, box-shadow 0.15s, transform 0.12s;
-        }
-        .add-folder-btn:hover {
-          box-shadow: 0 4px 16px color-mix(in srgb, var(--theme-primary) 35%, transparent);
-          transform: translateY(-1px);
-        }
-        .add-folder-btn:active {
-          transform: scale(0.97);
-        }
-        .rename-input {
-          font-weight: 600;
-          font-size: 0.9rem;
-          background: transparent;
-          border: none;
-          border-bottom: 1.5px solid var(--theme-primary);
-          outline: none;
-          width: 100%;
-          padding: 0 0 2px 0;
-          color: inherit;
-        }
-        .show-all-btn {
-          transition: background-color 0.15s, color 0.15s;
-        }
-        .show-all-btn:hover {
-          background-color: color-mix(in srgb, var(--theme-soft) 70%, transparent) !important;
-        }
-      `}</style>
-
-      <div style={{ maxWidth: "1040px", margin: "0 auto" }}>
-
-        {/* ── Page Header ── */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.75rem", flexWrap: "wrap", gap: "1rem" }}>
-          <h1 style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>{title}</h1>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--theme-primary)]">
+              Browser folders
+            </p>
+            <h2 id="library-resources" className="mt-1 text-2xl font-bold text-[var(--foreground)]">
+              {variant === "summaries" ? "Summary library" : "Your materials"}
+            </h2>
+          </div>
           <button
-            className="add-folder-btn"
-            onClick={() => setShowAddFolder(true)}
-            style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.6rem 1.25rem", backgroundColor: "var(--theme-primary)", color: "white", borderRadius: "10px", fontWeight: 600, border: "none", cursor: "pointer", fontSize: "0.9rem" }}
+            type="button"
+            onClick={(event) => openDialog({ mode: "create" }, event.currentTarget)}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--theme-border)] bg-[var(--card)] px-4 text-sm font-semibold text-[var(--foreground)] transition hover:border-[var(--theme-primary)] hover:text-[var(--theme-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)]"
           >
-            <FolderPlusIcon size={18} /> Add Folder
+            <FolderIcon /> New folder
           </button>
         </div>
 
-        {/* ── Search Bar ── */}
-        <div style={{ position: "relative", marginBottom: "2.25rem" }}>
-          <span style={{ position: "absolute", left: "1rem", top: "50%", transform: "translateY(-50%)", color: "var(--distill-text-secondary)", pointerEvents: "none" }}>
-            <SearchIcon />
-          </span>
-          <input
-            type="text"
-            placeholder="Search documents..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{ width: "100%", padding: "0.8rem 1rem 0.8rem 2.75rem", borderRadius: "12px", border: "1.5px solid var(--border)", backgroundColor: "var(--background)", fontSize: "0.95rem", outline: "none", boxSizing: "border-box", transition: "border-color 0.15s" }}
-          />
-        </div>
-
-        {/* ── Search Results ── */}
-        {filteredDocs !== null ? (
-          <div>
-            <p style={{ fontSize: "0.78rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--distill-text-secondary)", marginBottom: "1rem" }}>
-              {filteredDocs.length} result{filteredDocs.length !== 1 ? "s" : ""} for &ldquo;{search}&rdquo;
-            </p>
-            {filteredDocs.length === 0
-              ? <p style={{ color: "var(--distill-text-secondary)" }}>No documents match your search.</p>
-              : <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                  {filteredDocs.map((doc) => (
-                    <FileRow key={doc.id} doc={doc} targetTab={targetTab} folders={folders} onMove={handleMoveToFolder} onDelete={(d) => setConfirmDelete({ type: "file", id: d.id, label: d.filename })} />
-                  ))}
-                </div>
-            }
-          </div>
-        ) : (
-          <>
-            {/* ── Folders Section ── */}
-            {namedFolders.length > 0 && (
-              <div style={{ marginBottom: "2.5rem" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-                  <p style={{ fontSize: "0.78rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--distill-text-secondary)" }}>
-                    Folders <span style={{ fontWeight: 400, opacity: 0.6 }}>({namedFolders.length})</span>
-                  </p>
-                  {namedFolders.length > 8 && (
-                    <button
-                      className="show-all-btn"
-                      onClick={() => setShowAllFolders((v) => !v)}
-                      style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--theme-primary)", background: "none", border: "1px solid var(--theme-border)", borderRadius: "6px", padding: "0.25rem 0.75rem", cursor: "pointer" }}
-                    >
-                      {showAllFolders ? "Show less" : `Show all (${namedFolders.length})`}
-                    </button>
-                  )}
-                </div>
-
-                {/* Folder tiles — horizontal grid, max 8 visible */}
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "0.75rem" }}>
-                  {(showAllFolders ? namedFolders : namedFolders.slice(0, 8)).map(([folderName, docIds], index) => {
-                    const count = docIds.filter((id) => documents.find((d) => d.id === id)).length;
-                    const isOpen = openFolder === folderName;
-                    const isEditing = editingFolder === folderName;
-                    return (
-                      <div
-                        key={folderName}
-                        className="folder-tile"
-                        onClick={() => !isEditing && setOpenFolder(isOpen ? null : folderName)}
-                        onMouseEnter={() => setHoveredFolder(folderName)}
-                        onMouseLeave={() => setHoveredFolder(null)}
-                        style={{
-                          backgroundColor: isOpen ? "color-mix(in srgb, var(--theme-soft) 70%, transparent)" : "var(--card)",
-                          border: `1.5px solid ${isOpen ? "var(--theme-primary)" : isEditing ? "var(--theme-primary)" : "var(--theme-border)"}`,
-                          borderRadius: "12px",
-                          padding: "0.875rem 1rem",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "0.75rem",
-                          position: "relative",
-                          boxShadow: isOpen ? "0 0 0 3px color-mix(in srgb, var(--theme-primary) 12%, transparent)" : "none",
-                          animationDelay: `${index * 0.04}s`,
-                        }}
-                      >
-                        <FolderSolidIcon color={isOpen ? "var(--theme-primary)" : "#f59e0b"} />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          {isEditing ? (
-                            <input
-                              ref={renameInputRef}
-                              className="rename-input"
-                              value={renameValue}
-                              onChange={(e) => setRenameValue(e.target.value)}
-                              onKeyDown={(e) => {
-                                e.stopPropagation();
-                                if (e.key === "Enter") handleRenameFolder(folderName);
-                                if (e.key === "Escape") setEditingFolder(null);
-                              }}
-                              onClick={(e) => e.stopPropagation()}
-                              onBlur={() => handleRenameFolder(folderName)}
-                            />
-                          ) : (
-                            <p style={{ fontWeight: 600, fontSize: "0.9rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{folderName}</p>
-                          )}
-                          <p style={{ fontSize: "0.75rem", color: "var(--distill-text-secondary)", marginTop: "0.1rem" }}>{count} file{count !== 1 ? "s" : ""}</p>
-                        </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
-                          <button
-                            className="icon-btn"
-                            onClick={(e) => handleStartRename(folderName, e)}
-                            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--theme-primary)", padding: "0.25rem", borderRadius: "4px" }}
-                            title="Rename folder"
-                          >
-                            <PencilIcon />
-                          </button>
-                          <button
-                            className="icon-btn"
-                            onClick={(e) => { e.stopPropagation(); setConfirmDelete({ type: "folder", id: folderName, label: folderName }); }}
-                            style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", padding: "0.25rem", borderRadius: "4px" }}
-                            title="Delete folder"
-                          >
-                            <TrashIcon />
-                          </button>
-                          <span style={{ color: "var(--distill-text-secondary)", transition: "transform 0.2s", transform: isOpen ? "rotate(90deg)" : "rotate(0deg)", display: "flex" }}>
-                            <ChevronRightIcon />
-                          </span>
-                        </div>
-                        {hoveredFolder === folderName && !isOpen && !isEditing && (
-                          <span style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "2px", backgroundColor: "var(--theme-primary)", borderRadius: "0 0 10px 10px", opacity: 0.5 }} />
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* ── Open Folder Panel — appears below the folder grid ── */}
-                {openFolder && (
-                  <div style={{ marginTop: "1rem", backgroundColor: "var(--card)", border: "1.5px solid var(--theme-primary)", borderRadius: "16px", overflow: "hidden", animation: "folderPanelIn 0.22s ease", boxShadow: "0 8px 32px color-mix(in srgb, var(--theme-primary) 10%, transparent)" }}>
-                    {/* Panel header */}
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "1rem 1.25rem", borderBottom: "1px solid var(--theme-border)", backgroundColor: "color-mix(in srgb, var(--theme-soft) 30%, transparent)" }}>
-                      <button
-                        onClick={() => setOpenFolder(null)}
-                        style={{ display: "flex", alignItems: "center", gap: "0.35rem", background: "none", border: "none", cursor: "pointer", color: "var(--distill-text-secondary)", padding: "0.25rem 0.5rem", borderRadius: "6px", fontSize: "0.85rem", transition: "color 0.15s" }}
-                      >
-                        <ArrowLeftIcon /> Back
-                      </button>
-                      <span style={{ width: "1px", height: "16px", backgroundColor: "var(--border)" }} />
-                      <FolderSolidIcon color="var(--theme-primary)" />
-                      <span style={{ fontWeight: 700, fontSize: "1rem" }}>{openFolder}</span>
-                      <span style={{ fontSize: "0.8rem", color: "var(--distill-text-secondary)", marginLeft: "0.25rem" }}>
-                        {openFolderDocs.length} file{openFolderDocs.length !== 1 ? "s" : ""}
+        {folderEntries.length > 0 ? (
+          <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {folderEntries.map(([name, ids]) => (
+              <li key={name} className="rounded-2xl border border-[var(--theme-border)] bg-[var(--card)] p-3">
+                <div className="flex items-center gap-2">
+                  {editingFolder === name ? (
+                    <div className="flex min-w-0 flex-1 items-center gap-3 rounded-xl p-2">
+                      <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-amber-500/10 text-amber-700 dark:text-amber-300"><FolderIcon /></span>
+                      <span className="min-w-0 flex-1">
+                        <input
+                          aria-label={`Rename ${name}`}
+                          value={renameValue}
+                          onChange={(event) => setRenameValue(event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") renameFolder(name);
+                            if (event.key === "Escape") setEditingFolder(null);
+                          }}
+                          onBlur={() => renameFolder(name)}
+                          autoFocus
+                          className="w-full rounded-md border border-[var(--theme-primary)] bg-[var(--background)] px-2 py-1 text-sm outline-none"
+                        />
+                        <span className="text-xs text-[var(--muted-foreground)]">{ids.length} {ids.length === 1 ? "file" : "files"}</span>
                       </span>
                     </div>
-
-                    {/* Panel body — file list */}
-                    <div style={{ padding: "1rem 1.25rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                      {openFolderDocs.length === 0 ? (
-                        <div style={{ textAlign: "center", padding: "2rem", color: "var(--distill-text-secondary)" }}>
-                          <p style={{ fontSize: "0.9rem" }}>This folder is empty. Move files here using the dropdown on each file.</p>
-                        </div>
-                      ) : (
-                        openFolderDocs.map((doc) => (
-                          <FileRow
-                            key={doc.id}
-                            doc={doc}
-                            targetTab={targetTab}
-                            folders={folders}
-                            onMove={handleMoveToFolder}
-                            onDelete={(d) => setConfirmDelete({ type: "file", id: d.id, label: d.filename })}
-                          />
-                        ))
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* ── Recent Files — card grid like reference ── */}
-            <div>
-              <p style={{ fontSize: "0.78rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--distill-text-secondary)", marginBottom: "1rem" }}>Recent Files</p>
-              {recentDocs.length === 0 ? (
-                <div style={{ textAlign: "center", padding: "3rem", color: "var(--distill-text-secondary)" }}>
-                  <p>No documents yet. <Link href="/upload" style={{ color: "var(--theme-primary)", fontWeight: 600 }}>Upload your first file →</Link></p>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setOpenFolder(openFolder === name ? null : name)}
+                      aria-expanded={openFolder === name}
+                      className="flex min-w-0 flex-1 items-center gap-3 rounded-xl p-2 text-left transition hover:bg-[var(--theme-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)]"
+                    >
+                      <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-amber-500/10 text-amber-700 dark:text-amber-300"><FolderIcon /></span>
+                      <span className="min-w-0">
+                        <span className="block truncate font-semibold text-[var(--foreground)]">{name}</span>
+                        <span className="text-xs text-[var(--muted-foreground)]">{ids.length} {ids.length === 1 ? "file" : "files"}</span>
+                      </span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    aria-label={`Rename ${name}`}
+                    onClick={() => { setEditingFolder(name); setRenameValue(name); }}
+                    className="grid size-9 place-items-center rounded-lg text-[var(--muted-foreground)] transition hover:bg-[var(--theme-soft)] hover:text-[var(--theme-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)]"
+                  ><PencilIcon /></button>
+                  <button
+                    type="button"
+                    aria-label={`Delete ${name}`}
+                    onClick={(event) => openDialog({ mode: "delete", name }, event.currentTarget)}
+                    className="grid size-9 place-items-center rounded-lg text-red-600 transition hover:bg-red-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                  ><TrashIcon /></button>
                 </div>
-              ) : (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "1rem" }}>
-                  {recentDocs.map((doc) => {
-                    const isCompleted = doc.status === "COMPLETED";
-                    const isFailed = doc.status === "FAILED";
-                    const statusColor = isCompleted
-                      ? "#22c55e"
-                      : isFailed
-                        ? "#ef4444"
-                        : "#f59e0b";
-                    const fileDetails = (
-                      <>
-                        <div style={{ padding: "0.75rem", backgroundColor: "color-mix(in srgb, var(--theme-soft) 50%, transparent)", borderRadius: "10px", width: "fit-content" }}>
-                          <PdfIcon />
-                        </div>
-                        <div>
-                          <p style={{ fontWeight: 600, fontSize: "0.85rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginBottom: "0.3rem" }}>
-                            {doc.filename.replace(/\.[^/.]+$/, "")}
-                          </p>
-                          <p style={{ fontSize: "0.72rem", color: "var(--distill-text-secondary)", display: "flex", alignItems: "center", gap: "0.3rem" }}>
-                            <span style={{ display: "inline-block", width: "5px", height: "5px", borderRadius: "50%", backgroundColor: statusColor, flexShrink: 0 }} />
-                            {doc.status} &bull; {new Date(doc.created_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </>
-                    );
+              </li>
+            ))}
+          </ul>
+        ) : null}
 
-                    return (
-                      <div
-                        key={doc.id}
-                        className="recent-file-card"
-                        style={{ backgroundColor: "var(--card)", border: "1px solid var(--theme-border)", borderRadius: "14px", padding: "1.25rem 1rem", display: "flex", flexDirection: "column", gap: "0.75rem", textDecoration: "none", color: "inherit" }}
-                      >
-                        {isCompleted ? (
-                          <Link
-                            href={`/dashboard/study/${doc.id}?tab=${targetTab}`}
-                            aria-label={`Open ${doc.filename}`}
-                            style={{ display: "flex", flexDirection: "column", gap: "0.75rem", textDecoration: "none", color: "inherit" }}
-                          >
-                            {fileDetails}
-                          </Link>
-                        ) : (
-                          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                            {fileDetails}
-                          </div>
-                        )}
-
-                        {isFailed ? (
-                          <RetryDocumentButton documentId={doc.id} />
-                        ) : !isCompleted ? (
-                          <p
-                            aria-live="polite"
-                            style={{ marginTop: "auto", color: "var(--distill-text-secondary)", fontSize: "0.78rem", fontWeight: 600 }}
-                          >
-                            Processing in the background
-                          </p>
-                        ) : null}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* ── Unorganized Files (shown only when named folders also exist) ── */}
-            {unorganizedDocs.length > 0 && namedFolders.length > 0 && (
-              <div style={{ marginTop: "2.5rem" }}>
-                <p style={{ fontSize: "0.78rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--distill-text-secondary)", marginBottom: "1rem" }}>Unorganized</p>
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                  {unorganizedDocs.map((doc) => (
-                    <FileRow key={doc.id} doc={doc} targetTab={targetTab} folders={folders} onMove={handleMoveToFolder} onDelete={(d) => setConfirmDelete({ type: "file", id: d.id, label: d.filename })} />
-                  ))}
-                </div>
-              </div>
-            )}
-          </>
+        {openFolder ? (
+          <ResourceSection
+            title={openFolder}
+            description={`${openFolderDocuments.length} matching ${openFolderDocuments.length === 1 ? "resource" : "resources"}`}
+            documents={openFolderDocuments}
+            variant={variant}
+            folders={folders}
+            onMove={moveDocument}
+            emptyMessage="This folder has no matching resources."
+          />
+        ) : (
+          <ResourceSection
+            title={variant === "summaries" ? "All summary sources" : "All documents"}
+            description={`${visibleDocuments.length} ${visibleDocuments.length === 1 ? "resource" : "resources"}`}
+            documents={visibleDocuments}
+            variant={variant}
+            folders={folders}
+            onMove={moveDocument}
+            emptyMessage={
+              documents.length === 0
+                ? "Upload your first document to begin building study materials."
+                : variant === "summaries" && filter === "ready"
+                  ? "No summaries are ready yet. Processing and failed documents remain available under the other filters."
+                  : "No resources match the current search and filter."
+            }
+          />
         )}
-      </div>
+      </section>
+    </DashboardFeatureShell>
+  );
+}
+
+function LibraryStats({
+  total,
+  summaryReady,
+  flashcards,
+  quizzes,
+  variant,
+}: {
+  total: number;
+  summaryReady: number;
+  flashcards: number;
+  quizzes: number;
+  variant: ViewVariant;
+}) {
+  const items = [
+    { label: "Documents", value: total, tone: "bg-blue-500/10 text-blue-700 dark:text-blue-300" },
+    { label: "Summaries ready", value: summaryReady, tone: "bg-amber-500/10 text-amber-800 dark:text-amber-300" },
+    { label: "Flashcards", value: flashcards, tone: "bg-violet-500/10 text-violet-700 dark:text-violet-300" },
+    { label: "Quizzes ready", value: quizzes, tone: "bg-emerald-500/10 text-emerald-800 dark:text-emerald-300" },
+  ];
+
+  return (
+    <section aria-label={`${variant} overview`}>
+      <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {items.map((item) => (
+          <li
+            key={item.label}
+            className="rounded-2xl border border-[var(--theme-border)] bg-[var(--card)] p-4 shadow-[0_14px_36px_var(--theme-shadow)]"
+          >
+            <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${item.tone}`}>
+              {item.label}
+            </span>
+            <p className="mt-3 text-3xl font-bold text-[var(--foreground)]">{item.value}</p>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
 
-/* ─── File Row Sub-component ─── */
-function FileRow({
-  doc,
-  targetTab,
-  folders,
-  onMove,
+function FolderDialogView({
+  dialog,
+  dialogRef,
+  inputRef,
+  folderName,
+  setFolderName,
+  onClose,
+  onCreate,
   onDelete,
 }: {
-  doc: DocumentListItem;
-  targetTab: string;
-  folders: Folders;
-  onMove: (id: string, folder: string) => void;
-  onDelete: (doc: DocumentListItem) => void;
+  dialog: Exclude<FolderDialog, null>;
+  dialogRef: React.RefObject<HTMLDivElement | null>;
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  folderName: string;
+  setFolderName: (value: string) => void;
+  onClose: () => void;
+  onCreate: () => void;
+  onDelete: (name: string) => void;
 }) {
-  const isCompleted = doc.status === "COMPLETED";
-  const isFailed = doc.status === "FAILED";
-  const statusColor = isCompleted ? "#22c55e" : isFailed ? "#ef4444" : "#f59e0b";
-  const currentFolder = Object.entries(folders).find(([, ids]) => ids.includes(doc.id))?.[0] ?? "Unorganized";
-  const fileDetails = (
-    <>
-      <div style={{ padding: "0.5rem", backgroundColor: "color-mix(in srgb, var(--theme-soft) 50%, transparent)", borderRadius: "8px", flexShrink: 0 }}>
-        <FileTextIcon size={18} color="var(--theme-primary)" />
-      </div>
-      <div style={{ minWidth: 0 }}>
-        <p style={{ fontWeight: 600, fontSize: "0.9rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginBottom: "0.2rem" }}>{doc.filename}</p>
-        <p style={{ fontSize: "0.75rem", color: "var(--distill-text-secondary)", display: "flex", alignItems: "center", gap: "0.35rem" }}>
-          <span style={{ display: "inline-block", width: "5px", height: "5px", borderRadius: "50%", backgroundColor: statusColor, flexShrink: 0 }} />
-          {doc.status} &bull; {new Date(doc.created_at).toLocaleDateString()}
-        </p>
-      </div>
-    </>
-  );
+  const titleId = "folder-dialog-title";
+  const descriptionId = "folder-dialog-description";
+
+  function trapFocus(event: ReactKeyboardEvent<HTMLDivElement>) {
+    if (event.key !== "Tab") return;
+    const controls = dialogRef.current?.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+    );
+    if (!controls?.length) return;
+    const first = controls[0];
+    const last = controls[controls.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
 
   return (
     <div
-      className="file-card"
-      style={{ display: "flex", alignItems: "center", gap: "0.875rem", padding: "0.75rem 1rem", backgroundColor: "var(--background)", borderRadius: "12px", border: "1px solid var(--theme-border)" }}
+      className="fixed inset-0 z-[200] grid place-items-center bg-black/45 p-4"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.currentTarget === event.target) onClose();
+      }}
     >
-      {isCompleted ? (
-        <Link
-          href={`/dashboard/study/${doc.id}?tab=${targetTab}`}
-          aria-label={`Open ${doc.filename}`}
-          style={{ display: "flex", alignItems: "center", gap: "0.875rem", flex: 1, textDecoration: "none", color: "inherit", minWidth: 0 }}
-        >
-          {fileDetails}
-        </Link>
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={descriptionId}
+        onKeyDown={trapFocus}
+        className="w-full max-w-md rounded-2xl border border-[var(--theme-border)] bg-[var(--card)] p-5 shadow-2xl"
+      >
+        <h2 id={titleId} className="text-xl font-bold text-[var(--foreground)]">
+          {dialog.mode === "create" ? "Create a folder" : `Delete ${dialog.name}?`}
+        </h2>
+        <p id={descriptionId} className="mt-2 text-sm leading-6 text-[var(--muted-foreground)]">
+          {dialog.mode === "create"
+            ? "Folders are saved in this browser and help organize your study library."
+            : "Documents inside this folder will move back to Unorganized. No uploaded document will be deleted."}
+        </p>
+
+        {dialog.mode === "create" ? (
+          <form
+            className="mt-5"
+            onSubmit={(event) => {
+              event.preventDefault();
+              onCreate();
+            }}
+          >
+            <label htmlFor="folder-name" className="text-sm font-semibold text-[var(--foreground)]">
+              Folder name
+            </label>
+            <input
+              ref={inputRef}
+              id="folder-name"
+              value={folderName}
+              onChange={(event) => setFolderName(event.target.value)}
+              className="mt-2 min-h-11 w-full rounded-xl border border-[var(--theme-border)] bg-[var(--background)] px-3 text-[var(--foreground)] outline-none focus:border-[var(--theme-primary)] focus:ring-2 focus:ring-[var(--theme-shadow)]"
+            />
+            <div className="mt-5 flex justify-end gap-3">
+              <DialogButton onClick={onClose}>Cancel</DialogButton>
+              <DialogButton primary disabled={!folderName.trim()} type="submit">Create folder</DialogButton>
+            </div>
+          </form>
+        ) : (
+          <div className="mt-5 flex justify-end gap-3">
+            <DialogButton onClick={onClose}>Cancel</DialogButton>
+            <button
+              type="button"
+              autoFocus
+              onClick={() => onDelete(dialog.name)}
+              className="min-h-11 rounded-xl bg-red-600 px-4 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
+            >
+              Delete folder
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DialogButton({
+  children,
+  primary = false,
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  children: ReactNode;
+  primary?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      {...props}
+      className={`min-h-11 rounded-xl px-4 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${
+        primary
+          ? "bg-[var(--theme-primary)] text-white"
+          : "border border-[var(--theme-border)] bg-[var(--background)] text-[var(--foreground)]"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function ResourceSection({
+  title,
+  description,
+  documents,
+  variant,
+  folders,
+  onMove,
+  emptyMessage,
+}: {
+  title: string;
+  description: string;
+  documents: DocumentListItem[];
+  variant: ViewVariant;
+  folders: Folders;
+  onMove: (documentId: string, folderName: string) => void;
+  emptyMessage: string;
+}) {
+  return (
+    <section aria-labelledby={`resource-${title.replace(/\s+/g, "-").toLowerCase()}`} className="rounded-2xl border border-[var(--theme-border)] bg-[var(--card)] p-4 shadow-[0_18px_50px_var(--theme-shadow)] sm:p-5">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <h3 id={`resource-${title.replace(/\s+/g, "-").toLowerCase()}`} className="text-lg font-bold text-[var(--foreground)]">{title}</h3>
+        <p className="text-sm text-[var(--muted-foreground)]">{description}</p>
+      </div>
+      {documents.length > 0 ? (
+        <ul className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {documents.map((document) => (
+            <li key={document.id}>
+              <ResourceCard
+                document={document}
+                variant={variant}
+                folders={folders}
+                onMove={onMove}
+              />
+            </li>
+          ))}
+        </ul>
       ) : (
-        <div style={{ display: "flex", alignItems: "center", gap: "0.875rem", flex: 1, minWidth: 0 }}>
-          {fileDetails}
+        <div className="mt-4 rounded-xl border border-dashed border-[var(--theme-border)] bg-[var(--background)] p-8 text-center text-sm leading-6 text-[var(--muted-foreground)]">
+          {emptyMessage}
         </div>
       )}
+    </section>
+  );
+}
 
-      {isFailed ? (
-        <RetryDocumentButton documentId={doc.id} />
-      ) : !isCompleted ? (
-        <span
-          aria-live="polite"
-          style={{ color: "var(--distill-text-secondary)", fontSize: "0.78rem", fontWeight: 600, flexShrink: 0 }}
-        >
-          Processing
+function ResourceCard({
+  document,
+  variant,
+  folders,
+  onMove,
+}: {
+  document: DocumentListItem;
+  variant: ViewVariant;
+  folders: Folders;
+  onMove: (documentId: string, folderName: string) => void;
+}) {
+  const failed = document.status === "FAILED";
+  const processing = isProcessing(document);
+  const canOpen =
+    document.status === "COMPLETED" &&
+    (variant === "documents" || document.summary_ready);
+  const currentFolder =
+    Object.entries(folders).find(([, ids]) => ids.includes(document.id))?.[0] ??
+    "Unorganized";
+  const statusLabel = failed
+    ? "Needs attention"
+    : processing
+      ? document.status
+      : variant === "summaries" && !document.summary_ready
+        ? "Summary not ready"
+        : "Ready";
+
+  return (
+    <article className="flex h-full min-h-[300px] flex-col rounded-2xl border border-[var(--theme-border)] bg-[var(--background)] p-4 transition hover:-translate-y-0.5 hover:border-[var(--theme-primary)] focus-within:border-[var(--theme-primary)]">
+      <div className="flex items-start justify-between gap-3">
+        <span className={`grid size-11 shrink-0 place-items-center rounded-xl ${variant === "summaries" ? "bg-amber-500/10 text-amber-700 dark:text-amber-300" : "bg-blue-500/10 text-blue-700 dark:text-blue-300"}`}>
+          <FileIcon />
         </span>
+        <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${failed ? "bg-red-500/10 text-red-700 dark:text-red-300" : processing ? "bg-amber-500/10 text-amber-800 dark:text-amber-300" : "bg-emerald-500/10 text-emerald-800 dark:text-emerald-300"}`}>
+          {statusLabel}
+        </span>
+      </div>
+      <h4 className="mt-4 line-clamp-2 font-bold text-[var(--foreground)]">{document.filename}</h4>
+      <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+        {formatDate(document.updated_at)}{document.page_count ? ` · ${document.page_count} pages` : ""}
+      </p>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        <ReadinessBadge ready={document.summary_ready} label="Summary" />
+        <ReadinessBadge ready={document.flashcard_count > 0} label={`${document.flashcard_count} cards`} />
+        <ReadinessBadge ready={document.quiz_ready} label="Quiz" />
+      </div>
+
+      {processing ? (
+        <p aria-live="polite" className="mt-4 text-sm leading-6 text-[var(--muted-foreground)]">
+          StudFlow is processing this document. Refresh later to check its study materials.
+        </p>
+      ) : failed ? (
+        <p className="mt-4 text-sm leading-6 text-[var(--muted-foreground)]">
+          Processing did not finish. Retry to rebuild the generated materials.
+        </p>
+      ) : variant === "summaries" && !document.summary_ready ? (
+        <p className="mt-4 text-sm leading-6 text-[var(--muted-foreground)]">
+          This document is complete, but no generated summary is available.
+        </p>
       ) : null}
 
-      <select
-        className="move-select"
-        value={currentFolder}
-        onChange={(e) => onMove(doc.id, e.target.value)}
-        onClick={(e) => e.stopPropagation()}
-        style={{ padding: "0.35rem 0.5rem", borderRadius: "6px", border: "1px solid var(--border)", fontSize: "0.78rem", backgroundColor: "var(--background)", cursor: "pointer", maxWidth: "130px", flexShrink: 0 }}
-      >
-        <option value="Unorganized">Unorganized</option>
-        {Object.keys(folders).filter((n) => n !== "Unorganized").map((name) => (
-          <option key={name} value={name}>{name}</option>
-        ))}
-      </select>
+      <div className="mt-auto space-y-3 pt-5">
+        <label className="block text-xs font-semibold text-[var(--muted-foreground)]">
+          Folder
+          <select
+            value={currentFolder}
+            onChange={(event) => onMove(document.id, event.target.value)}
+            className="mt-1 min-h-10 w-full rounded-lg border border-[var(--theme-border)] bg-[var(--card)] px-2 text-sm text-[var(--foreground)] outline-none focus:border-[var(--theme-primary)] focus:ring-2 focus:ring-[var(--theme-shadow)]"
+          >
+            <option value="Unorganized">Unorganized</option>
+            {Object.keys(folders).filter((name) => name !== "Unorganized").map((name) => (
+              <option key={name} value={name}>{name}</option>
+            ))}
+          </select>
+        </label>
+        {canOpen ? (
+          <Link
+            href={`/dashboard/study/${document.id}?tab=summary`}
+            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--theme-primary)] px-4 text-sm font-semibold text-white transition hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)] focus-visible:ring-offset-2"
+          >
+            {variant === "summaries" ? "Read summary" : "Open study workspace"} <span aria-hidden="true">→</span>
+          </Link>
+        ) : failed ? (
+          <RetryDocumentButton documentId={document.id} />
+        ) : null}
+      </div>
+    </article>
+  );
+}
 
-      <button
-        className="icon-btn"
-        onClick={(e) => { e.stopPropagation(); onDelete(doc); }}
-        style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", padding: "0.35rem", borderRadius: "6px", display: "flex", alignItems: "center", flexShrink: 0 }}
-        title="Remove"
-      >
-        <TrashIcon />
-      </button>
-    </div>
+function ReadinessBadge({ ready, label }: { ready: boolean; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-[var(--theme-border)] bg-[var(--card)] px-2 py-1 text-xs font-semibold text-[var(--muted-foreground)]">
+      {ready ? <span className="text-emerald-600"><CheckIcon /></span> : <span aria-hidden="true">·</span>}
+      {label}<span className="sr-only"> {ready ? "ready" : "not ready"}</span>
+    </span>
   );
 }

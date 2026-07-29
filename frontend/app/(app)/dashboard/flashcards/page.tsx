@@ -1,24 +1,25 @@
 import { fetchDueFlashcards } from "@/lib/server-api";
+import { DashboardFeatureShell } from "@/components/dashboard/DashboardFeatureShell";
 import { DailyReviewHub } from "@/components/study/DailyReviewHub";
 
 export default async function FlashcardsPage() {
   const flashcards = await fetchDueFlashcards();
 
   return (
-    <section
-      style={{
-        minHeight: "calc(100dvh - var(--nav-height))",
-        padding: "2rem 1.5rem 3rem",
-        background:
-          "radial-gradient(circle at top left, var(--theme-shadow), transparent 24%), linear-gradient(180deg, var(--background), color-mix(in srgb, var(--background) 82%, var(--theme-soft)))",
+    <DashboardFeatureShell
+      tone="flashcards"
+      eyebrow="Spaced repetition"
+      title="Daily review"
+      description="Strengthen recall one card at a time. Your ratings update the existing review schedule."
+      count={{
+        value: flashcards.length,
+        label:
+          flashcards.length === 1
+            ? "card queued at start"
+            : "cards queued at start",
       }}
     >
-      <div className="container" style={{ maxWidth: "1040px", margin: "0 auto" }}>
-        <h1 style={{ fontSize: "2rem", marginBottom: "1.5rem", textAlign: "center" }}>
-          Daily Review
-        </h1>
-        <DailyReviewHub initialFlashcards={flashcards} />
-      </div>
-    </section>
+      <DailyReviewHub initialFlashcards={flashcards} />
+    </DashboardFeatureShell>
   );
 }

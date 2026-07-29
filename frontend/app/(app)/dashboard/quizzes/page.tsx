@@ -1,24 +1,19 @@
 import { fetchMixedQuiz } from "@/lib/server-api";
+import { DashboardFeatureShell } from "@/components/dashboard/DashboardFeatureShell";
 import { ChallengeModeHub } from "@/components/study/ChallengeModeHub";
 
 export default async function QuizzesPage() {
   const quiz = await fetchMixedQuiz();
 
   return (
-    <section
-      style={{
-        minHeight: "calc(100dvh - var(--nav-height))",
-        padding: "2rem 1.5rem 3rem",
-        background:
-          "radial-gradient(circle at top left, var(--theme-shadow), transparent 24%), linear-gradient(180deg, var(--background), color-mix(in srgb, var(--background) 82%, var(--theme-soft)))",
-      }}
+    <DashboardFeatureShell
+      tone="quizzes"
+      eyebrow="Challenge mode"
+      title="Test what you know"
+      description="Work through a mixed set of generated questions and get immediate feedback after every answer."
+      count={{ value: quiz.length, label: quiz.length === 1 ? "question" : "questions" }}
     >
-      <div className="container" style={{ maxWidth: "1040px", margin: "0 auto" }}>
-        <h1 style={{ fontSize: "2rem", marginBottom: "1.5rem", textAlign: "center" }}>
-          Challenge Mode
-        </h1>
-        <ChallengeModeHub questions={quiz} />
-      </div>
-    </section>
+      <ChallengeModeHub questions={quiz} />
+    </DashboardFeatureShell>
   );
 }
