@@ -63,6 +63,44 @@ class DocumentListItem(BaseModel):
     quiz_ready: bool
 
 
+SUMMARY_LIBRARY_OVERVIEW_MAX_LENGTH = 600
+SUMMARY_LIBRARY_TOPIC_MAX_LENGTH = 120
+SUMMARY_LIBRARY_KEY_TAKEAWAY_MAX_LENGTH = 240
+SUMMARY_LIBRARY_TERM_MAX_LENGTH = 180
+SUMMARY_LIBRARY_TOPIC_LIMIT = 4
+SUMMARY_LIBRARY_KEY_TAKEAWAY_LIMIT = 5
+SUMMARY_LIBRARY_TERM_LIMIT = 6
+
+
+class SummaryLibraryItem(BaseModel):
+    document_id: uuid.UUID
+    filename: str
+    document_created_at: datetime
+    summary_created_at: datetime
+    page_count: int | None
+    overview: str = Field(min_length=1, max_length=SUMMARY_LIBRARY_OVERVIEW_MAX_LENGTH)
+    topics: list[str] = Field(max_length=SUMMARY_LIBRARY_TOPIC_LIMIT)
+    key_takeaways: list[str] = Field(max_length=SUMMARY_LIBRARY_KEY_TAKEAWAY_LIMIT)
+    important_terms: list[str] = Field(max_length=SUMMARY_LIBRARY_TERM_LIMIT)
+    topic_count: int = Field(ge=0)
+
+    @model_validator(mode="after")
+    def validate_preview_bounds(self) -> "SummaryLibraryItem":
+        field_bounds = (
+            (self.topics, SUMMARY_LIBRARY_TOPIC_MAX_LENGTH, "topics"),
+            (
+                self.key_takeaways,
+                SUMMARY_LIBRARY_KEY_TAKEAWAY_MAX_LENGTH,
+                "key_takeaways",
+            ),
+            (self.important_terms, SUMMARY_LIBRARY_TERM_MAX_LENGTH, "important_terms"),
+        )
+        for values, maximum, field_name in field_bounds:
+            if any(not value.strip() or len(value) > maximum for value in values):
+                raise ValueError(f"{field_name} contains an invalid preview value.")
+        return self
+
+
 class DocumentStatusResponse(BaseModel):
     document_id: uuid.UUID
     status: str
@@ -431,6 +469,60 @@ def _format_summary_text(summary: ComprehensiveSummary | None) -> str | None:
     return "\n".join(sections)
 
 
+def _truncate_summary_preview(value: str, maximum: int) -> str:
+    normalized = " ".join(value.split())
+    if len(normalized) <= maximum:
+        return normalized
+    return normalized[: maximum - 1].rstrip() + "…"
+
+
+def _build_summary_library_item(
+    document: Document,
+    stored_summary: Summary,
+) -> SummaryLibraryItem | None:
+    summary = _parse_summary_payload(stored_summary.content)
+    if summary is None:
+        return None
+
+    overview = _truncate_summary_preview(
+        summary.overall_overview,
+        SUMMARY_LIBRARY_OVERVIEW_MAX_LENGTH,
+    )
+    if not overview:
+        return None
+
+    topics = [
+        _truncate_summary_preview(section.topic_title, SUMMARY_LIBRARY_TOPIC_MAX_LENGTH)
+        for section in summary.detailed_sections[:SUMMARY_LIBRARY_TOPIC_LIMIT]
+        if section.topic_title.strip()
+    ]
+    key_takeaways = [
+        _truncate_summary_preview(point, SUMMARY_LIBRARY_KEY_TAKEAWAY_MAX_LENGTH)
+        for section in summary.detailed_sections
+        for point in section.key_points
+        if point.strip()
+    ][:SUMMARY_LIBRARY_KEY_TAKEAWAY_LIMIT]
+    important_terms = [
+        _truncate_summary_preview(term, SUMMARY_LIBRARY_TERM_MAX_LENGTH)
+        for section in summary.detailed_sections
+        for term in section.important_terms_and_definitions
+        if term.strip()
+    ][:SUMMARY_LIBRARY_TERM_LIMIT]
+
+    return SummaryLibraryItem(
+        document_id=document.id,
+        filename=document.filename,
+        document_created_at=document.created_at,
+        summary_created_at=stored_summary.created_at,
+        page_count=document.page_count,
+        overview=overview,
+        topics=topics,
+        key_takeaways=key_takeaways,
+        important_terms=important_terms,
+        topic_count=len(summary.detailed_sections),
+    )
+
+
 @router.get("/documents", response_model=list[DocumentListItem])
 def list_documents(current_user: CurrentUser = Depends(get_current_user)) -> list[DocumentListItem]:
     with Session(engine) as session:
@@ -469,6 +561,33 @@ def list_documents(current_user: CurrentUser = Depends(get_current_user)) -> lis
                 )
             )
 
+        return items
+
+
+@router.get("/summaries", response_model=list[SummaryLibraryItem])
+def list_summaries(
+    current_user: CurrentUser = Depends(get_current_user),
+) -> list[SummaryLibraryItem]:
+    with Session(engine) as session:
+        rows = session.exec(
+            select(Document, Summary)
+            .join(Summary, Summary.document_id == Document.id)
+            .where(Document.clerk_user_id == current_user.clerk_user_id)
+            .where(Document.status == DocumentStatus.COMPLETED)
+            .order_by(Summary.created_at.desc(), Document.id.asc())
+        ).all()
+
+        items: list[SummaryLibraryItem] = []
+        for document, stored_summary in rows:
+            item = _build_summary_library_item(document, stored_summary)
+            if item is None:
+                logger.warning(
+                    "Omitting invalid summary library item summary_id=%s document_id=%s",
+                    stored_summary.id,
+                    document.id,
+                )
+                continue
+            items.append(item)
         return items
 
 

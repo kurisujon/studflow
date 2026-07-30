@@ -4,5 +4,5 @@ import { DocumentListView } from "@/components/document-list-view";
 export default async function DocsPage() {
   const documents = await fetchDocuments();
 
-  return <DocumentListView documents={documents} variant="documents" />;
+  return <DocumentListView documents={documents} />;
 }

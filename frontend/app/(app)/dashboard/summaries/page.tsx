@@ -1,8 +1,8 @@
-import { fetchDocuments } from "@/lib/server-api";
-import { DocumentListView } from "@/components/document-list-view";
+import { SummaryLibraryView } from "@/components/summary-library-view";
+import { fetchSummaries } from "@/lib/server-api";
 
 export default async function SummariesPage() {
-  const documents = await fetchDocuments();
+  const summaries = await fetchSummaries();
 
-  return <DocumentListView documents={documents} variant="summaries" />;
+  return <SummaryLibraryView summaries={summaries} />;
 }

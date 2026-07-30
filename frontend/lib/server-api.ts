@@ -1,5 +1,5 @@
 import { API_BASE_URL, readAPIErrorDetail } from "@/lib/api";
-import type { DocumentListItem, StudyDocument, StudyFlashcard, StudyQuizQuestion, UserStats, UserQueue, UserPreferences } from "@/lib/types";
+import type { DocumentListItem, StudyDocument, StudyFlashcard, StudyQuizQuestion, SummaryLibraryItem, UserStats, UserQueue, UserPreferences } from "@/lib/types";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 
@@ -34,6 +34,10 @@ async function fetchJSON<T>(path: string): Promise<T> {
 
 export function fetchDocuments(): Promise<DocumentListItem[]> {
   return fetchJSON<DocumentListItem[]>("/api/documents");
+}
+
+export function fetchSummaries(): Promise<SummaryLibraryItem[]> {
+  return fetchJSON<SummaryLibraryItem[]>("/api/summaries");
 }
 
 export function fetchStudyDocument(id: string): Promise<StudyDocument> {

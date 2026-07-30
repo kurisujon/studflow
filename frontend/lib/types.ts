@@ -10,6 +10,19 @@ export type DocumentListItem = {
   quiz_ready: boolean;
 };
 
+export type SummaryLibraryItem = {
+  document_id: string;
+  filename: string;
+  document_created_at: string;
+  summary_created_at: string;
+  page_count: number | null;
+  overview: string;
+  topics: string[];
+  key_takeaways: string[];
+  important_terms: string[];
+  topic_count: number;
+};
+
 export type DocumentProcessingStatus =
   | "PENDING"
   | "PROCESSING"

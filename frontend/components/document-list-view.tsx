@@ -14,14 +14,12 @@ import { DashboardFeatureShell } from "@/components/dashboard/DashboardFeatureSh
 import { RetryDocumentButton } from "@/components/retry-document-button";
 import type { DocumentListItem } from "@/lib/types";
 
-type ViewVariant = "documents" | "summaries";
 type LibraryFilter = "all" | "ready" | "processing" | "failed";
 type Folders = Record<string, string[]>;
 type FolderDialog = { mode: "create" } | { mode: "delete"; name: string } | null;
 
 type DocumentListViewProps = {
   documents: DocumentListItem[];
-  variant: ViewVariant;
 };
 
 function Icon({
@@ -78,17 +76,11 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
-export function DocumentListView({
-  documents,
-  variant,
-}: DocumentListViewProps) {
-  return <DocumentLibrary documents={documents} variant={variant} />;
+export function DocumentListView({ documents }: DocumentListViewProps) {
+  return <DocumentLibrary documents={documents} />;
 }
 
-function DocumentLibrary({
-  documents,
-  variant,
-}: DocumentListViewProps) {
+function DocumentLibrary({ documents }: DocumentListViewProps) {
   const [folders, setFolders] = useState<Folders>({
     Unorganized: documents.map((document) => document.id),
   });
@@ -225,15 +217,10 @@ function DocumentLibrary({
   const visibleDocuments = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
     return [...documents]
-      .sort((left, right) => {
-        if (variant === "summaries" && left.summary_ready !== right.summary_ready) {
-          return Number(right.summary_ready) - Number(left.summary_ready);
-        }
-        return (
+      .sort((left, right) =>
           new Date(right.updated_at).getTime() -
           new Date(left.updated_at).getTime()
-        );
-      })
+      )
       .filter((document) => {
         if (
           normalizedSearch &&
@@ -242,19 +229,15 @@ function DocumentLibrary({
           return false;
         }
         if (filter === "ready") {
-          return variant === "summaries"
-            ? document.summary_ready
-            : document.status === "COMPLETED";
+          return document.status === "COMPLETED";
         }
         if (filter === "processing") {
-          return variant === "summaries"
-            ? !document.summary_ready && document.status !== "FAILED"
-            : isProcessing(document);
+          return isProcessing(document);
         }
         if (filter === "failed") return document.status === "FAILED";
         return true;
       });
-  }, [documents, filter, search, variant]);
+  }, [documents, filter, search]);
 
   const folderEntries = Object.entries(folders).filter(
     ([name]) => name !== "Unorganized",
@@ -266,24 +249,20 @@ function DocumentLibrary({
 
   const filterLabels: Array<{ value: LibraryFilter; label: string }> = [
     { value: "all", label: "All" },
-    { value: "ready", label: variant === "summaries" ? "Summary ready" : "Ready" },
+    { value: "ready", label: "Ready" },
     { value: "processing", label: "Processing" },
     { value: "failed", label: "Needs attention" },
   ];
 
   return (
     <DashboardFeatureShell
-      tone={variant}
-      eyebrow={variant === "documents" ? "Study library" : "Generated study notes"}
-      title={variant === "documents" ? "Your study library" : "Generated summaries"}
-      description={
-        variant === "documents"
-          ? "Organize uploaded materials and see exactly which learning tools are ready."
-          : "Find source-backed summaries and track documents that are still being prepared."
-      }
+      tone="documents"
+      eyebrow="Study library"
+      title="Your study library"
+      description="Organize uploaded materials and see exactly which learning tools are ready."
       count={{
-        value: variant === "documents" ? documents.length : documents.filter((d) => d.summary_ready).length,
-        label: variant === "documents" ? (documents.length === 1 ? "document" : "documents") : "ready",
+        value: documents.length,
+        label: documents.length === 1 ? "document" : "documents",
       }}
       action={{ href: "/dashboard/upload", label: "Upload document" }}
     >
@@ -305,14 +284,13 @@ function DocumentLibrary({
         summaryReady={summaryReadyCount}
         flashcards={totalFlashcards}
         quizzes={quizReadyCount}
-        variant={variant}
       />
 
       <section aria-labelledby="library-resources" className="space-y-5">
         <div className="flex flex-col gap-4 rounded-2xl border border-[var(--theme-border)] bg-[var(--card)] p-4 shadow-[0_14px_36px_var(--theme-shadow)] lg:flex-row lg:items-end lg:justify-between">
           <div className="w-full max-w-xl">
             <label htmlFor="library-search" className="text-sm font-semibold text-[var(--foreground)]">
-              Search {variant === "summaries" ? "summaries" : "documents"}
+              Search documents
             </label>
             <div className="relative mt-2">
               <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted-foreground)]">
@@ -353,7 +331,7 @@ function DocumentLibrary({
               Browser folders
             </p>
             <h2 id="library-resources" className="mt-1 text-2xl font-bold text-[var(--foreground)]">
-              {variant === "summaries" ? "Summary library" : "Your materials"}
+              Your materials
             </h2>
           </div>
           <button
@@ -426,25 +404,21 @@ function DocumentLibrary({
             title={openFolder}
             description={`${openFolderDocuments.length} matching ${openFolderDocuments.length === 1 ? "resource" : "resources"}`}
             documents={openFolderDocuments}
-            variant={variant}
             folders={folders}
             onMove={moveDocument}
             emptyMessage="This folder has no matching resources."
           />
         ) : (
           <ResourceSection
-            title={variant === "summaries" ? "All summary sources" : "All documents"}
+            title="All documents"
             description={`${visibleDocuments.length} ${visibleDocuments.length === 1 ? "resource" : "resources"}`}
             documents={visibleDocuments}
-            variant={variant}
             folders={folders}
             onMove={moveDocument}
             emptyMessage={
               documents.length === 0
                 ? "Upload your first document to begin building study materials."
-                : variant === "summaries" && filter === "ready"
-                  ? "No summaries are ready yet. Processing and failed documents remain available under the other filters."
-                  : "No resources match the current search and filter."
+                : "No resources match the current search and filter."
             }
           />
         )}
@@ -458,13 +432,11 @@ function LibraryStats({
   summaryReady,
   flashcards,
   quizzes,
-  variant,
 }: {
   total: number;
   summaryReady: number;
   flashcards: number;
   quizzes: number;
-  variant: ViewVariant;
 }) {
   const items = [
     { label: "Documents", value: total, tone: "bg-blue-500/10 text-blue-700 dark:text-blue-300" },
@@ -474,7 +446,7 @@ function LibraryStats({
   ];
 
   return (
-    <section aria-label={`${variant} overview`}>
+    <section aria-label="Documents overview">
       <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {items.map((item) => (
           <li
@@ -625,7 +597,6 @@ function ResourceSection({
   title,
   description,
   documents,
-  variant,
   folders,
   onMove,
   emptyMessage,
@@ -633,7 +604,6 @@ function ResourceSection({
   title: string;
   description: string;
   documents: DocumentListItem[];
-  variant: ViewVariant;
   folders: Folders;
   onMove: (documentId: string, folderName: string) => void;
   emptyMessage: string;
@@ -650,7 +620,6 @@ function ResourceSection({
             <li key={document.id}>
               <ResourceCard
                 document={document}
-                variant={variant}
                 folders={folders}
                 onMove={onMove}
               />
@@ -668,20 +637,16 @@ function ResourceSection({
 
 function ResourceCard({
   document,
-  variant,
   folders,
   onMove,
 }: {
   document: DocumentListItem;
-  variant: ViewVariant;
   folders: Folders;
   onMove: (documentId: string, folderName: string) => void;
 }) {
   const failed = document.status === "FAILED";
   const processing = isProcessing(document);
-  const canOpen =
-    document.status === "COMPLETED" &&
-    (variant === "documents" || document.summary_ready);
+  const canOpen = document.status === "COMPLETED";
   const currentFolder =
     Object.entries(folders).find(([, ids]) => ids.includes(document.id))?.[0] ??
     "Unorganized";
@@ -689,14 +654,12 @@ function ResourceCard({
     ? "Needs attention"
     : processing
       ? document.status
-      : variant === "summaries" && !document.summary_ready
-        ? "Summary not ready"
-        : "Ready";
+      : "Ready";
 
   return (
     <article className="flex h-full min-h-[300px] flex-col rounded-2xl border border-[var(--theme-border)] bg-[var(--background)] p-4 transition hover:-translate-y-0.5 hover:border-[var(--theme-primary)] focus-within:border-[var(--theme-primary)]">
       <div className="flex items-start justify-between gap-3">
-        <span className={`grid size-11 shrink-0 place-items-center rounded-xl ${variant === "summaries" ? "bg-amber-500/10 text-amber-700 dark:text-amber-300" : "bg-blue-500/10 text-blue-700 dark:text-blue-300"}`}>
+        <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-blue-500/10 text-blue-700 dark:text-blue-300">
           <FileIcon />
         </span>
         <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${failed ? "bg-red-500/10 text-red-700 dark:text-red-300" : processing ? "bg-amber-500/10 text-amber-800 dark:text-amber-300" : "bg-emerald-500/10 text-emerald-800 dark:text-emerald-300"}`}>
@@ -722,10 +685,6 @@ function ResourceCard({
         <p className="mt-4 text-sm leading-6 text-[var(--muted-foreground)]">
           Processing did not finish. Retry to rebuild the generated materials.
         </p>
-      ) : variant === "summaries" && !document.summary_ready ? (
-        <p className="mt-4 text-sm leading-6 text-[var(--muted-foreground)]">
-          This document is complete, but no generated summary is available.
-        </p>
       ) : null}
 
       <div className="mt-auto space-y-3 pt-5">
@@ -747,7 +706,7 @@ function ResourceCard({
             href={`/dashboard/study/${document.id}?tab=summary`}
             className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--theme-primary)] px-4 text-sm font-semibold text-white transition hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)] focus-visible:ring-offset-2"
           >
-            {variant === "summaries" ? "Read summary" : "Open study workspace"} <span aria-hidden="true">→</span>
+            Open study workspace <span aria-hidden="true">→</span>
           </Link>
         ) : failed ? (
           <RetryDocumentButton documentId={document.id} />
