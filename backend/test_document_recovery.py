@@ -7,11 +7,16 @@ from unittest.mock import MagicMock, patch
 from fastapi import HTTPException
 from sqlalchemy.dialects import postgresql
 
-from api.routes.documents import get_study_document, retry_document_processing
+from api.routes.documents import (
+    delete_document,
+    get_study_document,
+    retry_document_processing,
+)
 from core.auth import CurrentUser
 from models.tables import Document, DocumentStatus, Quiz, QuizQuestion
 from services.ai_service import QuizQuestionPayload
-from services.documents import save_quiz
+from services.documents import delete_terminal_document, save_quiz
+from services.storage import StorageServiceError, validate_document_storage_path
 
 
 def _question_payload(index: int = 0) -> QuizQuestionPayload:
@@ -275,6 +280,147 @@ class DocumentRetryEndpointTests(unittest.TestCase):
                 get_study_document(self.document.id, self.current_user)
 
         self.assertEqual(raised.exception.status_code, 409)
+
+
+class DocumentDeleteEndpointTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.document = Document(
+            id=uuid.uuid4(),
+            clerk_user_id="user_owner",
+            filename="notes.pdf",
+            file_url="uploads/pending",
+            status=DocumentStatus.COMPLETED,
+        )
+        self.document.file_url = f"uploads/{self.document.id}/notes.pdf"
+        self.current_user = CurrentUser(clerk_user_id="user_owner")
+        self.session = MagicMock()
+        self.session_context = MagicMock()
+        self.session_context.__enter__.return_value = self.session
+
+    def _session_patch(self):
+        return patch("api.routes.documents.Session", return_value=self.session_context)
+
+    def test_owner_can_delete_terminal_document(self) -> None:
+        with (
+            self._session_patch(),
+            patch("api.routes.documents._get_owned_document", return_value=self.document),
+            patch(
+                "api.routes.documents.validate_document_storage_path",
+                return_value=self.document.file_url,
+            ),
+            patch(
+                "api.routes.documents.delete_terminal_document",
+                return_value=self.document.file_url,
+            ) as delete_data,
+            patch("api.routes.documents.delete_file_from_storage") as delete_file,
+        ):
+            response = delete_document(self.document.id, self.current_user)
+
+        self.assertEqual(response.status_code, 204)
+        delete_data.assert_called_once_with(
+            session=self.session,
+            document_id=self.document.id,
+        )
+        delete_file.assert_called_once_with(self.document.file_url)
+
+    def test_active_document_cannot_be_deleted(self) -> None:
+        self.document.status = DocumentStatus.EMBEDDING
+        with (
+            self._session_patch(),
+            patch("api.routes.documents._get_owned_document", return_value=self.document),
+            patch("api.routes.documents.delete_terminal_document") as delete_data,
+        ):
+            with self.assertRaises(HTTPException) as raised:
+                delete_document(self.document.id, self.current_user)
+
+        self.assertEqual(raised.exception.status_code, 409)
+        delete_data.assert_not_called()
+
+    def test_non_owner_delete_returns_not_found(self) -> None:
+        not_found = HTTPException(status_code=404, detail="Document not found.")
+        with (
+            self._session_patch(),
+            patch(
+                "api.routes.documents._get_owned_document",
+                side_effect=not_found,
+            ),
+            patch("api.routes.documents.delete_terminal_document") as delete_data,
+        ):
+            with self.assertRaises(HTTPException) as raised:
+                delete_document(
+                    self.document.id,
+                    CurrentUser(clerk_user_id="user_other"),
+                )
+
+        self.assertEqual(raised.exception.status_code, 404)
+        delete_data.assert_not_called()
+
+    def test_storage_cleanup_failure_does_not_restore_deleted_database_data(self) -> None:
+        with (
+            self._session_patch(),
+            patch("api.routes.documents._get_owned_document", return_value=self.document),
+            patch(
+                "api.routes.documents.validate_document_storage_path",
+                return_value=self.document.file_url,
+            ),
+            patch("api.routes.documents.delete_terminal_document", return_value=self.document.file_url),
+            patch(
+                "api.routes.documents.delete_file_from_storage",
+                side_effect=StorageServiceError("storage unavailable"),
+            ),
+        ):
+            response = delete_document(self.document.id, self.current_user)
+
+        self.assertEqual(response.status_code, 204)
+
+
+class DocumentDeletionServiceTests(unittest.TestCase):
+    def test_terminal_delete_locks_document_before_removing_children(self) -> None:
+        document = Document(
+            id=uuid.uuid4(),
+            filename="notes.pdf",
+            file_url="uploads/document/notes.pdf",
+            status=DocumentStatus.FAILED,
+        )
+        session = MagicMock()
+        locked_result = MagicMock()
+        locked_result.first.return_value = document
+        quiz_result = MagicMock()
+        quiz_result.first.return_value = None
+        empty_results = []
+        for _ in range(7):
+            result = MagicMock()
+            result.all.return_value = []
+            empty_results.append(result)
+        session.exec.side_effect = [locked_result, quiz_result, *empty_results]
+
+        storage_path = delete_terminal_document(
+            session=session,
+            document_id=document.id,
+        )
+
+        lock_statement = session.exec.call_args_list[0].args[0]
+        compiled = str(lock_statement.compile(dialect=postgresql.dialect()))
+        self.assertIn("FOR UPDATE", compiled)
+        self.assertTrue(
+            lock_statement.get_execution_options().get("populate_existing")
+        )
+        self.assertEqual(storage_path, document.file_url)
+        session.delete.assert_called_with(document)
+        session.commit.assert_called_once_with()
+
+    def test_storage_path_must_belong_to_document_folder(self) -> None:
+        document_id = uuid.uuid4()
+        valid = f"uploads/{document_id}/notes.pdf"
+        self.assertEqual(
+            validate_document_storage_path(valid, str(document_id)),
+            valid,
+        )
+        with self.assertRaises(StorageServiceError):
+            validate_document_storage_path(
+                f"uploads/{document_id}/../other.pdf",
+                str(document_id),
+            )
 
 
 if __name__ == "__main__":

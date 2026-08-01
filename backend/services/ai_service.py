@@ -207,7 +207,10 @@ def _embed_contents(
             response = client.models.embed_content(
                 model=settings.gemini_embedding_model,
                 contents=list(contents),
-                config=types.EmbedContentConfig(task_type=task_type),
+                config=types.EmbedContentConfig(
+                    task_type=task_type,
+                    output_dimensionality=settings.embedding_dimensions,
+                ),
             )
             embeddings = response.embeddings or []
             vectors = [list(embedding.values or []) for embedding in embeddings]

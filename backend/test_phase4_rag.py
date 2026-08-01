@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import unittest
 import uuid
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 from sqlalchemy.dialects import postgresql
 from sqlmodel import select
@@ -14,13 +15,105 @@ from services.ai_service import (
     QuizQuestionPayload,
     StudyMaterialQualityError,
     TopicDetail,
+    generate_embeddings_batch,
+    generate_query_embedding,
     verify_study_materials,
 )
 from services.documents import build_semantic_chunk_clusters
-from tasks.document_processing import _embed_unfinished_chunks
+from tasks.document_processing import (
+    _embed_unfinished_chunks,
+    _generate_and_persist_materials,
+)
 
 
 class Phase4RagTests(unittest.TestCase):
+    def test_retry_repairs_partial_flashcard_and_quiz_sets(self) -> None:
+        document = Document(
+            id=uuid.uuid4(),
+            filename="notes.pdf",
+            file_url="uploads/notes.pdf",
+        )
+        summary = ComprehensiveSummary(
+            overall_overview="Overview",
+            detailed_sections=[
+                TopicDetail(
+                    topic_title="Topic",
+                    key_points=["one", "two", "three", "four"],
+                    important_terms_and_definitions=[],
+                )
+            ],
+        )
+        partial_cards = [
+            DocumentChunk(document_id=document.id, order_index=0, content="unused")
+        ]
+        generated_cards = [
+            FlashcardPayload(front=f"Card {index}", back="Answer")
+            for index in range(15)
+        ]
+        partial_questions = [
+            QuizQuestionPayload(
+                question="Partial",
+                options=["A", "B", "C", "D"],
+                correct_answer_index=0,
+                explanation="Explanation",
+            )
+        ]
+        generated_questions = [
+            QuizQuestionPayload(
+                question=f"Question {index}",
+                options=["A", "B", "C", "D"],
+                correct_answer_index=0,
+                explanation="Explanation",
+            )
+            for index in range(10)
+        ]
+
+        with (
+            patch("tasks.document_processing._load_summary", return_value=(MagicMock(), summary)),
+            patch("tasks.document_processing._load_flashcards", return_value=partial_cards),
+            patch("tasks.document_processing._to_flashcard_payloads", return_value=[generated_cards[0]]),
+            patch("tasks.document_processing._load_quiz_questions", return_value=partial_questions),
+            patch("tasks.document_processing.clear_incomplete_flashcards") as clear_cards,
+            patch("tasks.document_processing.clear_incomplete_quiz") as clear_quiz,
+            patch("tasks.document_processing.generate_flashcards_from_summary", return_value=generated_cards),
+            patch("tasks.document_processing.generate_quiz_from_summary", return_value=generated_questions),
+            patch("tasks.document_processing.save_flashcards"),
+            patch("tasks.document_processing.save_quiz"),
+            patch("tasks.document_processing.update_document_status"),
+        ):
+            _, cards, questions = _generate_and_persist_materials(
+                session=MagicMock(),
+                document=document,
+                chunks=[],
+            )
+
+        clear_cards.assert_called_once()
+        clear_quiz.assert_called_once()
+        self.assertEqual(len(cards), 15)
+        self.assertEqual(len(questions), 10)
+
+    def test_embedding_requests_current_model_with_768_dimensions(self) -> None:
+        client = MagicMock()
+        client.models.embed_content.side_effect = [
+            SimpleNamespace(embeddings=[SimpleNamespace(values=[0.0] * 768)]),
+            SimpleNamespace(embeddings=[SimpleNamespace(values=[0.0] * 768)]),
+        ]
+
+        with (
+            patch("services.ai_service._get_api_key", return_value="test-key"),
+            patch("services.ai_service._get_client", return_value=client),
+        ):
+            generate_embeddings_batch(["document chunk"])
+            generate_query_embedding("search query")
+
+        document_call, query_call = client.models.embed_content.call_args_list
+        self.assertEqual(document_call.kwargs["model"], "gemini-embedding-2")
+        self.assertEqual(query_call.kwargs["model"], "gemini-embedding-2")
+        self.assertEqual(document_call.kwargs["config"].output_dimensionality, 768)
+        self.assertEqual(query_call.kwargs["config"].output_dimensionality, 768)
+        self.assertEqual(document_call.kwargs["config"].task_type, "RETRIEVAL_DOCUMENT")
+        self.assertEqual(query_call.kwargs["config"].task_type, "RETRIEVAL_QUERY")
+
     def test_vector_binding_and_cosine_query_compile_for_postgresql(self) -> None:
         vector = Vector(768)
         bound_vector = vector.bind_processor(None)([0.0] * 768)

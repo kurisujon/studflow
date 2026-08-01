@@ -31,6 +31,8 @@ from services.document_processing import (
 )
 from services.documents import (
     build_semantic_chunk_clusters,
+    clear_incomplete_flashcards,
+    clear_incomplete_quiz,
     get_document_chunks,
     get_unembedded_document_chunks,
     save_chunk_embeddings,
@@ -180,24 +182,26 @@ def _generate_and_persist_materials(
 
     flashcards = _to_flashcard_payloads(_load_flashcards(session, document.id))
     quiz_questions = _load_quiz_questions(session, document.id)
-    if len(flashcards) < 15 or len(quiz_questions) < 10:
+    if len(flashcards) != 15 or len(quiz_questions) != 10:
         update_document_status(
             session=session,
             document=document,
             status=DocumentStatus.GENERATING,
         )
 
+    if flashcards and len(flashcards) != 15:
+        clear_incomplete_flashcards(session=session, document_id=document.id)
+        flashcards = []
     if not flashcards:
         flashcards = generate_flashcards_from_summary(summary)
         save_flashcards(session=session, document_id=document.id, flashcards=flashcards)
-    elif len(flashcards) != 15:
-        raise DocumentProcessingError("Stored flashcard set is incomplete and requires repair.")
 
+    if quiz_questions and len(quiz_questions) != 10:
+        clear_incomplete_quiz(session=session, document_id=document.id)
+        quiz_questions = []
     if not quiz_questions:
         quiz_questions = generate_quiz_from_summary(summary)
         save_quiz(session=session, document_id=document.id, questions=quiz_questions)
-    elif len(quiz_questions) != 10:
-        raise DocumentProcessingError("Stored quiz is incomplete and requires repair.")
 
     return summary, flashcards, quiz_questions
 

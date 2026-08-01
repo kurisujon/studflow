@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     gemini_model: str = "gemini-2.5-flash"
     gemini_fallback_models: str = ""
     gemini_max_retries: int = 3
-    gemini_embedding_model: str = "text-embedding-004"
+    gemini_embedding_model: str = "gemini-embedding-2"
     embedding_dimensions: int = 768
     embedding_batch_size: int = 24
     rag_top_k: int = 5

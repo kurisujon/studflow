@@ -10,13 +10,17 @@ from sqlalchemy import update
 from sqlmodel import Session, select
 
 from models.tables import (
+    AIHistory,
     Document,
     DocumentChunk,
     DocumentStatus,
     Flashcard,
     Quiz,
+    QuizAttempt,
     QuizQuestion,
+    RelatedVideo,
     Summary,
+    StudyAnnotation,
 )
 from services.ai_service import ComprehensiveSummary, FlashcardPayload, QuizQuestionPayload
 
@@ -92,6 +96,56 @@ def claim_failed_document_for_retry(
         raise
 
 
+def delete_terminal_document(*, session: Session, document_id: uuid.UUID) -> str:
+    """Delete a completed or failed document and every owned database record."""
+    try:
+        document = session.exec(
+            select(Document)
+            .where(Document.id == document_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        ).first()
+        if document is None or document.status not in {
+            DocumentStatus.COMPLETED,
+            DocumentStatus.FAILED,
+        }:
+            raise ValueError("Only completed or failed documents can be deleted.")
+
+        quiz = session.exec(
+            select(Quiz).where(Quiz.document_id == document.id)
+        ).first()
+        if quiz is not None:
+            for question in session.exec(
+                select(QuizQuestion).where(QuizQuestion.quiz_id == quiz.id)
+            ).all():
+                session.delete(question)
+            session.delete(quiz)
+
+        document_models = (
+            QuizAttempt,
+            Flashcard,
+            Summary,
+            RelatedVideo,
+            StudyAnnotation,
+            AIHistory,
+            DocumentChunk,
+        )
+        for model in document_models:
+            records = session.exec(
+                select(model).where(model.document_id == document.id)
+            ).all()
+            for record in records:
+                session.delete(record)
+
+        storage_path = document.file_url
+        session.delete(document)
+        session.commit()
+        return storage_path
+    except Exception:
+        session.rollback()
+        raise
+
+
 def save_summary(
     *,
     session: Session,
@@ -126,6 +180,37 @@ def save_flashcards(
     session.add_all(records)
     session.commit()
     return records
+
+
+def clear_incomplete_flashcards(*, session: Session, document_id: uuid.UUID) -> None:
+    """Remove a partial generated set so a retry can regenerate it cleanly."""
+    try:
+        for card in session.exec(
+            select(Flashcard).where(Flashcard.document_id == document_id)
+        ).all():
+            session.delete(card)
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+
+
+def clear_incomplete_quiz(*, session: Session, document_id: uuid.UUID) -> None:
+    """Remove a partial quiz and its questions before regeneration."""
+    try:
+        quiz = session.exec(
+            select(Quiz).where(Quiz.document_id == document_id)
+        ).first()
+        if quiz is not None:
+            for question in session.exec(
+                select(QuizQuestion).where(QuizQuestion.quiz_id == quiz.id)
+            ).all():
+                session.delete(question)
+            session.delete(quiz)
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
 
 
 def create_flashcard(

@@ -11,6 +11,7 @@ import {
 } from "react";
 
 import { DashboardFeatureShell } from "@/components/dashboard/DashboardFeatureShell";
+import { DeleteDocumentButton } from "@/components/delete-document-button";
 import { RetryDocumentButton } from "@/components/retry-document-button";
 import type { DocumentListItem } from "@/lib/types";
 
@@ -91,6 +92,9 @@ function DocumentLibrary({ documents }: DocumentListViewProps) {
   const [editingFolder, setEditingFolder] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [filter, setFilter] = useState<LibraryFilter>("all");
+  const [deletedDocumentIds, setDeletedDocumentIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const dialogRef = useRef<HTMLDivElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
@@ -186,6 +190,17 @@ function DocumentLibrary({ documents }: DocumentListViewProps) {
     saveFolders(next);
   }
 
+  function handleDocumentDeleted(documentId: string) {
+    setDeletedDocumentIds((current) => new Set(current).add(documentId));
+    const next = Object.fromEntries(
+      Object.entries(folders).map(([name, ids]) => [
+        name,
+        ids.filter((id) => id !== documentId),
+      ]),
+    ) as Folders;
+    saveFolders(next);
+  }
+
   function renameFolder(name: string) {
     const nextName = renameValue.trim();
     if (!nextName || nextName === name || folders[nextName]) {
@@ -217,6 +232,7 @@ function DocumentLibrary({ documents }: DocumentListViewProps) {
   const visibleDocuments = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
     return [...documents]
+      .filter((document) => !deletedDocumentIds.has(document.id))
       .sort((left, right) =>
           new Date(right.updated_at).getTime() -
           new Date(left.updated_at).getTime()
@@ -237,7 +253,7 @@ function DocumentLibrary({ documents }: DocumentListViewProps) {
         if (filter === "failed") return document.status === "FAILED";
         return true;
       });
-  }, [documents, filter, search]);
+  }, [deletedDocumentIds, documents, filter, search]);
 
   const folderEntries = Object.entries(folders).filter(
     ([name]) => name !== "Unorganized",
@@ -406,6 +422,7 @@ function DocumentLibrary({ documents }: DocumentListViewProps) {
             documents={openFolderDocuments}
             folders={folders}
             onMove={moveDocument}
+            onDelete={handleDocumentDeleted}
             emptyMessage="This folder has no matching resources."
           />
         ) : (
@@ -415,6 +432,7 @@ function DocumentLibrary({ documents }: DocumentListViewProps) {
             documents={visibleDocuments}
             folders={folders}
             onMove={moveDocument}
+            onDelete={handleDocumentDeleted}
             emptyMessage={
               documents.length === 0
                 ? "Upload your first document to begin building study materials."
@@ -599,6 +617,7 @@ function ResourceSection({
   documents,
   folders,
   onMove,
+  onDelete,
   emptyMessage,
 }: {
   title: string;
@@ -606,6 +625,7 @@ function ResourceSection({
   documents: DocumentListItem[];
   folders: Folders;
   onMove: (documentId: string, folderName: string) => void;
+  onDelete: (documentId: string) => void;
   emptyMessage: string;
 }) {
   return (
@@ -622,6 +642,7 @@ function ResourceSection({
                 document={document}
                 folders={folders}
                 onMove={onMove}
+                onDelete={onDelete}
               />
             </li>
           ))}
@@ -639,10 +660,12 @@ function ResourceCard({
   document,
   folders,
   onMove,
+  onDelete,
 }: {
   document: DocumentListItem;
   folders: Folders;
   onMove: (documentId: string, folderName: string) => void;
+  onDelete: (documentId: string) => void;
 }) {
   const failed = document.status === "FAILED";
   const processing = isProcessing(document);
@@ -710,6 +733,13 @@ function ResourceCard({
           </Link>
         ) : failed ? (
           <RetryDocumentButton documentId={document.id} />
+        ) : null}
+        {canOpen || failed ? (
+          <DeleteDocumentButton
+            documentId={document.id}
+            filename={document.filename}
+            onSuccess={onDelete}
+          />
         ) : null}
       </div>
     </article>

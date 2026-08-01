@@ -42,8 +42,14 @@ from services.ai_service import (
 from services.documents import (
     claim_failed_document_for_retry,
     create_flashcard,
+    delete_terminal_document,
     search_similar_chunks,
     update_document_status,
+)
+from services.storage import (
+    StorageServiceError,
+    delete_file_from_storage,
+    validate_document_storage_path,
 )
 from tasks.document_processing import process_document_task
 
@@ -630,6 +636,67 @@ def get_document_status(document_id: uuid.UUID, current_user: CurrentUser = Depe
             flashcard_count=len(flashcards),
             quiz_ready=quiz is not None,
         )
+
+
+@router.delete(
+    "/documents/{document_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+    response_model=None,
+)
+def delete_document(
+    document_id: uuid.UUID,
+    current_user: CurrentUser = Depends(get_current_user),
+) -> Response:
+    with Session(engine) as session:
+        document = _get_owned_document(session, document_id, current_user)
+        if document.status not in {DocumentStatus.COMPLETED, DocumentStatus.FAILED}:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Only completed or failed documents can be deleted.",
+            )
+
+        try:
+            storage_path = validate_document_storage_path(
+                document.file_url,
+                str(document.id),
+            )
+        except StorageServiceError as exc:
+            logger.error(
+                "Refusing deletion for document '%s' because its storage path is invalid.",
+                document.id,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Document could not be deleted safely.",
+            ) from exc
+
+        try:
+            storage_path = delete_terminal_document(
+                session=session,
+                document_id=document.id,
+            )
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Document processing changed before deletion could begin.",
+            ) from exc
+        except Exception as exc:
+            logger.exception("Database deletion failed for document '%s'.", document.id)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Document could not be deleted.",
+            ) from exc
+
+    try:
+        delete_file_from_storage(storage_path)
+    except StorageServiceError:
+        logger.warning(
+            "Storage cleanup failed after deleting document '%s'.",
+            document_id,
+        )
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post(

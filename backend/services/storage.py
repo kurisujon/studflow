@@ -115,3 +115,12 @@ def delete_file_from_storage(storage_path: str) -> None:
         client.storage.from_(settings.supabase_storage_bucket).remove([storage_path])
     except Exception as exc:  # pragma: no cover - third-party client errors vary
         raise StorageServiceError("Failed to delete file from Supabase Storage.") from exc
+
+
+def validate_document_storage_path(storage_path: str, document_id: str) -> str:
+    """Ensure a persisted path belongs to the expected document folder."""
+    path = PurePosixPath(storage_path)
+    expected_parent = PurePosixPath(settings.supabase_storage_folder) / document_id
+    if path.is_absolute() or ".." in path.parts or path.parent != expected_parent:
+        raise StorageServiceError("Document storage path is invalid.")
+    return storage_path

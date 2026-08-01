@@ -93,7 +93,13 @@ jobs:
       - name: Write production environment file
         env:
           PRODUCTION_ENV_FILE: ${{ secrets.PRODUCTION_ENV_FILE }}
-        run: printf '%s\n' "$PRODUCTION_ENV_FILE" > .env.production
+        run: |
+          printf '%s\n' "$PRODUCTION_ENV_FILE" > .env.production
+          sed -i '/^GEMINI_EMBEDDING_MODEL=/d;/^EMBEDDING_DIMENSIONS=/d' .env.production
+          {
+            echo "GEMINI_EMBEDDING_MODEL=gemini-embedding-2"
+            echo "EMBEDDING_DIMENSIONS=768"
+          } >> .env.production
 
       - name: Extract frontend build variables
         id: frontend-env
@@ -179,7 +185,10 @@ jobs:
           PRODUCTION_ENV_FILE: ${{ secrets.PRODUCTION_ENV_FILE }}
         run: |
           printf '%s\n' "$PRODUCTION_ENV_FILE" > .env.production
+          sed -i '/^GEMINI_EMBEDDING_MODEL=/d;/^EMBEDDING_DIMENSIONS=/d' .env.production
           {
+            echo "GEMINI_EMBEDDING_MODEL=gemini-embedding-2"
+            echo "EMBEDDING_DIMENSIONS=768"
             echo "FRONTEND_IMAGE=${{ needs.build-images.outputs.frontend_image }}"
             echo "BACKEND_IMAGE=${{ needs.build-images.outputs.backend_image }}"
             echo "COMPOSE_BUILD_ON_SERVER=false"
