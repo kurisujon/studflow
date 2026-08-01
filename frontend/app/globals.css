@@ -266,7 +266,14 @@ body {
 
 .study-reader-prose {
   width: 100%;
-  max-width: 72ch;
+  max-width: 88ch;
+  margin-inline: auto;
+}
+
+.study-reader-prose p,
+.study-reader-prose li {
+  text-align: justify;
+  text-justify: inter-word;
 }
 
 .study-further-study-grid {

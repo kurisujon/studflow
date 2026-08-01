@@ -239,7 +239,7 @@ Most recent implemented changes:
   - `frontend/components/study/StudySidePanel.tsx`
   - `frontend/components/study/FloatingNotesButton.tsx`
 - Related videos were repositioned as a secondary support surface in `frontend/components/study/RelatedLearningVideos.tsx`.
-- Summary Overview, Detailed Topic, and Further Study now share a 1080px outer shell while their long-form prose remains constrained to a 72ch reading measure.
+- Summary Overview, Detailed Topic, and Further Study now share a 1080px outer shell while their long-form prose uses a centered, justified 88ch reading measure.
 - Further Study uses a deterministic two-column desktop layout that collapses to one column on screens at or below 768px.
 - Notes panel typography was slightly refined in `frontend/components/study/NotesPanel.tsx`.
 - Homepage upload card added to the hero section in `frontend/app/page.tsx`.
@@ -559,7 +559,7 @@ When a future agent completes a meaningful feature, they should update this file
 ### Update: 2026-08-01
 **What Changed:**
 - Rebalanced the summary workspace around a shared 1080px content shell for Overall Overview, Detailed Topic, topic navigation, and Further Study.
-- Preserved a narrower 72ch measure inside the Overview and Detailed Topic surfaces for long-form reading comfort.
+- Preserved a centered 88ch measure inside the Overview and Detailed Topic surfaces, with justified paragraph and list copy for balanced use of the wider cards.
 - Standardized Further Study to two columns on desktop and one column on mobile, with content-driven card and section heights.
 
 **Contracts Changed:**

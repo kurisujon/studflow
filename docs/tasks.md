@@ -67,7 +67,7 @@ Goal: make Studflow feel calmer, more editorial, and more focused for long-form 
 
 #### Reading Surface
 - [x] Constrain summary reading width so long-form content feels document-like instead of dashboard-wide
-- [x] Separate the shared 1080px summary shell from the narrower 72ch prose measure so Overview, Detailed Topic, and Further Study align without producing overly long text lines
+- [x] Separate the shared 1080px summary shell from the centered 88ch prose measure so Overview, Detailed Topic, and Further Study use the available space without producing overly long text lines
 - [x] Define a dedicated typography scale for study content: headings, section labels, paragraph text, terms, and helper copy
 - [x] Reduce visual noise in the study workspace background and keep the reading surface visually primary
 - [x] Standardize spacing between topic sections, notes, AI panels, and related-video areas
@@ -163,4 +163,3 @@ Goal: Scale document processing to support 100+ page documents with high precisi
 - [x] Enforce strict pipeline: `Retrieved Context -> Semantic Generation -> Pydantic Validation -> Quality Verification -> Final Result`
 - [x] Optimize summary, flashcard, and quiz generation prompts to utilize top semantic vector clusters
 - [x] Run backend verification tests (`unittest` / `py_compile`) validating resumability, vector storage, RAG retrieval, and quality control orchestration
-
