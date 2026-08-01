@@ -239,6 +239,8 @@ Most recent implemented changes:
   - `frontend/components/study/StudySidePanel.tsx`
   - `frontend/components/study/FloatingNotesButton.tsx`
 - Related videos were repositioned as a secondary support surface in `frontend/components/study/RelatedLearningVideos.tsx`.
+- Summary Overview, Detailed Topic, and Further Study now share a 1080px outer shell while their long-form prose remains constrained to a 72ch reading measure.
+- Further Study uses a deterministic two-column desktop layout that collapses to one column on screens at or below 768px.
 - Notes panel typography was slightly refined in `frontend/components/study/NotesPanel.tsx`.
 - Homepage upload card added to the hero section in `frontend/app/page.tsx`.
 - New alias route added at `frontend/app/dashboard/upload/page.tsx`.
@@ -552,3 +554,21 @@ When a future agent completes a meaningful feature, they should update this file
 **What to do next:**
 - Implement Phase 4 starting with PostgreSQL `pgvector` migration and embedding generation service in the backend.
 
+---
+
+### Update: 2026-08-01
+**What Changed:**
+- Rebalanced the summary workspace around a shared 1080px content shell for Overall Overview, Detailed Topic, topic navigation, and Further Study.
+- Preserved a narrower 72ch measure inside the Overview and Detailed Topic surfaces for long-form reading comfort.
+- Standardized Further Study to two columns on desktop and one column on mobile, with content-driven card and section heights.
+
+**Contracts Changed:**
+- None. This update changes presentation only and preserves existing study data and interaction APIs.
+
+**Docs Stale:**
+- No. The study-workspace layout guidance and validation checklist were updated with the current container behavior.
+
+**What to do next:**
+- Complete the pending responsive viewport validation before beginning the conversational AI workstream.
+
+---

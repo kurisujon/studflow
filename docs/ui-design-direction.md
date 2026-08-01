@@ -1,6 +1,6 @@
 # UI Design Direction
 
-Last updated: 2026-07-03
+Last updated: 2026-08-01
 
 ## Overview
 
@@ -91,6 +91,8 @@ Each tab has a distinct visual identity:
 
 ### Summary Tab
 - Two-pane layout: document viewer on the left, AI Summary panel on the right.
+- Within the implemented summary reader, use one centered shell capped at 1080px for Overview, Detailed Topic, navigation, and Further Study; keep long-form prose near 72ch inside that shell.
+- Keep section heights content-driven. Further Study uses two equal columns on desktop and one column at 768px and below.
 - Document viewer shows section headings and text with inline highlights.
 - AI Summary panel shows bulleted key points with colored dot markers (orange, blue, green, purple, yellow).
 - "Key Takeaway" callout card at the bottom with a light orange background.

@@ -38,7 +38,7 @@ export function RelatedLearningVideos({ documentId }: { documentId: string }) {
   return (
     <>
       <div
-        className="study-support-surface"
+        className="study-support-surface study-reader-shell"
         style={{
           marginTop: "1.5rem",
         }}
@@ -51,13 +51,7 @@ export function RelatedLearningVideos({ documentId }: { documentId: string }) {
           Use these when you want extra context after reading the main study material.
         </p>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-            gap: "1.2rem",
-          }}
-        >
+        <div className="study-further-study-grid">
           {videos.map((video) => (
             <article
               key={video.id}

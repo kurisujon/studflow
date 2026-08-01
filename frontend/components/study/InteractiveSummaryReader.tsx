@@ -787,21 +787,14 @@ export function InteractiveSummaryReader({
 
       <div
         ref={rootRef}
-        className="max-w-[70ch] mx-auto"
+        className="study-reader-shell"
         style={{
           cursor: "text",
-          width: "100%",
           position: "relative",
         }}
       >
-        <div style={{ display: "grid", gap: "1rem", marginBottom: "1.5rem" }}>
-          <div
-            className="study-support-surface"
-            style={{
-              maxWidth: "1080px",
-              marginInline: "auto",
-            }}
-          >
+        <div className="study-reader-stack" style={{ marginBottom: "1.5rem" }}>
+          <div className="study-support-surface">
             <div
               style={{
                 display: "flex",
@@ -877,98 +870,63 @@ export function InteractiveSummaryReader({
             </p>
           ) : null}
 
-          <div
-            className="study-support-surface"
-            style={{
-              maxWidth: "1080px",
-              marginInline: "auto",
-            }}
-          >
+          <div className="study-support-surface">
             <p className="study-meta-label" style={{ marginBottom: "0.55rem" }}>
               Overall Overview
             </p>
-            <AnnotatableTextBlock
-              as="p"
-              blockId={overviewBlockId}
-              text={summary.overall_overview}
-              annotations={topicAnnotations.filter(
-                (annotation) => annotation.blockId === overviewBlockId,
-              )}
-              pendingSelection={pendingSelectionForBlock(overviewBlockId)}
-              onSelection={handleTextSelection}
-              onNoteClick={handleNoteMarkerClick}
-              style={{
-                fontSize: "1.02rem",
-                lineHeight: 1.82,
-                color: "var(--distill-text-secondary)",
-              }}
-            />
+            <div className="study-reader-prose">
+              <AnnotatableTextBlock
+                as="p"
+                blockId={overviewBlockId}
+                text={summary.overall_overview}
+                annotations={topicAnnotations.filter(
+                  (annotation) => annotation.blockId === overviewBlockId,
+                )}
+                pendingSelection={pendingSelectionForBlock(overviewBlockId)}
+                onSelection={handleTextSelection}
+                onNoteClick={handleNoteMarkerClick}
+                style={{
+                  fontSize: "1.02rem",
+                  lineHeight: 1.82,
+                  color: "var(--distill-text-secondary)",
+                }}
+              />
+            </div>
           </div>
         </div>
 
-        <article
-          className="study-reading-surface"
-          style={{ maxWidth: "1080px" }}
-        >
-          <p className="study-meta-label" style={{ marginBottom: "0.7rem" }}>
-            Detailed Topic
-          </p>
-          <AnnotatableTextBlock
-            as="h2"
-            blockId={titleBlockId}
-            text={activeSection.topic_title}
-            annotations={topicAnnotations.filter(
-              (annotation) => annotation.blockId === titleBlockId,
-            )}
-            pendingSelection={pendingSelectionForBlock(titleBlockId)}
-            onSelection={handleTextSelection}
-            onNoteClick={handleNoteMarkerClick}
-            style={{
-              fontSize: "clamp(1.9rem, 4vw, 2.7rem)",
-              lineHeight: 1.16,
-              fontWeight: 700,
-              color: "var(--foreground)",
-              marginBottom: "1.45rem",
-            }}
-          />
+        <article className="study-reading-surface">
+          <div className="study-reader-prose">
+            <p className="study-meta-label" style={{ marginBottom: "0.7rem" }}>
+              Detailed Topic
+            </p>
+            <AnnotatableTextBlock
+              as="h2"
+              blockId={titleBlockId}
+              text={activeSection.topic_title}
+              annotations={topicAnnotations.filter(
+                (annotation) => annotation.blockId === titleBlockId,
+              )}
+              pendingSelection={pendingSelectionForBlock(titleBlockId)}
+              onSelection={handleTextSelection}
+              onNoteClick={handleNoteMarkerClick}
+              style={{
+                fontSize: "clamp(1.9rem, 4vw, 2.7rem)",
+                lineHeight: 1.16,
+                fontWeight: 700,
+                color: "var(--foreground)",
+                marginBottom: "1.45rem",
+              }}
+            />
 
-          <div style={{ display: "grid", gap: "1.75rem" }}>
-            <div>
-              <p className="study-meta-label" style={{ marginBottom: "0.85rem" }}>
-                Key Points
-              </p>
-              <AnimatePresence mode="wait">
-                <motion.ul
-                  key={`topic-points-${activeIndex}`}
-                  initial={{ opacity: 0, x: 10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -10 }}
-                  transition={{ duration: 0.18, ease: "easeOut" }}
-                  className="study-reading-copy"
-                  style={{
-                    display: "grid",
-                    gap: "0.95rem",
-                    paddingLeft: "1.2rem",
-                  }}
-                >
-                  {activeSection.key_points.map(renderPoint)}
-                </motion.ul>
-              </AnimatePresence>
-            </div>
-
-            {activeSection.important_terms_and_definitions.length > 0 ? (
-              <div
-                className="study-support-surface"
-                style={{
-                  padding: "1.1rem 1.2rem",
-                }}
-              >
+            <div style={{ display: "grid", gap: "1.75rem" }}>
+              <div>
                 <p className="study-meta-label" style={{ marginBottom: "0.85rem" }}>
-                  Important Terms and Definitions
+                  Key Points
                 </p>
                 <AnimatePresence mode="wait">
                   <motion.ul
-                    key={`topic-terms-${activeIndex}`}
+                    key={`topic-points-${activeIndex}`}
                     initial={{ opacity: 0, x: 10 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -10 }}
@@ -976,16 +934,46 @@ export function InteractiveSummaryReader({
                     className="study-reading-copy"
                     style={{
                       display: "grid",
-                      gap: "0.8rem",
-                      paddingLeft: 0,
-                      listStyle: "none",
+                      gap: "0.95rem",
+                      paddingLeft: "1.2rem",
                     }}
                   >
-                    {activeSection.important_terms_and_definitions.map(renderTerm)}
+                    {activeSection.key_points.map(renderPoint)}
                   </motion.ul>
                 </AnimatePresence>
               </div>
-            ) : null}
+
+              {activeSection.important_terms_and_definitions.length > 0 ? (
+                <div
+                  className="study-support-surface"
+                  style={{
+                    padding: "1.1rem 1.2rem",
+                  }}
+                >
+                  <p className="study-meta-label" style={{ marginBottom: "0.85rem" }}>
+                    Important Terms and Definitions
+                  </p>
+                  <AnimatePresence mode="wait">
+                    <motion.ul
+                      key={`topic-terms-${activeIndex}`}
+                      initial={{ opacity: 0, x: 10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -10 }}
+                      transition={{ duration: 0.18, ease: "easeOut" }}
+                      className="study-reading-copy"
+                      style={{
+                        display: "grid",
+                        gap: "0.8rem",
+                        paddingLeft: 0,
+                        listStyle: "none",
+                      }}
+                    >
+                      {activeSection.important_terms_and_definitions.map(renderTerm)}
+                    </motion.ul>
+                  </AnimatePresence>
+                </div>
+              ) : null}
+            </div>
           </div>
         </article>
 
@@ -993,7 +981,6 @@ export function InteractiveSummaryReader({
           style={{
             display: "flex",
             gap: "0.75rem",
-            maxWidth: "1080px",
             margin: "1rem auto 0",
             justifyContent: "space-between",
             alignItems: "center",

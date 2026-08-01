@@ -253,6 +253,28 @@ body {
   box-shadow: 0 14px 36px color-mix(in srgb, var(--theme-shadow) 46%, transparent);
 }
 
+.study-reader-shell {
+  width: 100%;
+  max-width: 1080px;
+  margin-inline: auto;
+}
+
+.study-reader-stack {
+  display: grid;
+  gap: clamp(1rem, 2vw, 1.5rem);
+}
+
+.study-reader-prose {
+  width: 100%;
+  max-width: 72ch;
+}
+
+.study-further-study-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.2rem;
+}
+
 .study-stage-shell {
   max-width: 1080px;
   margin-inline: auto;
@@ -498,6 +520,11 @@ body {
     border-radius: 24px;
   }
 
+  .study-further-study-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+  }
+
   .study-side-panel-shell {
     left: 12px;
     right: 12px;
@@ -656,4 +683,3 @@ body {
     @apply font-sans;
   }
 }
-
