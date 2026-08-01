@@ -4,7 +4,16 @@ from datetime import datetime
 from collections.abc import Sequence
 from typing import Optional
 
-from sqlalchemy import Column, Enum as SAEnum, Float, bindparam
+from sqlalchemy import (
+    JSON,
+    CheckConstraint,
+    Column,
+    Enum as SAEnum,
+    Float,
+    Index,
+    UniqueConstraint,
+    bindparam,
+)
 from sqlalchemy.types import UserDefinedType
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -166,6 +175,7 @@ class Document(SQLModel, table=True):
     related_videos: list["RelatedVideo"] = Relationship(back_populates="document")
     annotations: list["StudyAnnotation"] = Relationship(back_populates="document")
     ai_history_items: list["AIHistory"] = Relationship(back_populates="document")
+    ai_conversations: list["AIConversation"] = Relationship(back_populates="document")
 
 
 # ---------------------------------------------------------------------------
@@ -421,3 +431,151 @@ class AIHistory(SQLModel, table=True):
 
     # Relationships
     document: Optional[Document] = Relationship(back_populates="ai_history_items")
+
+
+# ---------------------------------------------------------------------------
+# Persistent AI conversations
+# ---------------------------------------------------------------------------
+
+
+class AIConversation(SQLModel, table=True):
+    __tablename__ = "ai_conversations"
+    __table_args__ = (
+        Index("ix_ai_conversations_owner_updated", "clerk_user_id", "updated_at"),
+    )
+
+    id: uuid.UUID = Field(
+        default_factory=uuid.uuid4,
+        primary_key=True,
+        index=True,
+        nullable=False,
+    )
+    clerk_user_id: str = Field(max_length=255, nullable=False, index=True)
+    document_id: Optional[uuid.UUID] = Field(
+        default=None,
+        foreign_key="documents.id",
+        ondelete="CASCADE",
+        nullable=True,
+        index=True,
+    )
+    title: Optional[str] = Field(default=None, max_length=160, nullable=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    updated_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+
+    document: Optional[Document] = Relationship(back_populates="ai_conversations")
+    messages: list["AIMessage"] = Relationship(
+        back_populates="conversation",
+        sa_relationship_kwargs={"passive_deletes": True},
+    )
+
+
+class AIMessage(SQLModel, table=True):
+    __tablename__ = "ai_messages"
+    __table_args__ = (
+        CheckConstraint(
+            "role IN ('user', 'assistant', 'system')",
+            name="ck_ai_messages_role",
+        ),
+        CheckConstraint(
+            "retrieval_mode IN ('document', 'web', 'hybrid')",
+            name="ck_ai_messages_retrieval_mode",
+        ),
+        UniqueConstraint(
+            "conversation_id",
+            "sequence_number",
+            name="uq_ai_messages_conversation_sequence",
+        ),
+        Index(
+            "ix_ai_messages_conversation_created_id",
+            "conversation_id",
+            "created_at",
+            "id",
+        ),
+    )
+
+    id: uuid.UUID = Field(
+        default_factory=uuid.uuid4,
+        primary_key=True,
+        index=True,
+        nullable=False,
+    )
+    conversation_id: uuid.UUID = Field(
+        foreign_key="ai_conversations.id",
+        ondelete="CASCADE",
+        nullable=False,
+        index=True,
+    )
+    sequence_number: int = Field(ge=1, nullable=False)
+    role: str = Field(max_length=16, nullable=False)
+    content: str = Field(nullable=False)
+    selected_text: Optional[str] = Field(default=None, nullable=True)
+    retrieval_mode: str = Field(default="document", max_length=16, nullable=False)
+    suggested_followups: list[str] = Field(
+        default_factory=list,
+        sa_column=Column(JSON, nullable=False, default=list),
+    )
+    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+
+    conversation: Optional[AIConversation] = Relationship(back_populates="messages")
+    citations: list["AIMessageCitation"] = Relationship(
+        back_populates="message",
+        sa_relationship_kwargs={"passive_deletes": True},
+    )
+
+
+class AIMessageCitation(SQLModel, table=True):
+    __tablename__ = "ai_message_citations"
+    __table_args__ = (
+        CheckConstraint(
+            "source_type IN ('document', 'web')",
+            name="ck_ai_message_citations_source_type",
+        ),
+        CheckConstraint(
+            "citation_index > 0",
+            name="ck_ai_message_citations_positive_index",
+        ),
+        CheckConstraint(
+            "page_number IS NULL OR page_number > 0",
+            name="ck_ai_message_citations_positive_page",
+        ),
+        UniqueConstraint(
+            "message_id",
+            "citation_index",
+            name="uq_ai_message_citations_message_index",
+        ),
+    )
+
+    id: uuid.UUID = Field(
+        default_factory=uuid.uuid4,
+        primary_key=True,
+        index=True,
+        nullable=False,
+    )
+    message_id: uuid.UUID = Field(
+        foreign_key="ai_messages.id",
+        ondelete="CASCADE",
+        nullable=False,
+        index=True,
+    )
+    citation_index: int = Field(ge=1, nullable=False)
+    source_type: str = Field(max_length=16, nullable=False)
+    title: str = Field(max_length=255, nullable=False)
+    url: Optional[str] = Field(default=None, max_length=2048, nullable=True)
+    document_id: Optional[uuid.UUID] = Field(
+        default=None,
+        foreign_key="documents.id",
+        ondelete="SET NULL",
+        nullable=True,
+        index=True,
+    )
+    chunk_id: Optional[uuid.UUID] = Field(
+        default=None,
+        foreign_key="document_chunks.id",
+        ondelete="SET NULL",
+        nullable=True,
+        index=True,
+    )
+    page_number: Optional[int] = Field(default=None, ge=1, nullable=True)
+    excerpt: Optional[str] = Field(default=None, nullable=True)
+
+    message: Optional[AIMessage] = Relationship(back_populates="citations")

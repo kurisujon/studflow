@@ -10,6 +10,7 @@ from sqlalchemy import update
 from sqlmodel import Session, select
 
 from models.tables import (
+    AIConversation,
     AIHistory,
     Document,
     DocumentChunk,
@@ -122,6 +123,7 @@ def delete_terminal_document(*, session: Session, document_id: uuid.UUID) -> str
             session.delete(quiz)
 
         document_models = (
+            AIConversation,
             QuizAttempt,
             Flashcard,
             Summary,
@@ -313,6 +315,29 @@ def search_similar_chunks(
     return session.exec(
         select(DocumentChunk)
         .where(DocumentChunk.document_id == document_id)
+        .where(DocumentChunk.embedding.is_not(None))
+        .order_by(DocumentChunk.embedding.cosine_distance(query_embedding))
+        .limit(top_k)
+    ).all()
+
+
+def search_owned_similar_chunks(
+    *,
+    session: Session,
+    document_id: uuid.UUID,
+    clerk_user_id: str,
+    query_embedding: Sequence[float],
+    top_k: int = 5,
+) -> list[DocumentChunk]:
+    """Return semantic chunks only when their parent document belongs to the caller."""
+    if top_k < 1:
+        raise ValueError("top_k must be at least one.")
+
+    return session.exec(
+        select(DocumentChunk)
+        .join(Document, Document.id == DocumentChunk.document_id)
+        .where(DocumentChunk.document_id == document_id)
+        .where(Document.clerk_user_id == clerk_user_id)
         .where(DocumentChunk.embedding.is_not(None))
         .order_by(DocumentChunk.embedding.cosine_distance(query_embedding))
         .limit(top_k)

@@ -16,7 +16,7 @@ This document serves as the strict guardrails for the entire development lifecyc
 - No new programming languages.
 - No GraphQL (Stick to RESTful JSON endpoints).
 - No Kubernetes (Deploy on simple PaaS providers like Vercel/Render/Railway or use basic Docker Compose).
-- Approved AI & Database extensions: `pgvector` extension for PostgreSQL and Gemini Embedding APIs (`text-embedding-004`) for RAG & semantic search.
+- Approved AI & Database extensions: `pgvector` for PostgreSQL and Gemini Embedding APIs (`gemini-embedding-2`, 768 output dimensions) for RAG and semantic search.
 
 ## 4. Code Simplicity Rules (KISS)
 - **KISS:** Keep It Simple, Stupid.

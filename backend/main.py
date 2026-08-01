@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.routes.health import router as health_router
+from api.routes.ai_chat import router as ai_chat_router
 from api.routes.documents import router as documents_router
 from api.routes.study import router as study_router
 from api.routes.upload import router as upload_router
@@ -45,6 +46,7 @@ app.add_middleware(
 # Routers
 # ---------------------------------------------------------------------------
 app.include_router(health_router, prefix="/api")
+app.include_router(ai_chat_router, prefix="/api")
 app.include_router(documents_router, prefix="/api")
 app.include_router(study_router, prefix="/api")
 app.include_router(upload_router, prefix="/api")

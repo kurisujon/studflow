@@ -542,7 +542,7 @@ When a future agent completes a meaningful feature, they should update this file
 
 ### Update: 2026-07-22
 **What Changed:**
-- Updated [GUARDRAILS.md](file:///mnt/c/Users/CJK_LAPTOP/Personal_Projects/Javascript/studflow/docs/GUARDRAILS.md) to explicitly permit **Embeddings** (via Gemini `text-embedding-004`), **Vector Databases** (via PostgreSQL `pgvector`), **Semantic RAG**, and **Agent Orchestration** (Celery multi-step agent pipeline) to support large 100+ page document uploads.
+- Updated [GUARDRAILS.md](file:///mnt/c/Users/CJK_LAPTOP/Personal_Projects/Javascript/studflow/docs/GUARDRAILS.md) to explicitly permit **Embeddings** (now using Gemini `gemini-embedding-2`), **Vector Databases** (via PostgreSQL `pgvector`), **Semantic RAG**, and **Agent Orchestration** (Celery multi-step agent pipeline) to support large 100+ page document uploads.
 - Updated [tasks.md](file:///mnt/c/Users/CJK_LAPTOP/Personal_Projects/Javascript/studflow/docs/tasks.md) with the **Phase 4 Execution Checklist**: `pgvector` migration, vector chunk storage, embedding generation pipeline, Celery-native agent orchestrator (Analysis Agent → RAG Retrieval Agent → Synthesis & QC Agent), semantic RAG Q&A retrieval, and Celery task timeout tuning for long-document processing.
 
 **Contracts Changed:**
@@ -570,5 +570,26 @@ When a future agent completes a meaningful feature, they should update this file
 
 **What to do next:**
 - Complete the pending responsive viewport validation before beginning the conversational AI workstream.
+
+---
+
+### Update: 2026-08-01 — Persistent Conversation Foundation
+**What Changed:**
+- Added additive persistence for Clerk-owned AI conversations, ordered user/assistant messages, and structured citations.
+- Added document-only conversation CRUD, message-history, and synchronous send endpoints under `/api/ai`.
+- Conversation answers reuse pgvector document retrieval, bounded recent history, and `gemini-embedding-2` query embeddings.
+- Successful turns persist the user message, assistant answer, and real document-chunk citations in one commit after generation.
+- Added conversation cleanup to terminal document deletion and backend unittest discovery to CI.
+
+**Contracts Changed:**
+- New additive `/api/ai/conversations` contracts and three database tables were introduced.
+- Existing Ask AI, explain-selection, and AI History contracts remain unchanged for compatibility.
+
+**Docs Stale:**
+- No. Architecture, task, design, and CI/CD documentation describe the Phase 1 boundary.
+
+**What to do next:**
+- Build the persistent conversational frontend against the new synchronous document-only API.
+- Do not display page numbers until page-aware extraction and controlled reindexing ship.
 
 ---

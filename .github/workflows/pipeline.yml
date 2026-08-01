@@ -76,6 +76,9 @@ jobs:
       - name: Smoke test FastAPI app import
         run: python -c "from main import app; print(app.title)"
 
+      - name: Run backend unit tests
+        run: python -m unittest discover -s . -p 'test_*.py'
+
   build-images:
     name: Build production images
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'

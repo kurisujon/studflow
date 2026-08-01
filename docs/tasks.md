@@ -104,6 +104,26 @@ These are intentionally sequenced after the UI refinement workstream:
 - [x] Quiz attempt history with weak-topic review
 - [x] Document-level Q&A grounded in extracted document chunks
 
+## Persistent Conversational Assistant
+
+Goal: replace isolated AI report sessions with durable, ownership-safe conversations while preserving verified source metadata.
+
+### Phase 1 — Conversation Foundation
+- [x] Add additive conversation, ordered-message, and structured-citation tables
+- [x] Add Clerk-owned conversation CRUD and message-history endpoints
+- [x] Add document-only, history-aware RAG message generation
+- [x] Persist successful user/assistant turns and citations atomically
+- [x] Build citations from real retrieved document chunk UUIDs
+- [x] Keep legacy Ask AI and AI History contracts available during rollout
+- [x] Add conversation deletion to terminal document deletion
+- [x] Add backend unit-test discovery to CI
+
+### Later Phases
+- [ ] Replace the report-style frontend with the persistent conversational interface
+- [ ] Add page-aware PDF chunking and controlled legacy-document reindexing
+- [ ] Add verified Google Search grounding with document, web, and hybrid modes
+- [ ] Add authenticated streaming after the synchronous contract is stable
+
 ## Explicit Non-Goals For This Workstream
 
 - [ ] Do not turn Studflow into a general-purpose AI toolbox
@@ -144,12 +164,12 @@ Goal: Scale document processing to support 100+ page documents with high precisi
 
 ### Step 4.1: Database Schema & Vector Extension (`pgvector`)
 - [x] Enable `pgvector` extension in PostgreSQL database
-- [x] Create Alembic migration script to add `embedding` vector column (768 dimensions for Gemini `text-embedding-004`) to `DocumentChunk` table
+- [x] Create Alembic migration script to add `embedding` vector column (768 dimensions for Gemini `gemini-embedding-2`) to `DocumentChunk` table
 - [x] Update `backend/models/tables.py` with `Vector` type definition for SQLModel / SQLAlchemy
 - [x] Expand `Document.status` enum/field to support granular orchestration states (e.g., `uploaded`, `extracting`, `chunking`, `embedding`, `analyzing`, `generating`, `validating`, `completed`, `failed`)
 
 ### Step 4.2: Embedding Service & Stateful Pipeline (`backend/services/ai_service.py`)
-- [x] Implement batch embedding generator function `generate_embeddings_batch(chunks: list[str])` using Gemini API (`text-embedding-004`)
+- [x] Implement batch embedding generator function `generate_embeddings_batch(chunks: list[str])` using Gemini API (`gemini-embedding-2`)
 - [x] Update Celery task `process_document_task` to be **stateful and resumable** (e.g., if embedding fails at chunk 81, retry starts at 81, not 0)
 - [x] Implement Celery-native AI Agent Orchestration pipeline that reads the current DB state, executes the next stage, and updates the state
 - [x] Tune Celery worker soft/hard time limits (`task_soft_time_limit=300`, `task_time_limit=600`) to guarantee stability on 100+ page uploads

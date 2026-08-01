@@ -388,7 +388,7 @@ class DocumentDeletionServiceTests(unittest.TestCase):
         quiz_result = MagicMock()
         quiz_result.first.return_value = None
         empty_results = []
-        for _ in range(7):
+        for _ in range(8):
             result = MagicMock()
             result.all.return_value = []
             empty_results.append(result)

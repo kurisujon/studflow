@@ -80,6 +80,13 @@ class DocumentQuestionAnswer(BaseModel):
     supporting_chunks: list[SupportingChunk]
 
 
+class ConversationAnswer(BaseModel):
+    answer_markdown: str = Field(min_length=1, max_length=20_000)
+    evidence_sufficient: bool
+    cited_source_indexes: list[int] = Field(default_factory=list)
+    suggested_followups: list[str] = Field(default_factory=list, max_length=4)
+
+
 class YouTubeSearchQuery(BaseModel):
     main_topic: str
     search_query: str
@@ -108,6 +115,20 @@ You must answer using only the provided document chunks.
 Do not invent facts not supported by the chunks.
 Keep the answer clear, direct, and helpful for a student.
 Return only JSON that matches the required schema.
+""".strip()
+
+
+CONVERSATION_QA_PROMPT = """
+You are StudFlow AI, a patient study assistant in an ongoing conversation.
+Answer the student's current question using only the supplied document sources.
+Conversation history provides context for the student's intent, but it is not evidence.
+Do not invent facts, titles, URLs, page numbers, source numbers, or citations.
+Use inline citation markers such as [1] only when that numbered source supports the claim.
+Set evidence_sufficient to false when the supplied evidence cannot answer the question,
+say so clearly, and return no citations. Otherwise set it to true and cite at least one
+supporting supplied source.
+Prefer a concise explanation first, followed by useful detail when needed.
+Return only JSON matching the required schema.
 """.strip()
 
 
@@ -492,6 +513,60 @@ def answer_document_question(
     ):
         raise AIServiceError("Gemini returned invalid supporting document references.")
     return answer
+
+
+def answer_conversation_question(
+    *,
+    sources: list[tuple[int, str]],
+    user_question: str,
+    conversation_history: list[tuple[str, str]],
+) -> ConversationAnswer:
+    if not sources:
+        raise AIServiceError("Cannot answer a conversation question without document sources.")
+    if not user_question.strip():
+        raise AIServiceError("A conversation question is required.")
+
+    history_text = "\n".join(
+        f"{role.upper()}: {content}" for role, content in conversation_history
+    ) or "No previous messages."
+    source_text = "\n\n".join(
+        f"SOURCE [{source_index}]\nType: document\nContent: {content}"
+        for source_index, content in sources
+    )
+    prompt = (
+        f"{CONVERSATION_QA_PROMPT}\n\n"
+        f"Recent conversation:\n{history_text}\n\n"
+        f"Current student question:\n{user_question.strip()}\n\n"
+        f"Verified source registry:\n{source_text}\n\n"
+        "cited_source_indexes must contain every source number used in answer_markdown. "
+        "Use only source numbers present in the registry. Suggest no more than four concise follow-ups."
+    )
+    response = _generate_structured(
+        prompt=prompt,
+        response_schema=ConversationAnswer,
+    )
+    answer = ConversationAnswer.model_validate_json(response.text)
+    available_indexes = {source_index for source_index, _ in sources}
+    if any(index not in available_indexes for index in answer.cited_source_indexes):
+        raise AIServiceError("Gemini returned an invalid conversation source reference.")
+    if any(index < 1 for index in answer.cited_source_indexes):
+        raise AIServiceError("Gemini returned an invalid conversation source reference.")
+    if answer.evidence_sufficient and not answer.cited_source_indexes:
+        raise AIServiceError("Gemini returned a grounded answer without a source reference.")
+    if not answer.evidence_sufficient and answer.cited_source_indexes:
+        raise AIServiceError("Gemini cited sources for an insufficient-evidence response.")
+
+    normalized_followups = [
+        followup.strip()[:160]
+        for followup in answer.suggested_followups
+        if followup.strip()
+    ][:4]
+    return answer.model_copy(
+        update={
+            "cited_source_indexes": list(dict.fromkeys(answer.cited_source_indexes)),
+            "suggested_followups": normalized_followups,
+        }
+    )
 
 
 def extract_youtube_search_query(document_text_or_summary: str) -> YouTubeSearchQuery:

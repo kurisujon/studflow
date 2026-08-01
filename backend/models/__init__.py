@@ -1,5 +1,8 @@
 from models.tables import (
+    AIConversation,
     AIHistory,
+    AIMessage,
+    AIMessageCitation,
     Document,
     DocumentChunk,
     DocumentStatus,
@@ -13,7 +16,10 @@ from models.tables import (
 )
 
 __all__ = [
+    "AIConversation",
     "AIHistory",
+    "AIMessage",
+    "AIMessageCitation",
     "Document",
     "DocumentChunk",
     "DocumentStatus",

@@ -112,11 +112,12 @@ Each tab has a distinct visual identity:
 - Timer shown in the top-right.
 
 ### AI Chat Tab
-- Left panel: Document Highlights (chunks from the document with page/paragraph references).
-- Right panel: Chat interface with user messages (right-aligned, light purple bubble) and AI responses (left-aligned with bot avatar).
-- AI responses include inline source references as chips (e.g., "Page 3 (¶2)").
-- Input bar at the bottom with a send button.
-- "Using your document" status indicator in the top-right.
+- Persistent message history replaces permanent Response, Example, and Related Terms report cards.
+- User messages are compact and right-aligned; assistant answers use the available reading width.
+- A compact context banner identifies the selected document or note without obscuring message history.
+- Structured source cards stay attached to the assistant message when verified evidence exists. Insufficient-evidence answers show no fabricated source card. Phase 1 supports verified document chunk references; page labels appear only after page-aware extraction is implemented.
+- The message list is the only internal scroll region and the composer remains sticky at the bottom.
+- "Using your document" remains the default retrieval state; web and hybrid controls appear only after verified web grounding ships.
 
 ---
 

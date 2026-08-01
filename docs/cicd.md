@@ -8,7 +8,8 @@ The deployment path is:
 2. A push to `main` builds production Docker images in GitHub Actions.
 3. GitHub Actions pushes those images to GitHub Container Registry.
 4. GitHub Actions uploads the release archive and production env file to the VM over SSH.
-5. The VM runs `scripts/deploy.sh`, syncs the repo snapshot, logs into GHCR, pulls the tagged images, and starts the stack.
+5. The VM runs `scripts/deploy.sh`, syncs the repo snapshot, logs into GHCR, pulls the tagged images, and starts PostgreSQL and Redis.
+6. The deployment runs `alembic upgrade head` with the new backend image before starting the backend, worker, frontend, and proxy services.
 
 The workflow is defined in [.github/workflows/pipeline.yml](/mnt/c/Users/CJK_LAPTOP/Personal_Projects/Javascript/studflow/.github/workflows/pipeline.yml).
 
@@ -134,8 +135,11 @@ bash /home/azureuser/studflow/scripts/deploy.sh
 After deployment, validate:
 
 - `docker compose --env-file .env.production ps`
+- `docker compose --env-file .env.production run --rm backend alembic current`
 - `https://studflow.webcris.dev`
 - `http://4.145.113.246` should redirect to `https://studflow.webcris.dev`
+
+For conversation-schema releases, also smoke test authenticated conversation create, send, history load, rename, and delete operations, then confirm the legacy document Ask AI endpoint still responds. Production rollback should restore the previous application image while retaining additive tables; do not automatically downgrade a migration after conversation data has been written.
 
 If the API health check fails but the frontend opens, inspect:
 
