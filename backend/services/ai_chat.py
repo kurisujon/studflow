@@ -288,7 +288,12 @@ def _bounded_history(messages: list[AIMessage]) -> list[tuple[str, str]]:
     for message in messages:
         if remaining_characters <= 0:
             break
-        content = message.content[:remaining_characters]
+        context_prefix = (
+            f"Selected context: {message.selected_text}\n"
+            if message.role == "user" and message.selected_text
+            else ""
+        )
+        content = f"{context_prefix}{message.content}"[:remaining_characters]
         selected.append((message.role, content))
         remaining_characters -= len(content)
     return list(reversed(selected))
@@ -312,6 +317,7 @@ def send_conversation_message(
     conversation_id: uuid.UUID,
     clerk_user_id: str,
     question: str,
+    selected_text: str | None = None,
 ) -> ChatAnswer:
     with _open_session() as session:
         conversation = get_owned_conversation(
@@ -339,7 +345,12 @@ def send_conversation_message(
         document_id = document.id
         document_title = document.filename
 
-    query_embedding = generate_query_embedding(question)
+    retrieval_query = (
+        f"{question}\n\nSelected context:\n{selected_text}"
+        if selected_text
+        else question
+    )
+    query_embedding = generate_query_embedding(retrieval_query)
 
     with _open_session() as session:
         conversation = get_owned_conversation(
@@ -378,6 +389,7 @@ def send_conversation_message(
         ],
         user_question=question,
         conversation_history=history,
+        selected_text=selected_text,
     )
     valid_indexes = set(source_registry)
     answer_markdown, marker_indexes = _sanitize_markers(
@@ -439,6 +451,7 @@ def send_conversation_message(
             sequence_number=next_sequence,
             role="user",
             content=question,
+            selected_text=selected_text,
             retrieval_mode="document",
             suggested_followups=[],
             created_at=now,

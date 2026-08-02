@@ -520,6 +520,7 @@ def answer_conversation_question(
     sources: list[tuple[int, str]],
     user_question: str,
     conversation_history: list[tuple[str, str]],
+    selected_text: str | None = None,
 ) -> ConversationAnswer:
     if not sources:
         raise AIServiceError("Cannot answer a conversation question without document sources.")
@@ -537,6 +538,8 @@ def answer_conversation_question(
         f"{CONVERSATION_QA_PROMPT}\n\n"
         f"Recent conversation:\n{history_text}\n\n"
         f"Current student question:\n{user_question.strip()}\n\n"
+        f"Student-selected context for this turn (use it to understand intent, but cite only the verified source registry):\n"
+        f"{selected_text or 'No selected context.'}\n\n"
         f"Verified source registry:\n{source_text}\n\n"
         "cited_source_indexes must contain every source number used in answer_markdown. "
         "Use only source numbers present in the registry. Suggest no more than four concise follow-ups."

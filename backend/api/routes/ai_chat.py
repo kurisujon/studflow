@@ -204,6 +204,7 @@ def send_ai_conversation_message(
             conversation_id=conversation_id,
             clerk_user_id=current_user.clerk_user_id,
             question=payload.question,
+            selected_text=payload.selected_text,
         )
     except ConversationNotFoundError as exc:
         raise _not_found() from exc

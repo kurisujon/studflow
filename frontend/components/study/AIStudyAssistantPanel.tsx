@@ -1,104 +1,88 @@
 "use client";
 
-import { useEffect, useEffectEvent, useRef, useState, type MouseEvent } from "react";
-import { useRouter } from "next/navigation";
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from "react";
+import { useAuth } from "@clerk/nextjs";
+import { ChevronDown, ChevronUp, MessageSquarePlus, RefreshCw, Send, Square } from "lucide-react";
 
+import { AIConversationMessage } from "@/components/study/AIConversationMessage";
 import { Button } from "@/components/ui/button";
 import {
-  createAIHistory,
-  deleteAIHistory,
-  getAIHistory,
-} from "@/lib/api/ai-history";
-import { askAIAboutDocument, askAIAboutSelection } from "@/lib/api/annotations";
+  AIChatAPIError,
+  createAIConversation,
+  getAIConversationMessages,
+  listAIConversations,
+  sendAIConversationMessage,
+} from "@/lib/api/ai-chat";
 import { createFlashcard } from "@/lib/api/flashcards";
-import type {
-  AIExplanation,
-  AIHistoryItem,
-  AIToolMode,
-  StudyAIContext,
-} from "@/types/annotations";
-import { useAuth } from "@clerk/nextjs";
+import type { AIToolMode, StudyAIContext } from "@/types/annotations";
+import type { AIChatMessage, AIConversation } from "@/types/ai-chat";
 
-const SOURCE_LABELS: Record<StudyAIContext["source"], string> = {
-  selection: "Selection",
-  highlight: "Highlight",
-  underline: "Underline",
-  note: "Note",
-  general: "General",
-};
+const QUICK_ACTIONS = [
+  { label: "Simplify", question: "Explain this in simpler terms." },
+  { label: "Define", question: "Define the main term clearly and explain how it is used." },
+  { label: "Give an example", question: "Give me a clear practical example of this concept." },
+] as const;
 
-const MODE_LABELS: Record<AIToolMode, string> = {
-  "ask-ai": "Ask AI",
-  simplify: "Simplify",
-  "define-term": "Define Term",
-};
-
-function defaultQuestionForMode(mode: AIToolMode) {
-  if (mode === "simplify") {
-    return "Explain this in simpler terms.";
-  }
-
-  if (mode === "define-term") {
-    return "Define this term clearly and explain how it is used in this study topic.";
-  }
-
-  return "Explain this clearly and simply for a student.";
-}
-
-function getHistorySourceText(context: StudyAIContext) {
-  const selectedText = context.selectedText.trim();
-  if (context.source === "general") {
-    return undefined;
-  }
+function contextText(context: StudyAIContext): string | undefined {
+  const selected = context.selectedText.trim();
+  const note = context.noteContent?.trim();
+  if (context.source === "general" || (!selected && !note)) return undefined;
   if (context.source === "note") {
-    return selectedText || "General note";
+    return [selected ? `Selected passage:\n${selected}` : "", note ? `Student note:\n${note}` : ""]
+      .filter(Boolean)
+      .join("\n\n")
+      .slice(0, 8000);
   }
-  return selectedText || undefined;
+  return selected.slice(0, 8000) || undefined;
 }
 
-function getRequestSelectedText(item: AIHistoryItem | null, context: StudyAIContext) {
-  if (!item) {
-    return context.selectedText;
-  }
-
-  if (item.source === "note" && item.sourceText === "General note") {
-    return "";
-  }
-
-  return item.sourceText ?? "";
+function contextLabel(context: StudyAIContext) {
+  if (context.source === "note") return "Note context";
+  if (context.source === "highlight") return "Highlighted passage";
+  if (context.source === "underline") return "Underlined passage";
+  return "Selected passage";
 }
 
-function toSavedSessionResponse(item: AIHistoryItem): AIExplanation {
-  return {
-    historyId: item.id,
-    selectedText: item.sourceText ?? "",
-    simplifiedExplanation: item.answer,
-    beginnerExplanation: item.answer,
-    example: "",
-    relatedTerms: [],
-    suggestedFlashcard: {
-      front: item.question ?? MODE_LABELS[item.mode],
-      back: item.answer,
-    },
-  };
+function mergeMessages(current: AIChatMessage[], incoming: AIChatMessage[]) {
+  const byId = new Map<string, AIChatMessage>();
+  for (const message of [...current, ...incoming]) byId.set(message.id, message);
+  return [...byId.values()].sort((left, right) => left.sequence_number - right.sequence_number);
 }
 
-function truncate(value: string, maxLength: number) {
-  if (value.length <= maxLength) {
-    return value;
-  }
-
-  return `${value.slice(0, maxLength).trimEnd()}...`;
+function initialQuestion(mode: AIToolMode, value?: string) {
+  if (value?.trim()) return value;
+  if (mode === "simplify") return QUICK_ACTIONS[0].question;
+  if (mode === "define-term") return QUICK_ACTIONS[1].question;
+  return "";
 }
 
-function formatQuestionLabel(item: AIHistoryItem) {
-  return item.question?.trim() || MODE_LABELS[item.mode];
+function conversationLabel(item: AIConversation, items: AIConversation[], index: number) {
+  const base = item.title || `Study conversation ${items.length - index}`;
+  const duplicates = items.filter((candidate) => candidate.title === item.title);
+  const duplicateCount = duplicates.length;
+  if (duplicateCount < 2) return base;
+  const created = new Date(item.created_at);
+  if (Number.isNaN(created.getTime())) return `${base} · ${items.length - index}`;
+  const timestamp = new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(created);
+  return `${base} · ${timestamp} · ${duplicates.findIndex((candidate) => candidate.id === item.id) + 1}/${duplicateCount}`;
 }
 
 export function AIStudyAssistantPanel({
   documentId,
   context,
-  initialQuestion,
+  initialQuestion: suppliedQuestion,
   mode,
 }: {
   documentId: string;
@@ -106,831 +90,434 @@ export function AIStudyAssistantPanel({
   initialQuestion?: string;
   mode: AIToolMode;
 }) {
-  const [question, setQuestion] = useState(initialQuestion ?? "");
+  const { getToken, isLoaded, isSignedIn } = useAuth();
+  const [conversations, setConversations] = useState<AIConversation[]>([]);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<AIChatMessage[]>([]);
+  const [nextBefore, setNextBefore] = useState<number | null>(null);
+  const [draft, setDraft] = useState(() => initialQuestion(mode, suppliedQuestion));
+  const [pendingContext, setPendingContext] = useState<StudyAIContext>(context);
+  const [contextExpanded, setContextExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [historyLoading, setHistoryLoading] = useState(true);
-  const [historySearch, setHistorySearch] = useState("");
-  const [historyActionError, setHistoryActionError] = useState<string | null>(null);
-  const [deletingHistoryId, setDeletingHistoryId] = useState<string | null>(null);
+  const [loadingEarlier, setLoadingEarlier] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [flashcardSaveError, setFlashcardSaveError] = useState<string | null>(null);
-  const [flashcardSaved, setFlashcardSaved] = useState(false);
-  const [savingFlashcard, setSavingFlashcard] = useState(false);
-  const [response, setResponse] = useState<AIExplanation | null>(null);
-  const [history, setHistory] = useState<AIHistoryItem[]>([]);
-  const [loadedHistoryItem, setLoadedHistoryItem] = useState<AIHistoryItem | null>(null);
-  const [activeMode, setActiveMode] = useState<AIToolMode>(mode);
-  const questionRef = useRef<HTMLTextAreaElement | null>(null);
-  const activeRequestRef = useRef<AbortController | null>(null);
-  const { getToken } = useAuth();
-  const router = useRouter();
+  const [notice, setNotice] = useState<string | null>(null);
+  const [retryQuestion, setRetryQuestion] = useState<string | null>(null);
+  const [reconciliationRequired, setReconciliationRequired] = useState(false);
+  const [showJump, setShowJump] = useState(false);
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const [savingFlashcardId, setSavingFlashcardId] = useState<string | null>(null);
+  const [savedFlashcardIds, setSavedFlashcardIds] = useState<Set<string>>(new Set());
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const composerRef = useRef<HTMLTextAreaElement | null>(null);
+  const loadAbortRef = useRef<AbortController | null>(null);
+  const sendAbortRef = useRef<AbortController | null>(null);
+  const nearBottomRef = useRef(true);
+  const requestIdRef = useRef(0);
+  const incomingContextKey = JSON.stringify([
+    context.source,
+    context.selectedText,
+    context.noteContent,
+    mode,
+    suppliedQuestion,
+  ]);
+  const [previousContextKey, setPreviousContextKey] = useState(incomingContextKey);
 
-  const resetPanelForContext = useEffectEvent(() => {
-    setQuestion(initialQuestion ?? "");
-    setLoadedHistoryItem(null);
-    setResponse(null);
-    setError(null);
-    setHistoryActionError(null);
-    setFlashcardSaveError(null);
-    setFlashcardSaved(false);
-    setActiveMode(mode);
-    activeRequestRef.current?.abort();
-    activeRequestRef.current = null;
-  });
-
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      resetPanelForContext();
-    }, 0);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [context.noteContent, context.selectedText, context.source, initialQuestion, mode]);
-
-  useEffect(() => {
-    if (context.source === "note") {
-      questionRef.current?.focus();
-    }
-  }, [context]);
-
-  useEffect(() => {
-    let mounted = true;
-
-    async function loadHistory() {
-      setHistoryLoading(true);
-      try {
-        const token = await getToken({ skipCache: true });
-        const items = await getAIHistory(documentId, token);
-        if (mounted) {
-          setHistory(items);
-        }
-      } catch (historyError) {
-        console.error(historyError);
-      } finally {
-        if (mounted) {
-          setHistoryLoading(false);
-        }
-      }
-    }
-
-    void loadHistory();
-
-    return () => {
-      mounted = false;
-    };
-  }, [documentId, getToken]);
-
-  const displayedContext = loadedHistoryItem
-    ? {
-        source: loadedHistoryItem.source,
-        selectedText:
-          loadedHistoryItem.source === "note" &&
-          loadedHistoryItem.sourceText === "General note"
-            ? ""
-            : loadedHistoryItem.sourceText ?? "",
-        noteContent: loadedHistoryItem.noteContent ?? undefined,
-      }
-    : context;
-  const hasContext = Boolean(
-    displayedContext.source === "general" ||
-      displayedContext.selectedText.trim() ||
-      displayedContext.noteContent?.trim(),
-  );
-  const placeholder =
-    displayedContext.source === "general"
-      ? "Ask something about the whole document..."
-      : displayedContext.source === "note"
-      ? "Ask something about this note..."
-      : "Ask something about this text...";
-  const searchValue = historySearch.trim().toLowerCase();
-  const safeHistory = Array.isArray(history) ? history : [];
-  const filteredHistory = safeHistory.filter((item) => {
-    if (!searchValue) {
-      return true;
-    }
-
-    const haystack = [
-      item.sourceText ?? "",
-      item.noteContent ?? "",
-      item.question ?? "",
-      item.answer,
-      item.mode,
-      SOURCE_LABELS[item.source],
-    ]
-      .join(" ")
-      .toLowerCase();
-
-    return haystack.includes(searchValue);
-  });
-
-  function resetToNewQuestion() {
-    setLoadedHistoryItem(null);
-    setResponse(null);
-    setError(null);
-    setHistoryActionError(null);
-    setFlashcardSaveError(null);
-    setFlashcardSaved(false);
-    setActiveMode(mode);
-    setQuestion(initialQuestion ?? "");
-    questionRef.current?.focus();
+  if (previousContextKey !== incomingContextKey) {
+    setPreviousContextKey(incomingContextKey);
+    setPendingContext(context);
+    setContextExpanded(false);
+    const seeded = initialQuestion(mode, suppliedQuestion);
+    if (seeded) setDraft(seeded);
   }
 
-  async function submit(
-    customQuestion: string,
-    requestedMode: AIToolMode = activeMode,
-  ) {
-    if (!hasContext) return;
+  const scrollToLatest = useCallback((behavior: ScrollBehavior = "smooth") => {
+    const node = listRef.current;
+    if (!node) return;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    node.scrollTo({ top: node.scrollHeight, behavior: reduced ? "auto" : behavior });
+    nearBottomRef.current = true;
+    setShowJump(false);
+  }, []);
 
-    const resolvedQuestion =
-      customQuestion.trim() || defaultQuestionForMode(requestedMode);
-    const requestContext = loadedHistoryItem
-      ? {
-          source: loadedHistoryItem.source,
-          selectedText: getRequestSelectedText(loadedHistoryItem, displayedContext),
-          noteContent: loadedHistoryItem.noteContent ?? undefined,
-        }
-      : displayedContext;
+  const loadConversation = useCallback(async (
+    id: string,
+    token: string,
+    options?: { preserveScroll?: boolean; beforeSequence?: number; forceLatest?: boolean },
+  ) => {
+    loadAbortRef.current?.abort();
+    const controller = new AbortController();
+    loadAbortRef.current = controller;
+    const node = listRef.current;
+    const oldHeight = node?.scrollHeight ?? 0;
+    const shouldScrollToLatest = options?.forceLatest || nearBottomRef.current;
+    const page = await getAIConversationMessages(id, token, {
+      beforeSequence: options?.beforeSequence,
+      signal: controller.signal,
+    });
+    if (options?.beforeSequence) {
+      setMessages((current) => mergeMessages(page.messages, current));
+    } else {
+      setMessages(page.messages);
+    }
+    setNextBefore(page.next_before_sequence);
+    requestAnimationFrame(() => {
+      const currentNode = listRef.current;
+      if (!currentNode) return;
+      if (options?.preserveScroll) currentNode.scrollTop += currentNode.scrollHeight - oldHeight;
+      else if (shouldScrollToLatest) scrollToLatest("auto");
+      else setShowJump(true);
+    });
+    return page.messages;
+  }, [scrollToLatest]);
 
-    setActiveMode(requestedMode);
+  const initialize = useEffectEvent(async (requestId: number, controller: AbortController) => {
     setLoading(true);
     setError(null);
-    setHistoryActionError(null);
-    activeRequestRef.current?.abort();
-    const controller = new AbortController();
-    activeRequestRef.current = controller;
-
     try {
       const token = await getToken({ skipCache: true });
-      const payload =
-        requestContext.source === "general"
-          ? await askAIAboutDocument(
-              documentId,
-              resolvedQuestion,
-              token,
-              {
-                mode: requestedMode,
-                signal: controller.signal,
-              },
-            )
-          : await askAIAboutSelection(
-              documentId,
-              requestContext.selectedText,
-              resolvedQuestion,
-              token,
-              {
-                noteContent: requestContext.noteContent,
-                source: requestContext.source,
-                mode: requestedMode,
-                signal: controller.signal,
-              },
-            );
-
-      setQuestion(resolvedQuestion);
-      setLoadedHistoryItem(null);
-      setResponse(payload);
-      setFlashcardSaveError(null);
-      setFlashcardSaved(false);
-
-      const shouldPersistQuestion =
-        resolvedQuestion.trim() !== defaultQuestionForMode(requestedMode).trim();
-
-      try {
-        const savedHistory = await createAIHistory(
-          documentId,
-          {
-            source: requestContext.source,
-            sourceText: getHistorySourceText(requestContext),
-            noteContent: requestContext.noteContent,
-            question: shouldPersistQuestion ? resolvedQuestion : undefined,
-            mode: requestedMode,
-            answer: payload.simplifiedExplanation,
-          },
-          token,
-        );
-
-        setHistory((current) => [
-          savedHistory,
-          ...current.filter((item) => item.id !== savedHistory.id),
-        ]);
-      } catch (historySaveError) {
-        console.warn("AI history could not be saved.", historySaveError);
+      if (!token) throw new Error("Your session is unavailable. Please sign in again.");
+      let items = await listAIConversations(documentId, token, controller.signal);
+      if (requestIdRef.current !== requestId) return;
+      if (items.length === 0) {
+        const created = await createAIConversation(documentId, token, controller.signal);
+        items = [created];
       }
-    } catch (submitError) {
-      if (submitError instanceof Error && submitError.name === "AbortError") {
-        setError(null);
-        return;
-      }
-      setError(
-        submitError instanceof Error
-          ? submitError.message
-          : "AI explanation failed.",
-      );
+      if (requestIdRef.current !== requestId) return;
+      setConversations(items);
+      setConversationId(items[0].id);
+      await loadConversation(items[0].id, token, { forceLatest: true });
+    } catch (loadError) {
+      if (loadError instanceof Error && loadError.name === "AbortError") return;
+      setError(loadError instanceof Error ? loadError.message : "Conversation could not be loaded.");
     } finally {
-      activeRequestRef.current = null;
+      if (requestIdRef.current === requestId) setLoading(false);
+    }
+  });
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    if (!isSignedIn) {
+      return;
+    }
+    const controller = new AbortController();
+    const requestId = ++requestIdRef.current;
+    void initialize(requestId, controller);
+    return () => {
+      controller.abort();
+      loadAbortRef.current?.abort();
+      sendAbortRef.current?.abort();
+    };
+  }, [documentId, isLoaded, isSignedIn]);
+
+  useEffect(() => {
+    if (contextText(context)) requestAnimationFrame(() => composerRef.current?.focus());
+  }, [context, incomingContextKey]);
+
+  async function reloadCurrent() {
+    if (!conversationId) return;
+    setError(null);
+    try {
+      const token = await getToken({ skipCache: true });
+      if (!token) throw new Error("Your session is unavailable.");
+      await loadConversation(conversationId, token);
+      setReconciliationRequired(false);
+      setNotice(null);
+    } catch (reloadError) {
+      if (reloadError instanceof Error && reloadError.name === "AbortError") return;
+      setError(reloadError instanceof Error ? reloadError.message : "Conversation could not be reloaded.");
+    }
+  }
+
+  async function chooseConversation(id: string) {
+    setConversationId(id);
+    setLoading(true);
+    setError(null);
+    try {
+      const token = await getToken({ skipCache: true });
+      if (!token) throw new Error("Your session is unavailable.");
+      await loadConversation(id, token, { forceLatest: true });
+      setReconciliationRequired(false);
+      setNotice(null);
+    } catch (loadError) {
+      if (!(loadError instanceof Error && loadError.name === "AbortError")) {
+        setError(loadError instanceof Error ? loadError.message : "Conversation could not be loaded.");
+      }
+    } finally {
       setLoading(false);
     }
   }
 
-  function handleCancelRun() {
-    activeRequestRef.current?.abort();
-    activeRequestRef.current = null;
-    setLoading(false);
+  async function createNewChat() {
+    if (creating) return;
+    setCreating(true);
     setError(null);
-  }
-
-  function loadHistoryItem(item: AIHistoryItem) {
-    setQuestion(item.question ?? "");
-    setLoadedHistoryItem(item);
-    setActiveMode(item.mode);
-    setError(null);
-    setHistoryActionError(null);
-    setFlashcardSaveError(null);
-    setFlashcardSaved(false);
-    setResponse(toSavedSessionResponse(item));
-  }
-
-  async function handleSaveSuggestedFlashcard() {
-    if (!response?.suggestedFlashcard || savingFlashcard) {
-      return;
+    try {
+      const token = await getToken({ skipCache: true });
+      if (!token) throw new Error("Your session is unavailable.");
+      const created = await createAIConversation(documentId, token);
+      setConversations((current) => [created, ...current]);
+      setConversationId(created.id);
+      setMessages([]);
+      setNextBefore(null);
+      setReconciliationRequired(false);
+      setNotice(null);
+      setDraft(initialQuestion(mode, suppliedQuestion));
+      requestAnimationFrame(() => composerRef.current?.focus());
+    } catch (createError) {
+      setError(createError instanceof Error ? createError.message : "A new conversation could not be created.");
+    } finally {
+      setCreating(false);
     }
+  }
 
-    setSavingFlashcard(true);
-    setFlashcardSaveError(null);
+  async function submit(question: string) {
+    const normalized = question.trim();
+    if (!normalized || !conversationId || sending || reconciliationRequired) return;
+    const selected = contextText(pendingContext);
+    const optimisticId = `pending-${Date.now()}`;
+    const optimistic: AIChatMessage = {
+      id: optimisticId,
+      conversation_id: conversationId,
+      sequence_number: (messages.at(-1)?.sequence_number ?? 0) + 1,
+      role: "user",
+      content: normalized,
+      selected_text: selected ?? null,
+      retrieval_mode: "document",
+      suggested_followups: [],
+      citations: [],
+      created_at: new Date().toISOString(),
+    };
+    setMessages((current) => [...current, optimistic]);
+    setDraft("");
+    setSending(true);
+    setError(null);
+    setNotice(null);
+    setRetryQuestion(null);
+    requestAnimationFrame(() => scrollToLatest());
+    const controller = new AbortController();
+    sendAbortRef.current = controller;
 
     try {
       const token = await getToken({ skipCache: true });
-      await createFlashcard(
-        documentId,
-        {
-          front: response.suggestedFlashcard.front,
-          back: response.suggestedFlashcard.back,
-        },
+      if (!token) throw new Error("Your session is unavailable.");
+      await sendAIConversationMessage(
+        conversationId,
+        { question: normalized, ...(selected ? { selected_text: selected } : {}) },
         token,
+        controller.signal,
       );
-      setFlashcardSaved(true);
-      router.refresh();
-    } catch (saveError) {
-      console.error(saveError);
-      setFlashcardSaveError(
-        saveError instanceof Error ? saveError.message : "Flashcard could not be saved.",
-      );
+      await loadConversation(conversationId, token, { forceLatest: true });
+      setReconciliationRequired(false);
+      setPendingContext({ source: "general", selectedText: "" });
+      setConversations((current) => current.map((item) => item.id === conversationId ? { ...item, updated_at: new Date().toISOString() } : item));
+      requestAnimationFrame(() => composerRef.current?.focus());
+    } catch (sendError) {
+      setMessages((current) => current.filter((item) => item.id !== optimisticId));
+      setDraft(normalized);
+      setRetryQuestion(normalized);
+      if (sendError instanceof Error && sendError.name === "AbortError") {
+        setReconciliationRequired(true);
+        setNotice("Stopped waiting. This response may still finish on the server. Reload before sending again.");
+      } else if (sendError instanceof AIChatAPIError && sendError.status === 409) {
+        setReconciliationRequired(true);
+        setNotice("The conversation changed while the answer was generated. Canonical history has been reloaded; retry when ready.");
+        try {
+          const token = await getToken({ skipCache: true });
+          if (token) {
+            await loadConversation(conversationId, token);
+            setReconciliationRequired(false);
+          }
+        } catch {
+          setError("The conversation changed and could not be reloaded.");
+        }
+      } else {
+        setError(sendError instanceof Error ? sendError.message : "StudFlow AI could not answer right now.");
+      }
     } finally {
-      setSavingFlashcard(false);
+      sendAbortRef.current = null;
+      setSending(false);
     }
   }
 
-  async function handleDeleteHistory(
-    event: MouseEvent<HTMLButtonElement>,
-    historyId: string,
-  ) {
-    event.stopPropagation();
-    setDeletingHistoryId(historyId);
-    setHistoryActionError(null);
-
+  async function loadEarlier() {
+    if (!conversationId || !nextBefore || loadingEarlier) return;
+    setLoadingEarlier(true);
+    setError(null);
     try {
       const token = await getToken({ skipCache: true });
-      await deleteAIHistory(historyId, token);
-      setHistory((current) => current.filter((item) => item.id !== historyId));
-      if (loadedHistoryItem?.id === historyId) {
-        resetToNewQuestion();
+      if (!token) throw new Error("Your session is unavailable.");
+      await loadConversation(conversationId, token, { beforeSequence: nextBefore, preserveScroll: true });
+    } catch (olderError) {
+      if (!(olderError instanceof Error && olderError.name === "AbortError")) {
+        setError(olderError instanceof Error ? olderError.message : "Earlier messages could not be loaded.");
       }
-    } catch (deleteError) {
-      console.error(deleteError);
-      setHistoryActionError("History item could not be deleted.");
     } finally {
-      setDeletingHistoryId(null);
+      setLoadingEarlier(false);
     }
   }
+
+  function stopWaiting() {
+    sendAbortRef.current?.abort();
+  }
+
+  function handleComposerKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+      event.preventDefault();
+      void submit(draft);
+    }
+  }
+
+  async function copyMessage(message: AIChatMessage) {
+    await navigator.clipboard.writeText(message.content);
+    setCopiedMessageId(message.id);
+    window.setTimeout(() => setCopiedMessageId(null), 1500);
+  }
+
+  async function saveFlashcard(message: AIChatMessage, question: string, answer: string) {
+    setSavingFlashcardId(message.id);
+    setError(null);
+    try {
+      const token = await getToken({ skipCache: true });
+      if (!token) throw new Error("Your session is unavailable.");
+      await createFlashcard(documentId, { front: question, back: answer }, token);
+      setSavedFlashcardIds((current) => new Set(current).add(message.id));
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "Flashcard could not be saved.");
+    } finally {
+      setSavingFlashcardId(null);
+    }
+  }
+
+  const selectedContext = contextText(pendingContext);
+  const panelLoading = !isLoaded || (Boolean(isSignedIn) && loading);
+  const visibleError = isLoaded && !isSignedIn ? "Sign in to use StudFlow AI." : error;
 
   return (
-    <div style={{ display: "grid", gap: "1rem" }}>
-      <div
-        className="study-support-surface"
-        style={{
-          padding: "1rem",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: "0.75rem",
-            marginBottom: "0.45rem",
-            flexWrap: "wrap",
-          }}
-        >
-          <p className="study-meta-label">
-            {loadedHistoryItem
-              ? "Viewing saved AI session"
-              : displayedContext.source === "note"
-                ? "Context from note"
-                : "Context"}
-          </p>
-          {loadedHistoryItem ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={resetToNewQuestion}
-              style={{ minHeight: "34px", paddingInline: "12px", borderRadius: "999px" }}
-            >
-              New question
-            </Button>
-          ) : null}
-        </div>
-        <p
-          style={{
-            fontSize: "0.78rem",
-            color: "var(--theme-primary)",
-            marginBottom: "0.65rem",
-            fontWeight: 600,
-          }}
-        >
-          {SOURCE_LABELS[displayedContext.source]}
-        </p>
-        {displayedContext.source === "note" ? (
-          <div style={{ display: "grid", gap: "0.55rem" }}>
-            <p className="study-body-copy" style={{ color: "var(--muted-foreground)" }}>
-              <strong>Selected text:</strong>{" "}
-              {displayedContext.selectedText
-                ? `“${displayedContext.selectedText}”`
-                : "General note"}
-            </p>
-            <p className="study-body-copy" style={{ color: "var(--muted-foreground)" }}>
-              <strong>Your note:</strong> {displayedContext.noteContent}
-            </p>
-          </div>
-        ) : displayedContext.source === "general" ? (
-          <p className="study-body-copy" style={{ color: "var(--muted-foreground)" }}>
-            Ask about the full uploaded document. Studflow will answer using the extracted document chunks.
-          </p>
-        ) : (
-          <p className="study-body-copy" style={{ color: "var(--muted-foreground)" }}>
-            {displayedContext.selectedText
-              ? `“${displayedContext.selectedText}”`
-              : "Select text in the reader to ask the AI tool."}
-          </p>
-        )}
-      </div>
-
-      <div style={{ display: "flex", gap: "0.65rem", flexWrap: "wrap" }}>
-        <Button
-          variant={activeMode === "ask-ai" ? "default" : "outline"}
-          onClick={() =>
-            submit(question || defaultQuestionForMode("ask-ai"), "ask-ai")
-          }
-          disabled={!hasContext || loading}
-          className="study-utility-pill"
-          style={activeMode === "ask-ai" ? { color: "#ffffff" } : undefined}
-        >
-          Ask AI
-        </Button>
-        <Button
-          variant={activeMode === "simplify" ? "default" : "outline"}
-          onClick={() => submit(defaultQuestionForMode("simplify"), "simplify")}
-          disabled={!hasContext || loading}
-          className="study-utility-pill"
-          style={activeMode === "simplify" ? { color: "#ffffff" } : undefined}
-        >
-          Simplify
-        </Button>
-        <Button
-          variant={activeMode === "define-term" ? "default" : "outline"}
-          onClick={() =>
-            submit(defaultQuestionForMode("define-term"), "define-term")
-          }
-          disabled={!hasContext || loading}
-          className="study-utility-pill"
-          style={activeMode === "define-term" ? { color: "#ffffff" } : undefined}
-        >
-          Define Term
-        </Button>
-      </div>
-
-      <label style={{ display: "grid", gap: "0.45rem" }}>
-        <span className="study-meta-label">
-          Ask your question
-        </span>
-        <textarea
-          ref={questionRef}
-          value={question}
-          onChange={(event) => setQuestion(event.target.value)}
-          rows={4}
-          placeholder={initialQuestion || placeholder}
-          style={{
-            width: "100%",
-            borderRadius: "16px",
-            border: "1px solid var(--theme-border)",
-            padding: "0.95rem",
-            resize: "vertical",
-            backgroundColor: "var(--card)",
-          }}
-        />
-      </label>
-
-      <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-        <Button
-          onClick={() => submit(question)}
-          disabled={!hasContext || loading}
-          className="study-utility-pill"
-          style={{ color: "#ffffff", flex: 1 }}
-        >
-          {loading ? "Running AI..." : "Run AI"}
-        </Button>
-        {loading ? (
-          <Button
-            variant="outline"
-            onClick={handleCancelRun}
-            className="study-utility-pill"
+    <div className="ai-chat-shell">
+      <header className="ai-chat-header">
+        <div className="ai-chat-thread-picker">
+          <label htmlFor={`ai-conversation-${documentId}`} className="study-meta-label">Conversation</label>
+          <select
+            id={`ai-conversation-${documentId}`}
+            value={conversationId ?? ""}
+            disabled={panelLoading || sending || conversations.length === 0}
+            onChange={(event) => void chooseConversation(event.target.value)}
           >
-            Cancel
+            {conversations.map((item, index) => (
+              <option key={item.id} value={item.id}>{conversationLabel(item, conversations, index)}</option>
+            ))}
+          </select>
+        </div>
+        <Button type="button" variant="outline" size="sm" onClick={() => void createNewChat()} disabled={creating || sending}>
+          <MessageSquarePlus size={15} /> {creating ? "Creating…" : "New chat"}
+        </Button>
+      </header>
+
+      {selectedContext ? (
+        <section className="ai-chat-context-banner" aria-label="Pending study context">
+          <div>
+            <p className="study-meta-label">{contextLabel(pendingContext)}</p>
+            <p className={contextExpanded ? "" : "ai-chat-context-preview"}>{selectedContext}</p>
+          </div>
+          <div className="ai-chat-context-actions">
+            <Button type="button" variant="ghost" size="sm" onClick={() => setContextExpanded((value) => !value)}>
+              {contextExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              {contextExpanded ? "Collapse" : "Expand"}
+            </Button>
+            <Button type="button" variant="ghost" size="sm" onClick={() => setPendingContext({ source: "general", selectedText: "" })}>Clear</Button>
+          </div>
+        </section>
+      ) : (
+        <div className="ai-chat-document-banner"><span>Using your document</span><span>Verified chunk citations</span></div>
+      )}
+
+      <div
+        ref={listRef}
+        className="ai-chat-message-list"
+        onScroll={(event) => {
+          const node = event.currentTarget;
+          const nearBottom = node.scrollHeight - node.scrollTop - node.clientHeight < 96;
+          nearBottomRef.current = nearBottom;
+          if (nearBottom) setShowJump(false);
+        }}
+        aria-live="polite"
+        aria-busy={panelLoading || sending}
+      >
+        {nextBefore ? (
+          <Button type="button" variant="ghost" size="sm" onClick={() => void loadEarlier()} disabled={loadingEarlier} className="ai-chat-load-earlier">
+            {loadingEarlier ? "Loading…" : "Load earlier messages"}
           </Button>
         ) : null}
-      </div>
-
-      {error ? (
-        <p style={{ color: "#b42318", fontSize: "0.92rem" }}>{error}</p>
-      ) : null}
-      {flashcardSaveError ? (
-        <p style={{ color: "#b42318", fontSize: "0.92rem" }}>{flashcardSaveError}</p>
-      ) : null}
-
-      {response ? (
-        <div style={{ display: "grid", gap: "1rem" }}>
-          <div
-            className="study-support-surface"
-            style={{
-              padding: "1rem",
-            }}
-          >
-            <p className="study-meta-label" style={{ marginBottom: "0.45rem" }}>
-              {activeMode === "define-term"
-                ? "Definition and Usage"
-                : activeMode === "simplify"
-                  ? "Simplified Explanation"
-                  : "Response"}
-            </p>
-            <p className="study-body-copy" style={{ color: "var(--foreground)" }}>
-              {response.simplifiedExplanation}
-            </p>
+        {panelLoading ? <div className="ai-chat-empty" role="status">Loading your conversation…</div> : null}
+        {!panelLoading && messages.length === 0 ? (
+          <div className="ai-chat-empty">
+            <span className="ai-chat-empty-icon" aria-hidden="true">✦</span>
+            <h4>Ask your document anything</h4>
+            <p>Start a focused conversation. Answers stay grounded in the document and are saved here.</p>
           </div>
-
-          {activeMode === "ask-ai" && response.example ? (
-            <div
-              className="study-support-surface"
-              style={{
-                padding: "1rem",
-              }}
-            >
-              <p className="study-meta-label" style={{ marginBottom: "0.45rem" }}>
-                Example
-              </p>
-              <p className="study-body-copy" style={{ color: "var(--foreground)" }}>
-                {response.example}
-              </p>
-            </div>
-          ) : null}
-
-          {activeMode === "ask-ai" && response.relatedTerms.length > 0 ? (
-            <div
-              className="study-support-surface"
-              style={{
-                padding: "1rem",
-                background:
-                  "linear-gradient(180deg, color-mix(in srgb, var(--theme-soft) 88%, white), var(--card))",
-              }}
-            >
-              <p className="study-meta-label" style={{ marginBottom: "0.45rem" }}>
-                Related Terms
-              </p>
-              <ul
-                style={{ display: "grid", gap: "0.55rem", paddingLeft: "1rem" }}
-              >
-                {response.relatedTerms.map((term, index) => (
-                  <li
-                    key={`related-${index}`}
-                    className="study-body-copy"
-                  >
-                    {term}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-
-          {activeMode === "ask-ai" && response.keyPoints && response.keyPoints.length > 0 ? (
-            <div
-              className="study-support-surface"
-              style={{
-                padding: "1rem",
-              }}
-            >
-              <p className="study-meta-label" style={{ marginBottom: "0.45rem" }}>
-                Key Points
-              </p>
-              <ul style={{ display: "grid", gap: "0.55rem", paddingLeft: "1rem" }}>
-                {response.keyPoints.map((point, index) => (
-                  <li key={`key-point-${index}`} className="study-body-copy">
-                    {point}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-
-          {activeMode === "ask-ai" && response.sourceChunks && response.sourceChunks.length > 0 ? (
-            <div
-              className="study-support-surface"
-              style={{
-                padding: "1rem",
-              }}
-            >
-              <p className="study-meta-label" style={{ marginBottom: "0.45rem" }}>
-                Grounded In These Chunks
-              </p>
-              <div style={{ display: "grid", gap: "0.75rem" }}>
-                {response.sourceChunks.map((chunk) => (
-                  <div
-                    key={`chunk-${chunk.chunkIndex}-${chunk.excerpt}`}
-                    className="study-empty-state"
-                  >
-                    <p className="study-meta-label" style={{ marginBottom: "0.35rem" }}>
-                      Chunk {chunk.chunkIndex + 1}
-                    </p>
-                    <p className="study-body-copy" style={{ color: "var(--foreground)", marginBottom: "0.4rem" }}>
-                      {chunk.excerpt}
-                    </p>
-                    <p className="study-body-copy" style={{ fontSize: "0.88rem" }}>
-                      {chunk.relevanceReason}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          <div
-            className="study-support-surface"
-            style={{
-              padding: "1rem",
-            }}
-          >
-            <p className="study-meta-label" style={{ marginBottom: "0.45rem" }}>
-              Suggested Flashcard
-            </p>
-            <div style={{ display: "grid", gap: "0.7rem" }}>
-              <div>
-                <p style={{ color: "var(--theme-primary)", fontSize: "0.82rem", fontWeight: 600, marginBottom: "0.25rem" }}>
-                  Front
-                </p>
-                <p className="study-body-copy" style={{ color: "var(--foreground)" }}>
-                  {response.suggestedFlashcard.front}
-                </p>
-              </div>
-              <div>
-                <p style={{ color: "var(--theme-primary)", fontSize: "0.82rem", fontWeight: 600, marginBottom: "0.25rem" }}>
-                  Back
-                </p>
-                <p className="study-body-copy" style={{ color: "var(--foreground)" }}>
-                  {response.suggestedFlashcard.back}
-                </p>
-              </div>
-              <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "center" }}>
-                <Button
-                  onClick={() => void handleSaveSuggestedFlashcard()}
-                  disabled={savingFlashcard || flashcardSaved}
-                  className="study-utility-pill"
-                  style={{ color: "#ffffff" }}
-                >
-                  {savingFlashcard
-                    ? "Saving..."
-                    : flashcardSaved
-                      ? "Saved to Flashcards"
-                      : "Save as Flashcard"}
-                </Button>
-                {flashcardSaved ? (
-                  <p className="study-body-copy" style={{ fontSize: "0.88rem" }}>
-                    Open the Flashcards tab to review it.
-                  </p>
-                ) : null}
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      <div
-        style={{
-          display: "grid",
-          gap: "0.7rem",
-          paddingTop: "0.8rem",
-          borderTop: "1px solid var(--theme-border)",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: "0.75rem",
-            flexWrap: "wrap",
-          }}
-        >
-          <p className="study-meta-label">
-            Recent AI History {safeHistory.length > 0 ? `(${safeHistory.length})` : ""}
-          </p>
-          <input
-            value={historySearch}
-            onChange={(event) => setHistorySearch(event.target.value)}
-            placeholder="Search AI history..."
-            style={{
-              width: "100%",
-              maxWidth: "190px",
-              minHeight: "38px",
-              borderRadius: "12px",
-              border: "1px solid var(--theme-border)",
-              paddingInline: "12px",
-              backgroundColor: "var(--card)",
-              color: "var(--foreground)",
-            }}
-          />
-        </div>
-
-        {historyActionError ? (
-          <p style={{ color: "#b42318", fontSize: "0.86rem" }}>
-            {historyActionError}
-          </p>
         ) : null}
-
-        {historyLoading ? (
-          <p style={{ color: "var(--muted-foreground)", fontSize: "0.9rem" }}>
-            Loading history...
-          </p>
-        ) : safeHistory.length === 0 ? (
-          <div
-            className="study-empty-state"
-          >
-            <p style={{ color: "var(--muted-foreground)", fontSize: "0.9rem" }}>
-              No AI history yet.
-            </p>
-            <p
-              style={{
-                color: "var(--muted-foreground)",
-                fontSize: "0.85rem",
-                lineHeight: 1.6,
-                marginTop: "0.35rem",
-              }}
-            >
-              Ask AI about a selected word, phrase, or note and it will appear
-              here.
-            </p>
-          </div>
-        ) : filteredHistory.length === 0 ? (
-          <div
-            className="study-empty-state"
-          >
-            <p style={{ color: "var(--muted-foreground)", fontSize: "0.9rem" }}>
-              No saved AI sessions match that search.
-            </p>
-          </div>
-        ) : (
-          <div
-            style={{
-              display: "grid",
-              gap: "0.7rem",
-              maxHeight: "320px",
-              overflowY: "auto",
-              paddingRight: "0.1rem",
-            }}
-          >
-            {filteredHistory.map((item) => {
-              const isActive = loadedHistoryItem?.id === item.id;
-              const contextPreview =
-                item.sourceText ?? (item.source === "note" ? "General note" : "");
-
-              return (
-                <div
-                  key={item.id}
-                  role="button"
-                  tabIndex={0}
-                  className="study-interactive-card"
-                  onClick={() => loadHistoryItem(item)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      loadHistoryItem(item);
-                    }
-                  }}
-                  style={{
-                    textAlign: "left",
-                    padding: "0.9rem",
-                    borderRadius: "16px",
-                    border: isActive
-                      ? "1px solid var(--theme-primary)"
-                      : "1px solid var(--theme-border)",
-                    backgroundColor: isActive ? "var(--theme-soft)" : "var(--card)",
-                    cursor: "pointer",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "flex-start",
-                      justifyContent: "space-between",
-                      gap: "0.75rem",
-                    }}
-                  >
-                    <div style={{ display: "grid", gap: "0.35rem", flex: 1 }}>
-                      <p className="study-meta-label">
-                        {SOURCE_LABELS[item.source]}
-                      </p>
-                      {contextPreview ? (
-                        <p
-                          style={{
-                            color: "var(--foreground)",
-                            fontWeight: 600,
-                            lineHeight: 1.45,
-                          }}
-                        >
-                          {item.source === "note" && contextPreview === "General note"
-                            ? contextPreview
-                            : `“${truncate(contextPreview, 90)}”`}
-                        </p>
-                      ) : null}
-                      {item.noteContent ? (
-                        <p
-                          style={{
-                            color: "var(--muted-foreground)",
-                            fontSize: "0.82rem",
-                            lineHeight: 1.5,
-                          }}
-                        >
-                          Note: {truncate(item.noteContent, 96)}
-                        </p>
-                      ) : null}
-                    </div>
-                    <button
-                      type="button"
-                      aria-label="Delete AI history item"
-                      onClick={(event) => void handleDeleteHistory(event, item.id)}
-                      disabled={deletingHistoryId === item.id}
-                      style={{
-                        minWidth: "60px",
-                        height: "32px",
-                        paddingInline: "0.7rem",
-                        borderRadius: "10px",
-                        border: "1px solid var(--theme-border)",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        backgroundColor: "transparent",
-                        color: "var(--muted-foreground)",
-                        cursor:
-                          deletingHistoryId === item.id ? "wait" : "pointer",
-                        flexShrink: 0,
-                        fontSize: "0.78rem",
-                        fontWeight: 600,
-                      }}
-                    >
-                      {deletingHistoryId === item.id ? "..." : "Delete"}
-                    </button>
-                  </div>
-
-                  <div style={{ display: "grid", gap: "0.35rem", marginTop: "0.7rem" }}>
-                    <p
-                      style={{
-                        color: "var(--foreground)",
-                        fontSize: "0.86rem",
-                        fontWeight: 600,
-                      }}
-                    >
-                      {formatQuestionLabel(item)}
-                    </p>
-                    <p
-                      style={{
-                        color: "var(--muted-foreground)",
-                        fontSize: "0.86rem",
-                        lineHeight: 1.5,
-                      }}
-                    >
-                      {truncate(item.answer, 140)}
-                    </p>
-                    <p
-                      style={{
-                        color: "var(--theme-primary)",
-                        fontSize: "0.78rem",
-                      }}
-                    >
-                      Updated {new Date(item.updatedAt).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+        {messages.map((message, index) => {
+          const preceding = message.role === "assistant" ? [...messages.slice(0, index)].reverse().find((item) => item.role === "user" && !item.id.startsWith("pending-")) : undefined;
+          return (
+            <AIConversationMessage
+              key={message.id}
+              message={message}
+              precedingQuestion={preceding?.content}
+              pending={message.id.startsWith("pending-")}
+              copied={copiedMessageId === message.id}
+              flashcardSaved={savedFlashcardIds.has(message.id)}
+              flashcardSaving={savingFlashcardId === message.id}
+              onCopy={() => void copyMessage(message)}
+              onSaveFlashcard={(question, answer) => void saveFlashcard(message, question, answer)}
+              onFollowup={(question) => void submit(question)}
+            />
+          );
+        })}
+        {sending ? <div className="ai-chat-thinking" role="status"><span aria-hidden="true" /> StudFlow is reading relevant document chunks…</div> : null}
       </div>
+
+      {showJump ? <Button type="button" variant="outline" size="sm" className="ai-chat-jump" onClick={() => scrollToLatest()}>Jump to latest</Button> : null}
+      <footer className="ai-chat-composer-shell">
+        {notice ? (
+          <div className="ai-chat-notice" role="status">
+            <span>{notice}</span>
+            <div>
+              <Button type="button" variant="ghost" size="sm" onClick={() => void reloadCurrent()}><RefreshCw size={14} /> Reload</Button>
+              {retryQuestion && !reconciliationRequired ? <Button type="button" variant="ghost" size="sm" disabled={sending} onClick={() => void submit(retryQuestion)}>Retry</Button> : null}
+            </div>
+          </div>
+        ) : null}
+        {visibleError ? <div className="ai-chat-error" role="alert">{visibleError}</div> : null}
+        <div className="ai-chat-quick-actions" aria-label="Quick prompts">
+          {QUICK_ACTIONS.map((action) => <button key={action.label} type="button" disabled={sending || reconciliationRequired || !conversationId} onClick={() => void submit(action.question)}>{action.label}</button>)}
+        </div>
+        <label htmlFor={`ai-chat-composer-${documentId}`} className="sr-only">Ask a follow-up about this document</label>
+        <div className="ai-chat-composer">
+          <textarea
+            ref={composerRef}
+            id={`ai-chat-composer-${documentId}`}
+            value={draft}
+            maxLength={4000}
+            rows={2}
+            placeholder="Ask a follow-up…"
+            disabled={!conversationId || panelLoading}
+            onChange={(event) => {
+              setDraft(event.target.value);
+              setRetryQuestion(null);
+            }}
+            onKeyDown={handleComposerKeyDown}
+          />
+          {sending ? (
+            <Button type="button" variant="outline" size="icon" onClick={stopWaiting} aria-label="Stop waiting for this response"><Square size={14} /></Button>
+          ) : (
+            <Button type="button" size="icon" onClick={() => void submit(draft)} disabled={!conversationId || reconciliationRequired || !draft.trim()} aria-label="Send message"><Send size={16} /></Button>
+          )}
+        </div>
+        <p className="ai-chat-composer-help">Enter to send · Shift+Enter for a new line</p>
+      </footer>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 # UI Design Direction
 
-Last updated: 2026-08-01
+Last updated: 2026-08-02
 
 ## Overview
 
@@ -118,6 +118,9 @@ Each tab has a distinct visual identity:
 - Structured source cards stay attached to the assistant message when verified evidence exists. Insufficient-evidence answers show no fabricated source card. Phase 1 supports verified document chunk references; page labels appear only after page-aware extraction is implemented.
 - The message list is the only internal scroll region and the composer remains sticky at the bottom.
 - "Using your document" remains the default retrieval state; web and hybrid controls appear only after verified web grounding ships.
+- Conversation selection and New chat remain compact header controls; history loads newest-first in the API but renders chronologically, with older turns loaded without moving the reader's viewport.
+- Selected highlights and notes appear in a dismissible context banner and are stored with the user turn. They guide retrieval and intent but never become citation evidence by themselves.
+- Composer behavior follows chat conventions: Enter sends, Shift+Enter inserts a line break, IME composition is respected, and send/stop/retry states remain keyboard and screen-reader accessible.
 
 ---
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type KeyboardEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 
 import { AIStudyAssistantPanel } from "@/components/study/AIStudyAssistantPanel";
@@ -67,10 +67,24 @@ export function StudySidePanel({
     };
   }, []);
 
+  function handleTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, current: StudyBubbleTab) {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const next: StudyBubbleTab = event.key === "Home"
+      ? "notes"
+      : event.key === "End"
+        ? "ai"
+        : current === "notes" ? "ai" : "notes";
+    onTabChange(next);
+    requestAnimationFrame(() => document.getElementById(`study-${next}-tab-${documentId}`)?.focus());
+  }
+
   return (
     <AnimatePresence>
       {open ? (
         <motion.aside
+          id={`study-side-panel-${documentId}`}
+          aria-label="Notes and AI study tools"
           data-study-bubble="true"
           initial={isCompactLayout ? { y: 24, opacity: 0 } : { x: "100%", opacity: 0 }}
           animate={isCompactLayout ? { y: 0, opacity: 1 } : { x: 0, opacity: 1 }}
@@ -78,6 +92,9 @@ export function StudySidePanel({
           transition={{ duration: 0.2, ease: "easeOut" }}
           className="study-side-panel-shell"
           style={{
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
             padding: "1.3rem",
             borderRadius: "24px",
             background:
@@ -95,10 +112,16 @@ export function StudySidePanel({
             </div>
           </div>
 
-          <div style={{ display: "flex", gap: "0.6rem", marginBottom: "1rem", flexWrap: "wrap" }}>
+          <div role="tablist" aria-label="Study tools" style={{ display: "flex", gap: "0.6rem", marginBottom: "1rem", flexWrap: "wrap" }}>
             <button
               type="button"
               onClick={() => onTabChange("notes")}
+              role="tab"
+              id={`study-notes-tab-${documentId}`}
+              aria-selected={activeTab === "notes"}
+              aria-controls={`study-notes-panel-${documentId}`}
+              tabIndex={activeTab === "notes" ? 0 : -1}
+              onKeyDown={(event) => handleTabKeyDown(event, "notes")}
               className="study-segmented-pill"
               style={{
                 backgroundColor: activeTab === "notes" ? "var(--theme-primary)" : "var(--card)",
@@ -110,6 +133,12 @@ export function StudySidePanel({
             <button
               type="button"
               onClick={() => onTabChange("ai")}
+              role="tab"
+              id={`study-ai-tab-${documentId}`}
+              aria-selected={activeTab === "ai"}
+              aria-controls={`study-ai-panel-${documentId}`}
+              tabIndex={activeTab === "ai" ? 0 : -1}
+              onKeyDown={(event) => handleTabKeyDown(event, "ai")}
               className="study-segmented-pill"
               style={{
                 backgroundColor: activeTab === "ai" ? "var(--theme-primary)" : "var(--card)",
@@ -120,22 +149,19 @@ export function StudySidePanel({
             </button>
           </div>
 
+          <div className="study-side-panel-content">
           <AnimatePresence mode="wait">
             {activeTab === "ai" ? (
-              <motion.div key="ai" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.18, ease: "easeOut" }}>
+              <motion.div key="ai" role="tabpanel" id={`study-ai-panel-${documentId}`} aria-labelledby={`study-ai-tab-${documentId}`} className="study-side-tab-panel" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.18, ease: "easeOut" }}>
                 <AIStudyAssistantPanel
                   documentId={documentId}
-                  context={
-                    aiContext.selectedText || aiContext.noteContent
-                      ? aiContext
-                      : { source: "general", selectedText: "" }
-                  }
+                  context={aiContext}
                   initialQuestion={assistantInitialQuestion}
                   mode={aiMode}
                 />
               </motion.div>
             ) : (
-              <motion.div key="notes" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.18, ease: "easeOut" }}>
+              <motion.div key="notes" role="tabpanel" id={`study-notes-panel-${documentId}`} aria-labelledby={`study-notes-tab-${documentId}`} className="study-side-tab-panel study-side-notes-panel" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.18, ease: "easeOut" }}>
                 <NotesPanel
                   notes={notes}
                   deletedNotes={deletedNotes}
@@ -154,6 +180,7 @@ export function StudySidePanel({
               </motion.div>
             )}
           </AnimatePresence>
+          </div>
         </motion.aside>
       ) : null}
     </AnimatePresence>

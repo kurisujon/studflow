@@ -782,6 +782,8 @@ export function InteractiveSummaryReader({
       <FloatingNotesButton
         count={notes.length}
         behindDrawer={drawerOpen}
+        expanded={drawerOpen}
+        controls={`study-side-panel-${documentId}`}
         onClick={handleBubbleHeadClick}
       />
 

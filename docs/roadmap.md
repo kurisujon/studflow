@@ -593,3 +593,24 @@ When a future agent completes a meaningful feature, they should update this file
 - Do not display page numbers until page-aware extraction and controlled reindexing ship.
 
 ---
+
+### Update: 2026-08-02 — Persistent Conversation Interface
+**What Changed:**
+- Replaced the report-style AI panel with persistent user and assistant messages backed by the Phase 1 conversation API.
+- Added latest-conversation loading, explicit New chat creation, conversation switching, canonical history refresh, and scroll-preserving older-message pagination.
+- Added selected-highlight and note context to document retrieval and persisted user turns while keeping citations restricted to verified retrieved chunks.
+- Added safe formatted-answer rendering, structured source cards, suggested follow-ups, copy, save-as-flashcard, stop/reload/retry states, and a sticky composer within one internal message scroll region.
+- Added responsive and accessible tab, launcher, keyboard-composer, status, and panel behavior without introducing a frontend dependency.
+
+**Contracts Changed:**
+- The synchronous send-message request now accepts optional `selected_text` (trimmed and limited to 8,000 characters).
+- Existing response payloads, legacy Ask AI/AI History endpoints, authentication, and document-only retrieval mode remain compatible.
+
+**Docs Stale:**
+- No. Architecture, task, roadmap, and design documentation describe the Phase 2 boundary.
+
+**What to do next:**
+- Add page-aware extraction and controlled reindexing before displaying document page labels.
+- Add verified web grounding before exposing web or hybrid retrieval modes.
+
+---

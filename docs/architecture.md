@@ -39,10 +39,10 @@ The conversational assistant remains inside the FastAPI monolith and reuses the 
 
 1. The authenticated Clerk user creates a conversation for an owned, completed document.
 2. The backend loads a bounded recent message history for conversational context.
-3. The current question is embedded with `gemini-embedding-2` and matched against owned `document_chunks` with pgvector.
-4. Gemini receives only the bounded conversation history and retrieved document sources. History is context, not citation evidence.
+3. The current question and optional selected study text are embedded with `gemini-embedding-2` and matched against owned `document_chunks` with pgvector.
+4. Gemini receives the bounded conversation history, optional selected text, and retrieved document sources. History and selected text guide intent but are not citation evidence.
 5. The backend validates the structured answer and maps citations to real retrieved chunk UUIDs. When the retrieved evidence is insufficient, the assistant records that outcome without manufacturing a citation.
 6. After successful generation, the user message, assistant message, and citation rows are committed atomically.
 7. Conversation messages and citations are returned in stable sequence order and survive refresh.
 
-Conversation ownership is stored as the existing Clerk subject string. Phase 1 is document-only and synchronous. Page-aware citations, web grounding, streaming, and the conversational frontend are later phases. The legacy Ask AI and AI History endpoints remain available during the compatibility rollout.
+Conversation ownership is stored as the existing Clerk subject string. Phase 2 remains document-only and synchronous. The frontend loads the latest conversation, persists follow-up turns, pages backward through canonical history, and renders only structured citations returned by the backend. Page-aware citations, web grounding, and streaming remain later phases. The legacy Ask AI and AI History endpoints remain available during the compatibility rollout.

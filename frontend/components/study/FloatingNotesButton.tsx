@@ -8,10 +8,14 @@ export function FloatingNotesButton({
   count,
   onClick,
   behindDrawer = false,
+  expanded = false,
+  controls,
 }: {
   count: number;
   onClick: () => void;
   behindDrawer?: boolean;
+  expanded?: boolean;
+  controls?: string;
 }) {
   return (
     <Button
@@ -31,8 +35,10 @@ export function FloatingNotesButton({
         border: "1px solid color-mix(in srgb, var(--theme-border) 58%, var(--border))",
         color: "var(--foreground)",
       }}
-      aria-label="Open study tools"
-      title="Open study tools"
+      aria-label={expanded ? "Close study tools" : "Open study tools"}
+      aria-expanded={expanded}
+      aria-controls={controls}
+      title={expanded ? "Close study tools" : "Open study tools"}
     >
       <MessageSquareText size={18} />
       <span

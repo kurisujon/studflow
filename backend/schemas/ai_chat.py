@@ -78,6 +78,7 @@ class MessageListResponse(BaseModel):
 
 class SendMessageRequest(BaseModel):
     question: str = Field(min_length=1, max_length=4000)
+    selected_text: str | None = Field(default=None, max_length=8000)
 
     @field_validator("question")
     @classmethod
@@ -86,6 +87,14 @@ class SendMessageRequest(BaseModel):
         if not normalized:
             raise ValueError("question is required.")
         return normalized
+
+    @field_validator("selected_text")
+    @classmethod
+    def normalize_selected_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        return normalized or None
 
 
 class ChatAnswer(BaseModel):

@@ -46,6 +46,15 @@ class AIChatSchemaTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             SendMessageRequest(question="x" * 4001)
 
+    def test_selected_text_is_trimmed_optional_and_bounded(self) -> None:
+        self.assertEqual(
+            SendMessageRequest(question="Explain", selected_text="  selected passage  ").selected_text,
+            "selected passage",
+        )
+        self.assertIsNone(SendMessageRequest(question="Explain", selected_text="   ").selected_text)
+        with self.assertRaises(ValidationError):
+            SendMessageRequest(question="Explain", selected_text="x" * 8001)
+
     def test_unknown_inline_markers_are_removed(self) -> None:
         answer, referenced = _sanitize_markers("Valid [1], invalid [9].", {1, 2})
         self.assertEqual(answer, "Valid [1], invalid .")
@@ -275,23 +284,28 @@ class AIChatSendTests(unittest.TestCase):
                     _context_manager(write_session),
                 ],
             ),
-            patch("services.ai_chat.generate_query_embedding", return_value=[0.0] * 768),
+            patch("services.ai_chat.generate_query_embedding", return_value=[0.0] * 768) as embedding_mock,
             patch("services.ai_chat.search_owned_similar_chunks", return_value=[self.chunk]),
-            patch("services.ai_chat.answer_conversation_question", return_value=generated),
+            patch("services.ai_chat.answer_conversation_question", return_value=generated) as generation_mock,
         ):
             answer = send_conversation_message(
                 conversation_id=self.conversation_id,
                 clerk_user_id="user_owner",
                 question="What is routing?",
+                selected_text="Laravel routing",
             )
 
         self.assertEqual(answer.citations[0].chunk_id, self.chunk.id)
+        embedding_mock.assert_called_once_with("What is routing?\n\nSelected context:\nLaravel routing")
+        self.assertEqual(generation_mock.call_args.kwargs["selected_text"], "Laravel routing")
         self.assertIsNone(answer.citations[0].page_number)
         self.assertIsNone(answer.citations[0].url)
         write_session.commit.assert_called_once_with()
         write_session.rollback.assert_not_called()
         added = [call.args[0] for call in write_session.add.call_args_list]
         self.assertEqual(sum(isinstance(item, AIMessage) for item in added), 2)
+        user_message = next(item for item in added if isinstance(item, AIMessage) and item.role == "user")
+        self.assertEqual(user_message.selected_text, "Laravel routing")
 
     def test_generation_failure_writes_no_partial_turn(self) -> None:
         read_session = self._read_session()
