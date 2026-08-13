@@ -19,14 +19,56 @@ from services.ai_service import (
     generate_query_embedding,
     verify_study_materials,
 )
-from services.documents import build_semantic_chunk_clusters
+from services.documents import (
+    DocumentIndexReadiness,
+    build_semantic_chunk_clusters,
+    claim_unembedded_document_chunks,
+    get_document_index_readiness,
+)
 from tasks.document_processing import (
     _embed_unfinished_chunks,
     _generate_and_persist_materials,
+    _repair_completed_document_index,
 )
 
 
 class Phase4RagTests(unittest.TestCase):
+    def test_index_readiness_requires_every_stored_chunk_to_be_embedded(self) -> None:
+        session = MagicMock()
+        result = MagicMock()
+        result.one.return_value = (3, 2)
+        session.exec.return_value = result
+
+        readiness = get_document_index_readiness(
+            session=session,
+            document_id=uuid.uuid4(),
+        )
+
+        self.assertEqual(readiness.total_chunks, 3)
+        self.assertEqual(readiness.embedded_chunks, 2)
+        self.assertFalse(readiness.is_ready)
+        self.assertTrue(readiness.is_repairable)
+        self.assertFalse(DocumentIndexReadiness(0, 0).is_ready)
+        self.assertFalse(DocumentIndexReadiness(0, 0).is_repairable)
+        self.assertTrue(DocumentIndexReadiness(3, 3).is_ready)
+
+    def test_missing_chunk_claim_uses_skip_locked_batch(self) -> None:
+        session = MagicMock()
+        result = MagicMock()
+        result.all.return_value = []
+        session.exec.return_value = result
+
+        claim_unembedded_document_chunks(
+            session=session,
+            document_id=uuid.uuid4(),
+            limit=24,
+        )
+
+        statement = session.exec.call_args.args[0]
+        compiled = str(statement.compile(dialect=postgresql.dialect()))
+        self.assertIn("FOR UPDATE SKIP LOCKED", compiled)
+        self.assertIn("document_chunks.embedding IS NULL", compiled)
+
     def test_retry_repairs_partial_flashcard_and_quiz_sets(self) -> None:
         document = Document(
             id=uuid.uuid4(),
@@ -170,6 +212,121 @@ class Phase4RagTests(unittest.TestCase):
         update_status.assert_called_once()
         embed.assert_called_once_with(["unfinished chunk"])
         save_embeddings.assert_called_once()
+
+    def test_completed_index_repair_embeds_only_missing_chunks_and_preserves_status(self) -> None:
+        document = Document(
+            id=uuid.uuid4(),
+            filename="notes.pdf",
+            file_url="uploads/notes.pdf",
+            status=DocumentStatus.COMPLETED,
+        )
+        missing = DocumentChunk(
+            document_id=document.id,
+            order_index=1,
+            content="missing embedding",
+        )
+        session = MagicMock()
+        context = MagicMock()
+        context.__enter__.return_value = session
+        context.__exit__.return_value = False
+
+        with (
+            patch("tasks.document_processing.Session", return_value=context),
+            patch("tasks.document_processing._get_document", return_value=document),
+            patch(
+                "tasks.document_processing.claim_unembedded_document_chunks",
+                side_effect=[[missing], []],
+            ),
+            patch(
+                "tasks.document_processing.generate_embeddings_batch",
+                return_value=[[1.0] * 768],
+            ) as generate,
+            patch("tasks.document_processing.save_chunk_embeddings") as save,
+            patch(
+                "tasks.document_processing.get_document_index_readiness",
+                return_value=DocumentIndexReadiness(2, 2),
+            ),
+            patch("tasks.document_processing.update_document_status") as update_status,
+        ):
+            result = _repair_completed_document_index(str(document.id))
+
+        generate.assert_called_once_with(["missing embedding"])
+        save.assert_called_once_with(
+            session=session,
+            chunks=[missing],
+            embeddings=[[1.0] * 768],
+        )
+        update_status.assert_not_called()
+        self.assertEqual(document.status, DocumentStatus.COMPLETED)
+        self.assertEqual(result["embedded_during_repair"], 1)
+
+    def test_completed_index_repair_is_an_idempotent_noop_when_fully_embedded(self) -> None:
+        document = Document(
+            id=uuid.uuid4(),
+            filename="notes.pdf",
+            file_url="uploads/notes.pdf",
+            status=DocumentStatus.COMPLETED,
+        )
+        session = MagicMock()
+        context = MagicMock()
+        context.__enter__.return_value = session
+        context.__exit__.return_value = False
+
+        with (
+            patch("tasks.document_processing.Session", return_value=context),
+            patch("tasks.document_processing._get_document", return_value=document),
+            patch("tasks.document_processing.claim_unembedded_document_chunks", return_value=[]),
+            patch("tasks.document_processing.generate_embeddings_batch") as generate,
+            patch("tasks.document_processing.save_chunk_embeddings") as save,
+            patch(
+                "tasks.document_processing.get_document_index_readiness",
+                return_value=DocumentIndexReadiness(2, 2),
+            ),
+        ):
+            result = _repair_completed_document_index(str(document.id))
+
+        generate.assert_not_called()
+        save.assert_not_called()
+        self.assertEqual(result["status"], DocumentStatus.COMPLETED.value)
+        self.assertEqual(result["embedded_during_repair"], 0)
+
+    def test_completed_index_repair_failure_does_not_change_document_status(self) -> None:
+        document = Document(
+            id=uuid.uuid4(),
+            filename="notes.pdf",
+            file_url="uploads/notes.pdf",
+            status=DocumentStatus.COMPLETED,
+        )
+        missing = DocumentChunk(
+            document_id=document.id,
+            order_index=1,
+            content="missing embedding",
+        )
+        session = MagicMock()
+        context = MagicMock()
+        context.__enter__.return_value = session
+        context.__exit__.return_value = False
+
+        with (
+            patch("tasks.document_processing.Session", return_value=context),
+            patch("tasks.document_processing._get_document", return_value=document),
+            patch(
+                "tasks.document_processing.claim_unembedded_document_chunks",
+                return_value=[missing],
+            ),
+            patch(
+                "tasks.document_processing.generate_embeddings_batch",
+                side_effect=RuntimeError("embedding unavailable"),
+            ),
+            patch("tasks.document_processing.save_chunk_embeddings") as save,
+            patch("tasks.document_processing.update_document_status") as update_status,
+        ):
+            with self.assertRaises(RuntimeError):
+                _repair_completed_document_index(str(document.id))
+
+        save.assert_not_called()
+        update_status.assert_not_called()
+        self.assertEqual(document.status, DocumentStatus.COMPLETED)
 
     def test_quality_gate_rejects_duplicate_flashcards(self) -> None:
         summary = ComprehensiveSummary(

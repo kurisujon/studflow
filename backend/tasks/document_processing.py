@@ -31,8 +31,10 @@ from services.document_processing import (
 )
 from services.documents import (
     build_semantic_chunk_clusters,
+    claim_unembedded_document_chunks,
     clear_incomplete_flashcards,
     clear_incomplete_quiz,
+    get_document_index_readiness,
     get_document_chunks,
     get_unembedded_document_chunks,
     save_chunk_embeddings,
@@ -301,3 +303,72 @@ def process_document_task(self: Task, document_id: str) -> dict[str, int | str]:
                 status=DocumentStatus.FAILED,
             )
         raise
+
+
+def _repair_completed_document_index(document_id: str) -> dict[str, int | str]:
+    """Embed only missing chunks without changing completed study artifacts or status."""
+    parsed_document_id = uuid.UUID(document_id)
+    embedded_during_repair = 0
+
+    with Session(engine) as session:
+        document = _get_document(session, document_id)
+        if document.status != DocumentStatus.COMPLETED:
+            raise ValueError("Only completed documents are eligible for index repair.")
+
+        while True:
+            batch = claim_unembedded_document_chunks(
+                session=session,
+                document_id=parsed_document_id,
+                limit=settings.embedding_batch_size,
+            )
+            if not batch:
+                break
+            embeddings = generate_embeddings_batch([chunk.content for chunk in batch])
+            save_chunk_embeddings(session=session, chunks=batch, embeddings=embeddings)
+            embedded_during_repair += len(batch)
+
+        readiness = get_document_index_readiness(
+            session=session,
+            document_id=parsed_document_id,
+        )
+        return {
+            "document_id": document_id,
+            "status": document.status.value,
+            "chunk_count": readiness.total_chunks,
+            "embedded_chunk_count": readiness.embedded_chunks,
+            "embedded_during_repair": embedded_during_repair,
+        }
+
+
+@celery_app.task(
+    bind=True,
+    name="tasks.repair_document_index_task",
+    max_retries=settings.document_processing_max_retries,
+)
+def repair_document_index_task(self: Task, document_id: str) -> dict[str, int | str]:
+    try:
+        return _repair_completed_document_index(document_id)
+    except Exception as exc:
+        logger.exception(
+            "Document index repair attempt %s failed for document %s.",
+            self.request.retries + 1,
+            document_id,
+        )
+        if self.request.retries < self.max_retries:
+            raise self.retry(exc=exc, countdown=min(60, 2 ** self.request.retries)) from exc
+        raise
+
+
+def dispatch_document_index_repair(document_id: uuid.UUID) -> bool:
+    """Queue repair only for a completed document with repairable stored chunks."""
+    with Session(engine) as session:
+        document = _get_document(session, str(document_id))
+        readiness = get_document_index_readiness(
+            session=session,
+            document_id=document_id,
+        )
+        if document.status != DocumentStatus.COMPLETED or not readiness.is_repairable:
+            return False
+
+    repair_document_index_task.delay(str(document_id))
+    return True

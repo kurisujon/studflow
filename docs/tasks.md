@@ -43,7 +43,7 @@ Read it alongside:
 - [x] Related learning videos
 - [x] Theme settings
 
-## Current Priority
+## Completed Implementation and Residual Validation
 
 ### Active Learning Hubs (Global Study Center)
 
@@ -104,7 +104,7 @@ These are intentionally sequenced after the UI refinement workstream:
 - [x] Quiz attempt history with weak-topic review
 - [x] Document-level Q&A grounded in extracted document chunks
 
-## Persistent Conversational Assistant
+## Current Priority: Persistent Conversational Assistant
 
 Goal: replace isolated AI report sessions with durable, ownership-safe conversations while preserving verified source metadata.
 
@@ -125,6 +125,7 @@ Goal: replace isolated AI report sessions with durable, ownership-safe conversat
 - [x] Keep a single message scroll region with a persistent composer and responsive panel
 - [x] Add safe formatted-answer rendering, structured source cards, follow-up prompts, copy, retry, and save-as-flashcard actions
 - [x] Preserve the synchronous document-only contract and legacy compatibility endpoints
+- [x] Repair incomplete legacy search indexes with an embedding-only task that preserves completed status and existing study materials
 
 ### Later Phases
 - [ ] Add page-aware PDF chunking and controlled legacy-document reindexing

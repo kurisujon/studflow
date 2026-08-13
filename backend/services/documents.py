@@ -4,9 +4,10 @@ import json
 import math
 import uuid
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import datetime
 
-from sqlalchemy import update
+from sqlalchemy import func, update
 from sqlmodel import Session, select
 
 from models.tables import (
@@ -24,6 +25,20 @@ from models.tables import (
     StudyAnnotation,
 )
 from services.ai_service import ComprehensiveSummary, FlashcardPayload, QuizQuestionPayload
+
+
+@dataclass(frozen=True)
+class DocumentIndexReadiness:
+    total_chunks: int
+    embedded_chunks: int
+
+    @property
+    def is_ready(self) -> bool:
+        return self.total_chunks > 0 and self.embedded_chunks == self.total_chunks
+
+    @property
+    def is_repairable(self) -> bool:
+        return self.total_chunks > 0 and self.embedded_chunks < self.total_chunks
 
 
 def create_document_record(
@@ -281,6 +296,44 @@ def get_unembedded_document_chunks(
         .where(DocumentChunk.document_id == document_id)
         .where(DocumentChunk.embedding.is_(None))
         .order_by(DocumentChunk.order_index.asc())
+    ).all()
+
+
+def get_document_index_readiness(
+    *,
+    session: Session,
+    document_id: uuid.UUID,
+) -> DocumentIndexReadiness:
+    """Return complete index counts; partial indexes are never chat-ready."""
+    total_chunks, embedded_chunks = session.exec(
+        select(
+            func.count(DocumentChunk.id),
+            func.count(DocumentChunk.id).filter(DocumentChunk.embedding.is_not(None)),
+        ).where(DocumentChunk.document_id == document_id)
+    ).one()
+    return DocumentIndexReadiness(
+        total_chunks=int(total_chunks or 0),
+        embedded_chunks=int(embedded_chunks or 0),
+    )
+
+
+def claim_unembedded_document_chunks(
+    *,
+    session: Session,
+    document_id: uuid.UUID,
+    limit: int,
+) -> list[DocumentChunk]:
+    """Lock one missing-embedding batch so concurrent repair workers do not duplicate work."""
+    if limit < 1:
+        raise ValueError("limit must be at least one.")
+
+    return session.exec(
+        select(DocumentChunk)
+        .where(DocumentChunk.document_id == document_id)
+        .where(DocumentChunk.embedding.is_(None))
+        .order_by(DocumentChunk.order_index.asc())
+        .limit(limit)
+        .with_for_update(skip_locked=True)
     ).all()
 
 

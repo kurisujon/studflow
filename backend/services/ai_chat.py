@@ -29,7 +29,7 @@ from services.ai_service import (
     answer_conversation_question,
     generate_query_embedding,
 )
-from services.documents import search_owned_similar_chunks
+from services.documents import get_document_index_readiness, search_owned_similar_chunks
 
 
 class ConversationNotFoundError(Exception):
@@ -42,6 +42,11 @@ class DocumentNotReadyError(Exception):
 
 class SearchIndexNotReadyError(Exception):
     """Raised when no embedded document chunks are available."""
+
+    def __init__(self, *, document_id: uuid.UUID, repairable: bool) -> None:
+        super().__init__("The document search index is not ready.")
+        self.document_id = document_id
+        self.repairable = repairable
 
 
 class ConcurrentConversationUpdateError(Exception):
@@ -334,6 +339,15 @@ def send_conversation_message(
         )
         if document.status != DocumentStatus.COMPLETED:
             raise DocumentNotReadyError
+        index_readiness = get_document_index_readiness(
+            session=session,
+            document_id=document.id,
+        )
+        if not index_readiness.is_ready:
+            raise SearchIndexNotReadyError(
+                document_id=document.id,
+                repairable=index_readiness.is_repairable,
+            )
         recent_messages = session.exec(
             select(AIMessage)
             .where(AIMessage.conversation_id == conversation.id)
@@ -378,7 +392,7 @@ def send_conversation_message(
         ]
 
     if not retrieved_chunks:
-        raise SearchIndexNotReadyError
+        raise SearchIndexNotReadyError(document_id=document_id, repairable=False)
 
     source_registry = {
         index: chunk for index, chunk in enumerate(retrieved_chunks, start=1)
@@ -400,7 +414,7 @@ def send_conversation_message(
         raise AIServiceError("Gemini returned an empty answer after citation validation.")
     cited_indexes = set(generated.cited_source_indexes) | marker_indexes
     if any(index not in valid_indexes for index in cited_indexes):
-        raise SearchIndexNotReadyError("The generated answer had no valid document citations.")
+        raise AIServiceError("Gemini returned an invalid document citation.")
     if generated.evidence_sufficient and not cited_indexes:
         raise AIServiceError("Gemini returned a grounded answer without a valid citation.")
     if not generated.evidence_sufficient and cited_indexes:

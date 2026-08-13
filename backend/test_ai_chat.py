@@ -7,8 +7,11 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from pydantic import ValidationError
+from fastapi import HTTPException
 from sqlalchemy.dialects import postgresql
 
+from api.routes.ai_chat import send_ai_conversation_message
+from core.auth import CurrentUser
 from models.tables import (
     AIConversation,
     AIMessage,
@@ -19,6 +22,7 @@ from models.tables import (
 from schemas.ai_chat import SendMessageRequest
 from services.ai_chat import (
     ConcurrentConversationUpdateError,
+    SearchIndexNotReadyError,
     _sanitize_markers,
     create_conversation,
     delete_conversation,
@@ -232,15 +236,22 @@ class AIChatSendTests(unittest.TestCase):
             content="Laravel routes map URLs to controller actions.",
         )
 
-    def _read_session(self) -> MagicMock:
+    def _read_session(self, *, readiness: tuple[int, int] = (1, 1)) -> MagicMock:
         session = MagicMock()
         conversation_result = MagicMock()
         conversation_result.first.return_value = self.conversation
         document_result = MagicMock()
         document_result.first.return_value = self.document
+        readiness_result = MagicMock()
+        readiness_result.one.return_value = readiness
         history_result = MagicMock()
         history_result.all.return_value = []
-        session.exec.side_effect = [conversation_result, document_result, history_result]
+        session.exec.side_effect = [
+            conversation_result,
+            document_result,
+            readiness_result,
+            history_result,
+        ]
         return session
 
     def _retrieval_session(self) -> MagicMock:
@@ -335,6 +346,60 @@ class AIChatSendTests(unittest.TestCase):
         read_session.commit.assert_not_called()
         retrieval_session.commit.assert_not_called()
 
+    def test_incomplete_index_is_rejected_before_query_embedding(self) -> None:
+        read_session = self._read_session(readiness=(2, 1))
+
+        with (
+            patch(
+                "services.ai_chat._open_session",
+                return_value=_context_manager(read_session),
+            ),
+            patch("services.ai_chat.generate_query_embedding") as embedding,
+        ):
+            with self.assertRaises(SearchIndexNotReadyError) as raised:
+                send_conversation_message(
+                    conversation_id=self.conversation_id,
+                    clerk_user_id="user_owner",
+                    question="What is routing?",
+                )
+
+        self.assertEqual(raised.exception.document_id, self.document_id)
+        self.assertTrue(raised.exception.repairable)
+        embedding.assert_not_called()
+
+    def test_stale_snapshot_rejects_concurrent_turn_before_writes(self) -> None:
+        read_session = self._read_session()
+        retrieval_session = self._retrieval_session()
+        write_session = self._write_session(stale=True)
+        generated = ConversationAnswer(
+            answer_markdown="Routing connects URLs to application logic.[1]",
+            evidence_sufficient=True,
+            cited_source_indexes=[1],
+            suggested_followups=[],
+        )
+        with (
+            patch(
+                "services.ai_chat._open_session",
+                side_effect=[
+                    _context_manager(read_session),
+                    _context_manager(retrieval_session),
+                    _context_manager(write_session),
+                ],
+            ),
+            patch("services.ai_chat.generate_query_embedding", return_value=[0.0] * 768),
+            patch("services.ai_chat.search_owned_similar_chunks", return_value=[self.chunk]),
+            patch("services.ai_chat.answer_conversation_question", return_value=generated),
+        ):
+            with self.assertRaises(ConcurrentConversationUpdateError):
+                send_conversation_message(
+                    conversation_id=self.conversation_id,
+                    clerk_user_id="user_owner",
+                    question="What is routing?",
+                )
+
+        write_session.add.assert_not_called()
+        write_session.commit.assert_not_called()
+
     def test_insufficient_evidence_answer_persists_without_citations(self) -> None:
         read_session = self._read_session()
         retrieval_session = self._retrieval_session()
@@ -402,39 +467,106 @@ class AIChatSendTests(unittest.TestCase):
         read_session.commit.assert_not_called()
         retrieval_session.commit.assert_not_called()
 
-    def test_stale_snapshot_rejects_concurrent_turn_before_writes(self) -> None:
+    def test_invalid_model_citation_is_an_ai_service_error(self) -> None:
         read_session = self._read_session()
         retrieval_session = self._retrieval_session()
-        write_session = self._write_session(stale=True)
         generated = ConversationAnswer(
-            answer_markdown="Routing connects URLs to application logic.[1]",
+            answer_markdown="Routing maps URLs.[9]",
             evidence_sufficient=True,
-            cited_source_indexes=[1],
+            cited_source_indexes=[9],
             suggested_followups=[],
         )
+
         with (
             patch(
                 "services.ai_chat._open_session",
                 side_effect=[
                     _context_manager(read_session),
                     _context_manager(retrieval_session),
-                    _context_manager(write_session),
                 ],
             ),
             patch("services.ai_chat.generate_query_embedding", return_value=[0.0] * 768),
             patch("services.ai_chat.search_owned_similar_chunks", return_value=[self.chunk]),
             patch("services.ai_chat.answer_conversation_question", return_value=generated),
         ):
-            with self.assertRaises(ConcurrentConversationUpdateError):
+            with self.assertRaises(AIServiceError):
                 send_conversation_message(
                     conversation_id=self.conversation_id,
                     clerk_user_id="user_owner",
                     question="What is routing?",
                 )
 
-        write_session.add.assert_not_called()
-        write_session.commit.assert_not_called()
 
+class AIChatIndexRepairRouteTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.document_id = uuid.uuid4()
+        self.conversation_id = uuid.uuid4()
+        self.payload = SendMessageRequest(question="What is routing?")
+        self.current_user = CurrentUser(clerk_user_id="user_owner")
+
+    def test_repairable_index_is_queued_and_returns_stable_conflict(self) -> None:
+        error = SearchIndexNotReadyError(
+            document_id=self.document_id,
+            repairable=True,
+        )
+        with (
+            patch("api.routes.ai_chat.send_conversation_message", side_effect=error),
+            patch("api.routes.ai_chat.dispatch_document_index_repair") as dispatch,
+        ):
+            with self.assertRaises(HTTPException) as raised:
+                send_ai_conversation_message(
+                    self.conversation_id,
+                    self.payload,
+                    self.current_user,
+                )
+
+        dispatch.assert_called_once_with(self.document_id)
+        self.assertEqual(raised.exception.status_code, 409)
+        self.assertEqual(
+            raised.exception.detail,
+            "The document search index is being prepared. Please retry shortly.",
+        )
+
+    def test_queue_failure_returns_service_unavailable(self) -> None:
+        error = SearchIndexNotReadyError(
+            document_id=self.document_id,
+            repairable=True,
+        )
+        with (
+            patch("api.routes.ai_chat.send_conversation_message", side_effect=error),
+            patch(
+                "api.routes.ai_chat.dispatch_document_index_repair",
+                side_effect=RuntimeError("redis unavailable"),
+            ),
+        ):
+            with self.assertRaises(HTTPException) as raised:
+                send_ai_conversation_message(
+                    self.conversation_id,
+                    self.payload,
+                    self.current_user,
+                )
+
+        self.assertEqual(raised.exception.status_code, 503)
+
+    def test_zero_chunk_index_is_not_queued(self) -> None:
+        error = SearchIndexNotReadyError(
+            document_id=self.document_id,
+            repairable=False,
+        )
+        with (
+            patch("api.routes.ai_chat.send_conversation_message", side_effect=error),
+            patch("api.routes.ai_chat.dispatch_document_index_repair") as dispatch,
+        ):
+            with self.assertRaises(HTTPException) as raised:
+                send_ai_conversation_message(
+                    self.conversation_id,
+                    self.payload,
+                    self.current_user,
+                )
+
+        dispatch.assert_not_called()
+        self.assertEqual(raised.exception.status_code, 409)
+        self.assertIn("no extracted text", raised.exception.detail)
 
 if __name__ == "__main__":
     unittest.main()

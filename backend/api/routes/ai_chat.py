@@ -30,6 +30,7 @@ from services.ai_chat import (
     update_conversation_title,
 )
 from services.ai_service import AIServiceError
+from tasks.document_processing import dispatch_document_index_repair
 
 
 router = APIRouter(prefix="/ai", tags=["ai-chat"])
@@ -208,10 +209,27 @@ def send_ai_conversation_message(
         )
     except ConversationNotFoundError as exc:
         raise _not_found() from exc
-    except (DocumentNotReadyError, SearchIndexNotReadyError) as exc:
+    except DocumentNotReadyError as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="The document search index is not ready for this conversation.",
+        ) from exc
+    except SearchIndexNotReadyError as exc:
+        if not exc.repairable:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="The document has no extracted text to prepare for search.",
+            ) from exc
+        try:
+            dispatch_document_index_repair(exc.document_id)
+        except Exception as queue_error:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="The document search index repair could not be queued. Please try again.",
+            ) from queue_error
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="The document search index is being prepared. Please retry shortly.",
         ) from exc
     except ConcurrentConversationUpdateError as exc:
         raise HTTPException(

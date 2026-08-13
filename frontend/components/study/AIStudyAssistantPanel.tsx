@@ -30,6 +30,9 @@ const QUICK_ACTIONS = [
   { label: "Give an example", question: "Give me a clear practical example of this concept." },
 ] as const;
 
+const CONVERSATION_CHANGED_MESSAGE = "The conversation changed while the answer was generated. Please retry.";
+const INDEX_PREPARING_MESSAGE = "The document search index is being prepared. Please retry shortly.";
+
 function contextText(context: StudyAIContext): string | undefined {
   const selected = context.selectedText.trim();
   const note = context.noteContent?.trim();
@@ -321,7 +324,11 @@ export function AIStudyAssistantPanel({
       if (sendError instanceof Error && sendError.name === "AbortError") {
         setReconciliationRequired(true);
         setNotice("Stopped waiting. This response may still finish on the server. Reload before sending again.");
-      } else if (sendError instanceof AIChatAPIError && sendError.status === 409) {
+      } else if (
+        sendError instanceof AIChatAPIError
+        && sendError.status === 409
+        && sendError.message === CONVERSATION_CHANGED_MESSAGE
+      ) {
         setReconciliationRequired(true);
         setNotice("The conversation changed while the answer was generated. Canonical history has been reloaded; retry when ready.");
         try {
@@ -333,6 +340,12 @@ export function AIStudyAssistantPanel({
         } catch {
           setError("The conversation changed and could not be reloaded.");
         }
+      } else if (
+        sendError instanceof AIChatAPIError
+        && sendError.status === 409
+        && sendError.message === INDEX_PREPARING_MESSAGE
+      ) {
+        setNotice(sendError.message);
       } else {
         setError(sendError instanceof Error ? sendError.message : "StudFlow AI could not answer right now.");
       }

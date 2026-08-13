@@ -1,6 +1,6 @@
 # Studflow Roadmap and Handoff
 
-Last updated: 2026-07-22
+Last updated: 2026-08-13
 
 ## Purpose
 
@@ -47,6 +47,7 @@ Core user flow currently implemented:
 5. Gemini generates summary, flashcards, and quiz content.
 6. User can open the dashboard and study workspace.
 7. Study workspace supports summary reading, flashcards, quiz, annotations, notes, AI explain, AI history, and related videos.
+8. The study assistant supports persistent, document-grounded conversations with structured citations and canonical message history.
 
 ## Current System State
 
@@ -71,6 +72,7 @@ Current frontend status:
 - Dashboard fetches user-owned documents from the backend.
 - Study workspace loads a specific processed document and supports tab navigation for summary, flashcards, and quiz.
 - The summary view is not a static text block; it uses the interactive study components already present under `frontend/components/study/`.
+- The AI study panel loads and persists document-scoped conversations, supports conversation switching and backward history pagination, and renders structured source citations.
 
 ### Backend
 
@@ -88,6 +90,7 @@ Current backend status:
   - notes
   - AI history
   - AI explanation for selected content
+- Persistent conversation CRUD, message history, and synchronous document-grounded messaging are mounted under `/api/ai`.
 - Celery task `process_document_task` handles:
   - storage download
   - PDF/DOCX text extraction
@@ -118,48 +121,45 @@ Implemented or substantially present in code:
 
 Current emphasis in `docs/tasks.md`:
 
-- UI refinement before new backend feature expansion
-- preserving the current upload and study contracts
-- improving the study workspace reading experience without widening product scope
+- finish the outstanding responsive validation for the widened summary shell
+- extend the persistent conversational assistant in controlled phases
+- add page-aware extraction and controlled reindexing before exposing page labels
+- preserve the current upload, authentication, and document-only conversation contracts until an explicit later phase changes them
 
 ## Current Priority Workstream
 
-### Active Learning Hubs (Global Study Center)
+### Persistent Conversational Assistant — Later Phases
 
-Current product decision:
-- Evolve the global sidebar pages (Flashcards and Quizzes) from static, redundant lists into dynamic, spaced-repetition and mixed-practice hubs.
-- Flashcards will become a Daily Review Hub powered by a Spaced Repetition System (SRS).
-- Quizzes will become a Challenge Mode Hub that targets a user's weakest topics across all documents.
-
-Workstream constraints:
-- Backend needs to support SRS metrics (interval, easiness factor, next review date) on the existing Flashcard model.
-- Frontend needs a new Daily Review UI and a Multi-Document Quiz UI.
-
-### Study Workspace UI Refinement
-
-Current product decision:
-- prioritize study-workspace UI refinement before starting the next backend-heavy feature
-- improve reading comfort, workspace hierarchy, and visual consistency
-- keep the work inside the frontend unless a task explicitly requires backend support
-
-Current implementation checklist lives in `docs/tasks.md`, but the active themes are:
-
-- make the summary reader feel more editorial and less dashboard-like
-- reduce visual competition between reading, notes, AI, and related videos
-- tighten typography, spacing, and component consistency
-- add a focused reading mode only if it can be shipped without adding architectural complexity
+Current product state:
+- Phase 1 conversation persistence and backend contracts are complete.
+- Phase 2 persistent conversation UI is complete.
+- The next implementation phase is page-aware PDF chunking with controlled legacy-document reindexing.
+- Verified web grounding follows page-aware extraction; authenticated streaming remains last in the current sequence.
 
 Workstream constraints:
+- Do not display page labels until page-aware extraction and controlled reindexing are implemented.
+- Do not expose web or hybrid retrieval modes until grounding is verified.
+- Keep the existing synchronous, document-only conversation contract stable while later phases are added.
+- Preserve the legacy Ask AI and AI History endpoints during the compatibility rollout.
 
-- do not change API contracts just to support visual changes
-- do not redesign the whole product around the homepage
-- keep shadcn/ui and Tailwind as the frontend system foundation
-- follow the approved design direction defined in `docs/ui-design-direction.md`
-- color, motion, and data surfaces are approved — use them purposefully
+### Residual Study Workspace Validation
+
+The UI refinement implementation is complete, but one validation item remains unchecked in `docs/tasks.md`:
+
+- re-verify the widened summary shell at 1440px, 1024px, 768px, and 390px after the 2026-08-01 container adjustment
+
+This validation should be completed before claiming the study-workspace refinement workstream fully closed. It does not require an API or backend contract change.
 
 ## Latest Completed Update
 
-### Phase 4: Semantic RAG Infrastructure
+### Persistent Conversation Interface (2026-08-02)
+
+- The AI study panel now uses durable, document-scoped conversation history instead of isolated report cards.
+- Users can create and switch conversations, page backward through canonical history, and send selected highlight or note context.
+- Answers render safe formatted content, verified structured citations, follow-up prompts, and copy, retry, and save-as-flashcard actions.
+- The interface remains synchronous and document-only, preserving legacy Ask AI and AI History compatibility.
+
+### Earlier Completed Work: Phase 4 Semantic RAG Infrastructure
 
 - PostgreSQL now runs with pgvector support through the `pgvector/pgvector:pg16` Compose image.
 - Alembic migration `20260722_0001` enables the extension, adds 768-dimension chunk embeddings,
@@ -174,7 +174,7 @@ Workstream constraints:
   covers vector query compilation, semantic clustering, resumable embedding checkpoints, and the
   quality gate.
 
-Most recent implemented changes:
+Other previously implemented changes:
 
 - New dedicated homepage motion components were added in `frontend/components/home/`:
   - `FloatingStudyIcons.tsx`
@@ -360,7 +360,7 @@ Homepage and dashboard enhancement guidance now completed:
 - prefer product previews and useful widgets over decorative effects
 - keep motion tied to product states such as upload, processing, study, notes, and review
 
-Study-workspace UI refinement progress so far:
+Study-workspace UI refinement status:
 
 - completed:
   - constrained summary reading width
@@ -375,7 +375,7 @@ Study-workspace UI refinement progress so far:
   - improved mobile panel behavior
   - tightened hover, focus, and keyboard affordances
 - still pending:
-  - explicit validation passes
+  - responsive revalidation of the widened summary shell at 1440px, 1024px, 768px, and 390px
 
 ## Important Contracts and Constraints
 
@@ -414,12 +414,10 @@ If continuing the landing page work:
 
 If continuing core product work instead:
 
-1. Execute the study-workspace UI refinement checklist in `docs/tasks.md`.
-2. Validate desktop and mobile reading comfort before adding new backend scope.
-3. After UI refinement, choose the next smallest product win:
-   - save AI answer as flashcard
-   - quiz attempt history
-   - document-level Q&A
+1. Complete the outstanding widened-summary-shell validation at 1440px, 1024px, 768px, and 390px.
+2. Add page-aware PDF chunking and controlled legacy-document reindexing before displaying page labels.
+3. Add verified Google Search grounding with document, web, and hybrid modes.
+4. Add authenticated streaming only after the synchronous contract remains stable through those phases.
 
 ## Validation Notes
 
@@ -440,22 +438,19 @@ Validation not fully completed:
 
 ## Documentation Update
 
-Latest documentation update completed on 2026-06-11:
+Latest documentation update completed on 2026-08-13:
 
-- `docs/tasks.md` was rewritten as the current execution checklist
-- the next product workstream was made explicit: study-workspace UI refinement
-- no code contracts changed as part of this documentation update
+- `docs/tasks.md` now distinguishes recently completed workstreams from the current persistent-assistant workstream.
+- this roadmap now reflects the completed Active Learning Hubs, study-workspace implementation, and persistent conversation Phase 2 work.
+- the outstanding responsive viewport validation and later conversation phases remain explicitly unchecked.
+- no code contracts changed as part of this documentation update.
 
-Latest product update completed on 2026-06-11:
+Latest product update completed on 2026-08-02:
 
-- homepage and dashboard enhancement pass shipped using the current frontend stack only
-- first study-workspace UI refinement batch shipped in the frontend
-- second study-workspace UI refinement batch extended the shared visual system to flashcards, quiz, and AI panel
-- first post-UI product feature shipped: save AI answer as flashcard
-- second post-UI product feature shipped: quiz attempt history with weak-topic review
-- third post-UI product feature shipped: grounded document-level Q&A
-- no backend contracts changed
-- the UI checklist in `docs/tasks.md` was advanced to reflect completed items
+- persistent conversation Phase 2 shipped in the frontend against the synchronous, document-only Phase 1 API
+- conversation selection, new-chat creation, canonical history, structured citations, and contextual messaging are implemented
+- legacy Ask AI and AI History compatibility remains available
+- later page-aware extraction, verified web grounding, and authenticated streaming remain unchecked in `docs/tasks.md`
 
 Validation completed for the latest study-workspace UI batches:
 
@@ -488,7 +483,7 @@ Validation completed for the homepage and dashboard enhancement:
 
 ## Validation still not fully completed:
 
-- NONE. Desktop and mobile reading comfort reviews were completed and deployed.
+- The widened summary shell still needs fresh verification at 1440px, 1024px, 768px, and 390px after the 2026-08-01 container adjustment.
 
 ## Handoff Rule
 
@@ -612,5 +607,45 @@ When a future agent completes a meaningful feature, they should update this file
 **What to do next:**
 - Add page-aware extraction and controlled reindexing before displaying document page labels.
 - Add verified web grounding before exposing web or hybrid retrieval modes.
+
+---
+
+### Update: 2026-08-13 — Status Documentation Sync
+
+**What Changed:**
+- Reclassified Active Learning Hubs and the study-workspace refinement under completed implementation and residual validation in `docs/tasks.md`.
+- Updated the current roadmap priority to the persistent conversational assistant's later phases while preserving the outstanding widened-summary-shell viewport validation.
+- Updated the product snapshot, latest-completed summary, recommended next steps, validation limitations, and roadmap date to match the verified implementation and checklist.
+
+**Contracts Changed:**
+- None. Documentation only.
+
+**Docs Stale:**
+- No known status-document mismatch remains between `docs/tasks.md` and `docs/roadmap.md`.
+
+**What to do next:**
+- Re-verify the widened summary shell at 1440px, 1024px, 768px, and 390px.
+- Then add page-aware PDF chunking and controlled legacy-document reindexing before displaying page labels.
+
+---
+
+### Update: 2026-08-13 — Legacy Chat Index Repair
+
+**What Changed:**
+- Added complete-index readiness checks before query embedding so partially indexed completed documents cannot enter grounded chat with incomplete evidence.
+- Added a concurrency-safe, batched, embedding-only Celery repair for eligible completed legacy documents; repair success, retry, failure, and no-op paths preserve completed status and existing summaries, flashcards, quizzes, videos, and other study data.
+- Updated the chat route to queue targeted repair and distinguish index preparation, zero extracted chunks, and queue failure; the frontend retains the draft and requires an explicit manual retry without an ungrounded fallback or automatic repeat POST.
+- Validation evidence: targeted backend tests 28 PASS; full backend tests 48 PASS; scoped Python compile and FastAPI import PASS; frontend lint PASS with 5 pre-existing unrelated warnings; frontend production build PASS; diff check PASS. Independent review found no Critical or High issues and recorded one Medium gap for live PostgreSQL, Redis, Celery, and authenticated-chat integration.
+
+**Contracts Changed:**
+- No API schema or endpoint changed. Existing error behavior now distinguishes repair preparation, zero-chunk documents, and repair queue failure.
+
+**Docs Stale:**
+- No known documentation mismatch remains after this update.
+
+**What to do next:**
+- Deploy the API, Celery worker, and frontend together.
+- Exercise a real PostgreSQL/Redis/Celery embedding repair and authenticated chat retry against an affected completed document.
+- Verify every eligible completed document chunk has an embedding after repair. Page-aware extraction and controlled reindexing remain separate, incomplete later-phase work.
 
 ---
