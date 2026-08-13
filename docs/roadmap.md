@@ -666,3 +666,24 @@ When a future agent completes a meaningful feature, they should update this file
 - Deploy and authenticate-test a long assistant response at desktop, mobile, and short viewport heights, confirming the message history scrolls while the composer remains visible.
 
 ---
+
+### Update: 2026-08-13 — Insufficient-Evidence Chat Fallback
+
+**What Changed:**
+- Fixed the verified production failure where Gemini returned `evidence_sufficient: false` together with citations, causing a generic generation error before the chat service could reconcile the contradictory output.
+- Updated `backend/services/ai_service.py` to retain schema parsing, source-index validation, grounded citation requirements, deduplication, and follow-up normalization while allowing valid insufficient-evidence citations to reach orchestration.
+- Updated `backend/services/ai_chat.py` to replace every insufficient-evidence result with a deterministic citation-free, follow-up-free fallback before preserving the existing atomic user/assistant turn write. Grounded answers still require valid citations.
+- Added focused coverage in `backend/test_ai_chat.py` for contradictory structured and inline citations, marker-only output, invalid indexes, deterministic fallback persistence, and preserved grounded behavior.
+- Validation evidence: targeted chat tests 21 PASS; full backend tests 52 PASS; scoped Python compile, FastAPI import, and diff check PASS. Frontend checks were NOT APPLICABLE. Independent review found no findings. The production authenticated retest was NOT RUN pending deployment.
+
+**Contracts Changed:**
+- None. API, schema, and environment contracts remain unchanged.
+
+**Docs Stale:**
+- No.
+
+**What to do next:**
+- Push and deploy the backend change, then retry the same authenticated question.
+- Verify a `201` response containing either the safe fallback or a grounded answer, and confirm the complete user/assistant message pair persists.
+
+---

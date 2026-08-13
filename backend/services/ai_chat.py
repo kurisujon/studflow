@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import re
 import uuid
 from dataclasses import dataclass
@@ -30,6 +31,13 @@ from services.ai_service import (
     generate_query_embedding,
 )
 from services.documents import get_document_index_readiness, search_owned_similar_chunks
+
+
+logger = logging.getLogger(__name__)
+
+INSUFFICIENT_EVIDENCE_ANSWER = (
+    "I don't have enough evidence in this document to answer that question."
+)
 
 
 class ConversationNotFoundError(Exception):
@@ -406,19 +414,34 @@ def send_conversation_message(
         selected_text=selected_text,
     )
     valid_indexes = set(source_registry)
+    inline_marker_count = len(re.findall(r"\[(\d+)\]", generated.answer_markdown))
     answer_markdown, marker_indexes = _sanitize_markers(
         generated.answer_markdown.strip(),
         valid_indexes,
     )
-    if not answer_markdown.strip():
-        raise AIServiceError("Gemini returned an empty answer after citation validation.")
-    cited_indexes = set(generated.cited_source_indexes) | marker_indexes
-    if any(index not in valid_indexes for index in cited_indexes):
+    structured_indexes = set(generated.cited_source_indexes)
+    if any(index not in valid_indexes for index in structured_indexes):
         raise AIServiceError("Gemini returned an invalid document citation.")
-    if generated.evidence_sufficient and not cited_indexes:
-        raise AIServiceError("Gemini returned a grounded answer without a valid citation.")
-    if not generated.evidence_sufficient and cited_indexes:
-        raise AIServiceError("Gemini cited evidence for an insufficient-evidence response.")
+
+    if not generated.evidence_sufficient:
+        if structured_indexes or inline_marker_count:
+            logger.warning(
+                "Discarding citations from insufficient-evidence conversation answer: "
+                "conversation_id=%s structured_citation_count=%d inline_citation_count=%d",
+                conversation_id,
+                len(structured_indexes),
+                inline_marker_count,
+            )
+        answer_markdown = INSUFFICIENT_EVIDENCE_ANSWER
+        cited_indexes: set[int] = set()
+        effective_followups: list[str] = []
+    else:
+        if not answer_markdown.strip():
+            raise AIServiceError("Gemini returned an empty answer after citation validation.")
+        cited_indexes = structured_indexes | marker_indexes
+        if not cited_indexes:
+            raise AIServiceError("Gemini returned a grounded answer without a valid citation.")
+        effective_followups = generated.suggested_followups
 
     citation_payloads = [
         CitationResponse(
@@ -476,7 +499,7 @@ def send_conversation_message(
             role="assistant",
             content=answer_markdown,
             retrieval_mode="document",
-            suggested_followups=generated.suggested_followups,
+            suggested_followups=effective_followups,
             created_at=now,
         )
         try:
@@ -512,5 +535,5 @@ def send_conversation_message(
         message_id=assistant_message.id,
         answer_markdown=answer_markdown,
         citations=citation_payloads,
-        suggested_followups=generated.suggested_followups,
+        suggested_followups=effective_followups,
     )

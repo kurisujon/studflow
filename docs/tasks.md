@@ -127,6 +127,7 @@ Goal: replace isolated AI report sessions with durable, ownership-safe conversat
 - [x] Add safe formatted-answer rendering, structured source cards, follow-up prompts, copy, retry, and save-as-flashcard actions
 - [x] Preserve the synchronous document-only contract and legacy compatibility endpoints
 - [x] Repair incomplete legacy search indexes with an embedding-only task that preserves completed status and existing study materials
+- [x] Normalize contradictory insufficient-evidence AI outputs into a deterministic citation-free fallback while preserving grounded citation validation and atomic turn persistence
 
 ### Later Phases
 - [ ] Add page-aware PDF chunking and controlled legacy-document reindexing

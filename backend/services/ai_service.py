@@ -556,9 +556,6 @@ def answer_conversation_question(
         raise AIServiceError("Gemini returned an invalid conversation source reference.")
     if answer.evidence_sufficient and not answer.cited_source_indexes:
         raise AIServiceError("Gemini returned a grounded answer without a source reference.")
-    if not answer.evidence_sufficient and answer.cited_source_indexes:
-        raise AIServiceError("Gemini cited sources for an insufficient-evidence response.")
-
     normalized_followups = [
         followup.strip()[:160]
         for followup in answer.suggested_followups

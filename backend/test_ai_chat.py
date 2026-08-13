@@ -22,6 +22,7 @@ from models.tables import (
 from schemas.ai_chat import SendMessageRequest
 from services.ai_chat import (
     ConcurrentConversationUpdateError,
+    INSUFFICIENT_EVIDENCE_ANSWER,
     SearchIndexNotReadyError,
     _sanitize_markers,
     create_conversation,
@@ -31,7 +32,11 @@ from services.ai_chat import (
     send_conversation_message,
     update_conversation_title,
 )
-from services.ai_service import AIServiceError, ConversationAnswer
+from services.ai_service import (
+    AIServiceError,
+    ConversationAnswer,
+    answer_conversation_question,
+)
 from services.documents import search_owned_similar_chunks
 
 
@@ -63,6 +68,49 @@ class AIChatSchemaTests(unittest.TestCase):
         answer, referenced = _sanitize_markers("Valid [1], invalid [9].", {1, 2})
         self.assertEqual(answer, "Valid [1], invalid .")
         self.assertEqual(referenced, {1})
+
+
+class AIChatGenerationTests(unittest.TestCase):
+    def test_insufficient_evidence_with_valid_structured_citations_is_accepted(self) -> None:
+        response = SimpleNamespace(
+            text=ConversationAnswer(
+                answer_markdown="The sources do not answer this question.",
+                evidence_sufficient=False,
+                cited_source_indexes=[1, 1],
+                suggested_followups=["  Ask about routing instead.  "],
+            ).model_dump_json()
+        )
+
+        with patch("services.ai_service._generate_structured", return_value=response):
+            answer = answer_conversation_question(
+                sources=[(1, "Routing maps URLs to controller actions.")],
+                user_question="What is the capital of Mars?",
+                conversation_history=[],
+            )
+
+        self.assertFalse(answer.evidence_sufficient)
+        self.assertEqual(answer.cited_source_indexes, [1])
+        self.assertEqual(answer.suggested_followups, ["Ask about routing instead."])
+
+    def test_insufficient_evidence_with_invalid_structured_citation_is_rejected(self) -> None:
+        for invalid_index in (-1, 0, 2):
+            with self.subTest(invalid_index=invalid_index):
+                response = SimpleNamespace(
+                    text=ConversationAnswer(
+                        answer_markdown="The sources do not answer this question.",
+                        evidence_sufficient=False,
+                        cited_source_indexes=[invalid_index],
+                        suggested_followups=[],
+                    ).model_dump_json()
+                )
+
+                with patch("services.ai_service._generate_structured", return_value=response):
+                    with self.assertRaises(AIServiceError):
+                        answer_conversation_question(
+                            sources=[(1, "Routing maps URLs to controller actions.")],
+                            user_question="What is the capital of Mars?",
+                            conversation_history=[],
+                        )
 
 
 class AIChatOwnershipQueryTests(unittest.TestCase):
@@ -405,10 +453,10 @@ class AIChatSendTests(unittest.TestCase):
         retrieval_session = self._retrieval_session()
         write_session = self._write_session()
         generated = ConversationAnswer(
-            answer_markdown="The document does not contain enough information to answer that.",
+            answer_markdown="A variable model response.",
             evidence_sufficient=False,
             cited_source_indexes=[],
-            suggested_followups=[],
+            suggested_followups=["A model-provided follow-up"],
         )
 
         with (
@@ -423,6 +471,7 @@ class AIChatSendTests(unittest.TestCase):
             patch("services.ai_chat.generate_query_embedding", return_value=[0.0] * 768),
             patch("services.ai_chat.search_owned_similar_chunks", return_value=[self.chunk]),
             patch("services.ai_chat.answer_conversation_question", return_value=generated),
+            patch("services.ai_chat.logger.warning") as warning,
         ):
             answer = send_conversation_message(
                 conversation_id=self.conversation_id,
@@ -430,9 +479,98 @@ class AIChatSendTests(unittest.TestCase):
                 question="What is the capital of Mars?",
             )
 
+        self.assertEqual(answer.answer_markdown, INSUFFICIENT_EVIDENCE_ANSWER)
         self.assertEqual(answer.citations, [])
+        self.assertEqual(answer.suggested_followups, [])
         write_session.commit.assert_called_once_with()
         added = [call.args[0] for call in write_session.add.call_args_list]
+        self.assertEqual(sum(isinstance(item, AIMessage) for item in added), 2)
+        self.assertFalse(any(isinstance(item, AIMessageCitation) for item in added))
+        assistant_message = next(
+            item for item in added if isinstance(item, AIMessage) and item.role == "assistant"
+        )
+        self.assertEqual(assistant_message.content, INSUFFICIENT_EVIDENCE_ANSWER)
+        self.assertEqual(assistant_message.suggested_followups, [])
+        warning.assert_not_called()
+
+    def test_insufficient_evidence_with_structured_citation_discards_model_output(self) -> None:
+        read_session = self._read_session()
+        retrieval_session = self._retrieval_session()
+        write_session = self._write_session()
+        generated = ConversationAnswer(
+            answer_markdown="An unsupported answer.",
+            evidence_sufficient=False,
+            cited_source_indexes=[1],
+            suggested_followups=["Keep exploring"],
+        )
+
+        with (
+            patch(
+                "services.ai_chat._open_session",
+                side_effect=[
+                    _context_manager(read_session),
+                    _context_manager(retrieval_session),
+                    _context_manager(write_session),
+                ],
+            ),
+            patch("services.ai_chat.generate_query_embedding", return_value=[0.0] * 768),
+            patch("services.ai_chat.search_owned_similar_chunks", return_value=[self.chunk]),
+            patch("services.ai_chat.answer_conversation_question", return_value=generated),
+            patch("services.ai_chat.logger.warning") as warning,
+        ):
+            answer = send_conversation_message(
+                conversation_id=self.conversation_id,
+                clerk_user_id="user_owner",
+                question="What is the capital of Mars?",
+            )
+
+        self.assertEqual(answer.answer_markdown, INSUFFICIENT_EVIDENCE_ANSWER)
+        self.assertEqual(answer.citations, [])
+        self.assertEqual(answer.suggested_followups, [])
+        warning.assert_called_once()
+        write_session.commit.assert_called_once_with()
+        added = [call.args[0] for call in write_session.add.call_args_list]
+        self.assertEqual(sum(isinstance(item, AIMessage) for item in added), 2)
+        self.assertFalse(any(isinstance(item, AIMessageCitation) for item in added))
+
+    def test_insufficient_evidence_with_marker_only_persists_fallback(self) -> None:
+        read_session = self._read_session()
+        retrieval_session = self._retrieval_session()
+        write_session = self._write_session()
+        generated = ConversationAnswer(
+            answer_markdown="[1]",
+            evidence_sufficient=False,
+            cited_source_indexes=[],
+            suggested_followups=["Keep exploring"],
+        )
+
+        with (
+            patch(
+                "services.ai_chat._open_session",
+                side_effect=[
+                    _context_manager(read_session),
+                    _context_manager(retrieval_session),
+                    _context_manager(write_session),
+                ],
+            ),
+            patch("services.ai_chat.generate_query_embedding", return_value=[0.0] * 768),
+            patch("services.ai_chat.search_owned_similar_chunks", return_value=[self.chunk]),
+            patch("services.ai_chat.answer_conversation_question", return_value=generated),
+            patch("services.ai_chat.logger.warning") as warning,
+        ):
+            answer = send_conversation_message(
+                conversation_id=self.conversation_id,
+                clerk_user_id="user_owner",
+                question="What is the capital of Mars?",
+            )
+
+        self.assertEqual(answer.answer_markdown, INSUFFICIENT_EVIDENCE_ANSWER)
+        self.assertEqual(answer.citations, [])
+        self.assertEqual(answer.suggested_followups, [])
+        warning.assert_called_once()
+        write_session.commit.assert_called_once_with()
+        added = [call.args[0] for call in write_session.add.call_args_list]
+        self.assertEqual(sum(isinstance(item, AIMessage) for item in added), 2)
         self.assertFalse(any(isinstance(item, AIMessageCitation) for item in added))
 
     def test_blank_answer_after_marker_sanitization_is_not_persisted(self) -> None:
