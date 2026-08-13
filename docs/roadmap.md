@@ -649,3 +649,20 @@ When a future agent completes a meaningful feature, they should update this file
 - Verify every eligible completed document chunk has an embedding after repair. Page-aware extraction and controlled reindexing remain separate, incomplete later-phase work.
 
 ---
+
+### Update: 2026-08-13 — Chat Panel Scroll Containment
+
+**What Changed:**
+- Updated `frontend/app/globals.css` so the study assistant shell has definite viewport-bounded heights on desktop and mobile, restoring the existing internal message scroller and persistent composer layout contract for long conversations.
+- Validation evidence: TypeScript validation PASS; frontend lint PASS with 5 pre-existing unrelated warnings; frontend production build PASS; diff check PASS. Live authenticated visual testing was NOT RUN.
+
+**Contracts Changed:**
+- None.
+
+**Docs Stale:**
+- No.
+
+**What to do next:**
+- Deploy and authenticate-test a long assistant response at desktop, mobile, and short viewport heights, confirming the message history scrolls while the composer remains visible.
+
+---

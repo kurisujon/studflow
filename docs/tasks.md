@@ -123,6 +123,7 @@ Goal: replace isolated AI report sessions with durable, ownership-safe conversat
 - [x] Add conversation selection, new-chat creation, and backward history pagination
 - [x] Send selected highlight or note context as intent while preserving verified document citations
 - [x] Keep a single message scroll region with a persistent composer and responsive panel
+- [x] Keep the study assistant panel viewport-bounded on desktop and mobile, with internally scrollable message history and a persistent composer
 - [x] Add safe formatted-answer rendering, structured source cards, follow-up prompts, copy, retry, and save-as-flashcard actions
 - [x] Preserve the synchronous document-only contract and legacy compatibility endpoints
 - [x] Repair incomplete legacy search indexes with an embedding-only task that preserves completed status and existing study materials

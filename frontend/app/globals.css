@@ -402,7 +402,7 @@ body {
   right: clamp(12px, 2vw, 24px);
   top: calc(var(--nav-height) + 16px);
   width: min(520px, calc(100vw - 24px));
-  max-height: calc(100dvh - var(--nav-height) - 28px);
+  height: calc(100dvh - var(--nav-height) - 28px);
   overflow: hidden;
   z-index: 120;
 }
@@ -675,7 +675,7 @@ a.ai-chat-source-card:hover { border-color: var(--theme-primary); }
     top: auto;
     bottom: 16px;
     width: auto;
-    max-height: min(72dvh, 620px);
+    height: min(72dvh, 620px);
     border-radius: 22px;
   }
 
