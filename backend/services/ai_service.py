@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import itertools
+import logging
 import time
 from collections.abc import Sequence
 from typing import Iterable, Literal
@@ -8,9 +9,12 @@ from typing import Iterable, Literal
 from google import genai
 from google.genai import errors as genai_errors
 from google.genai import types
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 from core.config import settings
+
+
+logger = logging.getLogger(__name__)
 
 
 class AIServiceError(Exception):
@@ -544,11 +548,30 @@ def answer_conversation_question(
         "cited_source_indexes must contain every source number used in answer_markdown. "
         "Use only source numbers present in the registry. Suggest no more than four concise follow-ups."
     )
-    response = _generate_structured(
-        prompt=prompt,
-        response_schema=ConversationAnswer,
-    )
-    answer = ConversationAnswer.model_validate_json(response.text)
+    answer: ConversationAnswer | None = None
+    final_validation_error: ValidationError | None = None
+    for generation_attempt in range(2):
+        response = _generate_structured(
+            prompt=prompt,
+            response_schema=ConversationAnswer,
+        )
+        try:
+            answer = ConversationAnswer.model_validate_json(response.text)
+            break
+        except ValidationError as exc:
+            final_validation_error = exc
+            if generation_attempt == 0:
+                logger.warning(
+                    "Retrying malformed conversation answer: attempt=%d error_type=%s",
+                    generation_attempt + 1,
+                    type(exc).__name__,
+                )
+
+    if answer is None:
+        raise AIServiceError(
+            "Gemini returned an invalid structured conversation answer after retry."
+        ) from final_validation_error
+
     available_indexes = {source_index for source_index, _ in sources}
     if any(index not in available_indexes for index in answer.cited_source_indexes):
         raise AIServiceError("Gemini returned an invalid conversation source reference.")

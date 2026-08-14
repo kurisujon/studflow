@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
@@ -32,6 +33,8 @@ from services.ai_chat import (
 from services.ai_service import AIServiceError
 from tasks.document_processing import dispatch_document_index_repair
 
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/ai", tags=["ai-chat"])
 
@@ -237,5 +240,11 @@ def send_ai_conversation_message(
             detail="The conversation changed while the answer was generated. Please retry.",
         ) from exc
     except AIServiceError as exc:
+        logger.warning(
+            "Conversation AI request failed: conversation_id=%s error_type=%s cause_type=%s",
+            conversation_id,
+            type(exc).__name__,
+            type(exc.__cause__).__name__ if exc.__cause__ is not None else "None",
+        )
         _raise_ai_http_error(exc)
         raise

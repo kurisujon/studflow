@@ -71,6 +71,69 @@ class AIChatSchemaTests(unittest.TestCase):
 
 
 class AIChatGenerationTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.valid_response = SimpleNamespace(
+            text=ConversationAnswer(
+                answer_markdown="Routing maps URLs to application logic.[1]",
+                evidence_sufficient=True,
+                cited_source_indexes=[1],
+                suggested_followups=[],
+            ).model_dump_json()
+        )
+
+    def _answer(self) -> ConversationAnswer:
+        return answer_conversation_question(
+            sources=[(1, "Routing maps URLs to controller actions.")],
+            user_question="What is routing?",
+            conversation_history=[],
+        )
+
+    def test_malformed_response_is_retried_once_then_valid_response_is_returned(self) -> None:
+        malformed_response = SimpleNamespace(text='{"answer_markdown":')
+
+        with (
+            patch(
+                "services.ai_service._generate_structured",
+                side_effect=[malformed_response, self.valid_response],
+            ) as generation,
+            patch("services.ai_service.logger.warning") as warning,
+        ):
+            answer = self._answer()
+
+        self.assertEqual(answer.answer_markdown, "Routing maps URLs to application logic.[1]")
+        self.assertEqual(generation.call_count, 2)
+        warning.assert_called_once_with(
+            "Retrying malformed conversation answer: attempt=%d error_type=%s",
+            1,
+            "ValidationError",
+        )
+
+    def test_two_malformed_responses_raise_stable_ai_service_error(self) -> None:
+        malformed_response = SimpleNamespace(text='{"answer_markdown":')
+
+        with patch(
+            "services.ai_service._generate_structured",
+            side_effect=[malformed_response, malformed_response],
+        ) as generation:
+            with self.assertRaisesRegex(
+                AIServiceError,
+                "Gemini returned an invalid structured conversation answer after retry.",
+            ) as raised:
+                self._answer()
+
+        self.assertEqual(generation.call_count, 2)
+        self.assertIsInstance(raised.exception.__cause__, ValidationError)
+
+    def test_valid_response_uses_one_structured_generation_call(self) -> None:
+        with patch(
+            "services.ai_service._generate_structured",
+            return_value=self.valid_response,
+        ) as generation:
+            answer = self._answer()
+
+        self.assertTrue(answer.evidence_sufficient)
+        generation.assert_called_once()
+
     def test_insufficient_evidence_with_valid_structured_citations_is_accepted(self) -> None:
         response = SimpleNamespace(
             text=ConversationAnswer(
@@ -284,7 +347,12 @@ class AIChatSendTests(unittest.TestCase):
             content="Laravel routes map URLs to controller actions.",
         )
 
-    def _read_session(self, *, readiness: tuple[int, int] = (1, 1)) -> MagicMock:
+    def _read_session(
+        self,
+        *,
+        readiness: tuple[int, int] = (1, 1),
+        history: list[AIMessage] | None = None,
+    ) -> MagicMock:
         session = MagicMock()
         conversation_result = MagicMock()
         conversation_result.first.return_value = self.conversation
@@ -293,7 +361,7 @@ class AIChatSendTests(unittest.TestCase):
         readiness_result = MagicMock()
         readiness_result.one.return_value = readiness
         history_result = MagicMock()
-        history_result.all.return_value = []
+        history_result.all.return_value = history or []
         session.exec.side_effect = [
             conversation_result,
             document_result,
@@ -309,7 +377,12 @@ class AIChatSendTests(unittest.TestCase):
         session.exec.return_value = conversation_result
         return session
 
-    def _write_session(self, *, stale: bool = False) -> MagicMock:
+    def _write_session(
+        self,
+        *,
+        stale: bool = False,
+        maximum_sequence: int = 0,
+    ) -> MagicMock:
         session = MagicMock()
         locked_conversation = self.conversation.model_copy(deep=True)
         if stale:
@@ -319,7 +392,7 @@ class AIChatSendTests(unittest.TestCase):
         document_result = MagicMock()
         document_result.first.return_value = self.document
         maximum_result = MagicMock()
-        maximum_result.one.return_value = 0
+        maximum_result.one.return_value = maximum_sequence
         session.exec.side_effect = [conversation_result, document_result, maximum_result]
         return session
 
@@ -393,6 +466,100 @@ class AIChatSendTests(unittest.TestCase):
 
         read_session.commit.assert_not_called()
         retrieval_session.commit.assert_not_called()
+
+    def test_malformed_generation_exhaustion_writes_no_turn(self) -> None:
+        read_session = self._read_session()
+        retrieval_session = self._retrieval_session()
+        malformed_response = SimpleNamespace(text='{"answer_markdown":')
+        with (
+            patch(
+                "services.ai_chat._open_session",
+                side_effect=[
+                    _context_manager(read_session),
+                    _context_manager(retrieval_session),
+                ],
+            ) as open_session,
+            patch("services.ai_chat.generate_query_embedding", return_value=[0.0] * 768),
+            patch("services.ai_chat.search_owned_similar_chunks", return_value=[self.chunk]),
+            patch(
+                "services.ai_service._generate_structured",
+                side_effect=[malformed_response, malformed_response],
+            ) as generation,
+        ):
+            with self.assertRaises(AIServiceError):
+                send_conversation_message(
+                    conversation_id=self.conversation_id,
+                    clerk_user_id="user_owner",
+                    question="What is routing?",
+                )
+
+        self.assertEqual(generation.call_count, 2)
+        self.assertEqual(open_session.call_count, 2)
+        read_session.add.assert_not_called()
+        retrieval_session.add.assert_not_called()
+        read_session.commit.assert_not_called()
+        retrieval_session.commit.assert_not_called()
+
+    def test_second_turn_uses_chronological_history_and_persists_sequences_three_and_four(self) -> None:
+        stored_messages = [
+            AIMessage(
+                conversation_id=self.conversation_id,
+                sequence_number=2,
+                role="assistant",
+                content="Routing maps requests to application handlers.",
+            ),
+            AIMessage(
+                conversation_id=self.conversation_id,
+                sequence_number=1,
+                role="user",
+                content="What is routing?",
+            ),
+        ]
+        read_session = self._read_session(history=stored_messages)
+        retrieval_session = self._retrieval_session()
+        write_session = self._write_session(maximum_sequence=2)
+        generated = ConversationAnswer(
+            answer_markdown="The document does not cover that follow-up.",
+            evidence_sufficient=False,
+            cited_source_indexes=[],
+            suggested_followups=[],
+        )
+
+        with (
+            patch(
+                "services.ai_chat._open_session",
+                side_effect=[
+                    _context_manager(read_session),
+                    _context_manager(retrieval_session),
+                    _context_manager(write_session),
+                ],
+            ),
+            patch("services.ai_chat.generate_query_embedding", return_value=[0.0] * 768),
+            patch("services.ai_chat.search_owned_similar_chunks", return_value=[self.chunk]),
+            patch(
+                "services.ai_chat.answer_conversation_question",
+                return_value=generated,
+            ) as generation,
+        ):
+            answer = send_conversation_message(
+                conversation_id=self.conversation_id,
+                clerk_user_id="user_owner",
+                question="Does it mention middleware?",
+            )
+
+        self.assertEqual(
+            generation.call_args.kwargs["conversation_history"],
+            [
+                ("user", "What is routing?"),
+                ("assistant", "Routing maps requests to application handlers."),
+            ],
+        )
+        self.assertEqual(answer.citations, [])
+        added = [call.args[0] for call in write_session.add.call_args_list]
+        persisted_messages = [item for item in added if isinstance(item, AIMessage)]
+        self.assertEqual([item.sequence_number for item in persisted_messages], [3, 4])
+        self.assertFalse(any(isinstance(item, AIMessageCitation) for item in added))
+        write_session.commit.assert_called_once_with()
 
     def test_incomplete_index_is_rejected_before_query_embedding(self) -> None:
         read_session = self._read_session(readiness=(2, 1))
@@ -705,6 +872,40 @@ class AIChatIndexRepairRouteTests(unittest.TestCase):
         dispatch.assert_not_called()
         self.assertEqual(raised.exception.status_code, 409)
         self.assertIn("no extracted text", raised.exception.detail)
+
+    def test_ai_service_error_logs_safe_metadata_and_returns_stable_bad_gateway(self) -> None:
+        validation_error: ValidationError
+        try:
+            ConversationAnswer.model_validate_json('{"answer_markdown":')
+        except ValidationError as exc:
+            validation_error = exc
+        error = AIServiceError(
+            "Gemini returned an invalid structured conversation answer after retry."
+        )
+        error.__cause__ = validation_error
+
+        with (
+            patch("api.routes.ai_chat.send_conversation_message", side_effect=error),
+            patch("api.routes.ai_chat.logger.warning") as warning,
+        ):
+            with self.assertRaises(HTTPException) as raised:
+                send_ai_conversation_message(
+                    self.conversation_id,
+                    self.payload,
+                    self.current_user,
+                )
+
+        self.assertEqual(raised.exception.status_code, 502)
+        self.assertEqual(
+            raised.exception.detail,
+            "AI could not generate a response right now. Please try again.",
+        )
+        warning.assert_called_once_with(
+            "Conversation AI request failed: conversation_id=%s error_type=%s cause_type=%s",
+            self.conversation_id,
+            "AIServiceError",
+            "ValidationError",
+        )
 
 if __name__ == "__main__":
     unittest.main()

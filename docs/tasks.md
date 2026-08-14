@@ -128,6 +128,7 @@ Goal: replace isolated AI report sessions with durable, ownership-safe conversat
 - [x] Preserve the synchronous document-only contract and legacy compatibility endpoints
 - [x] Repair incomplete legacy search indexes with an embedding-only task that preserves completed status and existing study materials
 - [x] Normalize contradictory insufficient-evidence AI outputs into a deterministic citation-free fallback while preserving grounded citation validation and atomic turn persistence
+- [x] Retry malformed `ConversationAnswer` output once, preserve the existing stable 502 and atomic no-partial-write behavior on exhaustion, and cover chronological second-turn persistence
 
 ### Later Phases
 - [ ] Add page-aware PDF chunking and controlled legacy-document reindexing

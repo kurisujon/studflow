@@ -1,6 +1,6 @@
 # Studflow Roadmap and Handoff
 
-Last updated: 2026-08-13
+Last updated: 2026-08-14
 
 ## Purpose
 
@@ -685,5 +685,26 @@ When a future agent completes a meaningful feature, they should update this file
 **What to do next:**
 - Push and deploy the backend change, then retry the same authenticated question.
 - Verify a `201` response containing either the safe fallback or a grounded answer, and confirm the complete user/assistant message pair persists.
+
+---
+
+### Update: 2026-08-14 — Malformed Conversation Answer Retry
+
+**What Changed:**
+- Added one bounded retry only when Gemini output fails `ConversationAnswer` Pydantic validation in `backend/services/ai_service.py`; exhaustion raises `AIServiceError` and reaches the existing stable 502 response without partial conversation writes.
+- Added safe failure metadata logging in `backend/api/routes/ai_chat.py` without logging prompts, answers, or validation payloads.
+- Added coverage in `backend/test_ai_chat.py` for retry success, retry exhaustion, unchanged single-call success, no writes on failure, stable error mapping, and chronological second-turn persistence.
+- Validation evidence: targeted backend tests 27 PASS; full backend tests 58 PASS; scoped compileall, py_compile, FastAPI import, and diff check PASS; frontend lint PASS with 5 unrelated warnings; frontend build PASS after external-resource retries. Independent review found no findings.
+- The exact production conversation probe succeeded at the time of testing. An authenticated post-deploy retest was NOT RUN because this change has not been deployed.
+
+**Contracts Changed:**
+- None. API, schema, environment, dependency, and frontend contracts remain unchanged.
+
+**Docs Stale:**
+- No. Architecture documentation remains accurate and does not require a change.
+
+**What to do next:**
+- Commit, push, and deploy the backend change, then have the user retest the authenticated conversation flow.
+- If a plain 500 recurs, use the new backend metadata logs and obtain the server traceback before changing behavior further.
 
 ---
