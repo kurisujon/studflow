@@ -8,7 +8,10 @@ from unittest.mock import MagicMock, patch
 
 from pydantic import ValidationError
 from fastapi import HTTPException
+from sqlalchemy import create_engine
 from sqlalchemy.dialects import postgresql
+from sqlalchemy.pool import StaticPool
+from sqlmodel import Session, SQLModel, select
 
 from api.routes.ai_chat import send_ai_conversation_message
 from core.auth import CurrentUser
@@ -17,6 +20,7 @@ from models.tables import (
     AIMessage,
     AIMessageCitation,
     Document,
+    DocumentChunk,
     DocumentStatus,
 )
 from schemas.ai_chat import SendMessageRequest
@@ -800,6 +804,114 @@ class AIChatSendTests(unittest.TestCase):
                     clerk_user_id="user_owner",
                     question="What is routing?",
                 )
+
+
+class AIChatRealSessionRegressionTests(unittest.TestCase):
+    def test_success_returns_committed_assistant_id_with_one_turn_and_citation(self) -> None:
+        test_engine = create_engine(
+            "sqlite://",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        SQLModel.metadata.create_all(
+            test_engine,
+            tables=[
+                Document.__table__,
+                DocumentChunk.__table__,
+                AIConversation.__table__,
+                AIMessage.__table__,
+                AIMessageCitation.__table__,
+            ],
+        )
+
+        document_id = uuid.uuid4()
+        conversation_id = uuid.uuid4()
+        chunk_id = uuid.uuid4()
+        with Session(test_engine) as session:
+            session.add(
+                Document(
+                    id=document_id,
+                    clerk_user_id="user_owner",
+                    filename="routing.pdf",
+                    file_url="uploads/routing.pdf",
+                    status=DocumentStatus.COMPLETED,
+                )
+            )
+            session.add(
+                AIConversation(
+                    id=conversation_id,
+                    clerk_user_id="user_owner",
+                    document_id=document_id,
+                    title="Routing",
+                )
+            )
+            session.add(
+                DocumentChunk(
+                    id=chunk_id,
+                    document_id=document_id,
+                    order_index=0,
+                    content="Laravel routes map URLs to controller actions.",
+                )
+            )
+            session.commit()
+
+        generated = ConversationAnswer(
+            answer_markdown="Routing connects a URL to application logic.[1]",
+            evidence_sufficient=True,
+            cited_source_indexes=[1],
+            suggested_followups=["How do route parameters work?"],
+        )
+
+        def retrieve_seeded_chunks(*, session: Session, **_: object) -> list[DocumentChunk]:
+            return list(
+                session.exec(
+                    select(DocumentChunk).where(DocumentChunk.id == chunk_id)
+                ).all()
+            )
+
+        try:
+            with (
+                patch("services.ai_chat.engine", test_engine),
+                patch(
+                    "services.ai_chat.get_document_index_readiness",
+                    return_value=SimpleNamespace(is_ready=True, is_repairable=False),
+                ),
+                patch(
+                    "services.ai_chat.generate_query_embedding",
+                    return_value=[0.0] * 768,
+                ),
+                patch(
+                    "services.ai_chat.search_owned_similar_chunks",
+                    side_effect=retrieve_seeded_chunks,
+                ),
+                patch(
+                    "services.ai_chat.answer_conversation_question",
+                    return_value=generated,
+                ),
+            ):
+                answer = send_conversation_message(
+                    conversation_id=conversation_id,
+                    clerk_user_id="user_owner",
+                    question="What is routing?",
+                )
+
+            with Session(test_engine) as session:
+                messages = session.exec(
+                    select(AIMessage)
+                    .where(AIMessage.conversation_id == conversation_id)
+                    .order_by(AIMessage.sequence_number.asc())
+                ).all()
+                citations = session.exec(select(AIMessageCitation)).all()
+
+                self.assertEqual(len(messages), 2)
+                self.assertEqual([message.role for message in messages], ["user", "assistant"])
+                self.assertEqual(len(citations), 1)
+                self.assertEqual(answer.message_id, messages[1].id)
+                self.assertEqual(citations[0].message_id, messages[1].id)
+                self.assertEqual(citations[0].chunk_id, chunk_id)
+                self.assertEqual(answer.citations[0].chunk_id, chunk_id)
+        finally:
+            test_engine.dispose()
 
 
 class AIChatIndexRepairRouteTests(unittest.TestCase):

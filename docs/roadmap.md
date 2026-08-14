@@ -708,3 +708,25 @@ When a future agent completes a meaningful feature, they should update this file
 - If a plain 500 recurs, use the new backend metadata logs and obtain the server traceback before changing behavior further.
 
 ---
+
+### Update: 2026-08-14 — Committed Assistant Response UUID
+
+**What Changed:**
+- Verified the production root cause: the user and assistant messages committed successfully, but the default SQLAlchemy commit expiration detached the assistant ORM instance before the response read its UUID, producing a 500 after persistence.
+- Updated `backend/services/ai_chat.py` to capture the assistant UUID as a plain scalar immediately after `flush()` and reuse it for citation rows and the post-commit `ChatAnswer`.
+- Added a default-expiring, real-session SQLite regression in `backend/test_ai_chat.py` that verifies the grounded cited response returns the committed assistant UUID with exactly one user/assistant pair and one citation.
+- Existing committed message pairs are valid; no data cleanup is required.
+- Validation evidence: focused real-session regression 1 PASS; chat tests 28 PASS; full backend tests 59 PASS; scoped Python compile, FastAPI import, and diff check PASS. Frontend validation was NOT APPLICABLE. Independent review found no findings.
+- The authenticated production retest was NOT RUN because the change is pending commit, push, and deployment.
+
+**Contracts Changed:**
+- None. API, schema, environment, dependency, and frontend contracts remain unchanged. The architecture is unchanged.
+
+**Docs Stale:**
+- No. Architecture documentation remains accurate and does not require a change.
+
+**What to do next:**
+- Commit, push, and deploy the backend change, then run an authenticated production conversation retest.
+- Refresh the conversation before retrying; the refresh may reveal turns that were successfully saved before the pre-fix response failed.
+
+---

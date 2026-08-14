@@ -506,10 +506,11 @@ def send_conversation_message(
             session.add(user_message)
             session.add(assistant_message)
             session.flush()
+            assistant_message_id = assistant_message.id
             for citation in citation_payloads:
                 session.add(
                     AIMessageCitation(
-                        message_id=assistant_message.id,
+                        message_id=assistant_message_id,
                         citation_index=citation.index,
                         source_type=citation.source_type,
                         title=citation.title,
@@ -532,7 +533,7 @@ def send_conversation_message(
 
     return ChatAnswer(
         conversation_id=conversation_id,
-        message_id=assistant_message.id,
+        message_id=assistant_message_id,
         answer_markdown=answer_markdown,
         citations=citation_payloads,
         suggested_followups=effective_followups,
