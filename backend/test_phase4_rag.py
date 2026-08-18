@@ -35,9 +35,11 @@ from tasks.document_processing import (
 class Phase4RagTests(unittest.TestCase):
     def test_index_readiness_requires_every_stored_chunk_to_be_embedded(self) -> None:
         session = MagicMock()
-        result = MagicMock()
-        result.one.return_value = (3, 2)
-        session.exec.return_value = result
+        generation_result = MagicMock()
+        generation_result.one.return_value = 4
+        counts_result = MagicMock()
+        counts_result.one.return_value = (3, 2)
+        session.exec.side_effect = [generation_result, counts_result]
 
         readiness = get_document_index_readiness(
             session=session,
@@ -46,6 +48,7 @@ class Phase4RagTests(unittest.TestCase):
 
         self.assertEqual(readiness.total_chunks, 3)
         self.assertEqual(readiness.embedded_chunks, 2)
+        self.assertEqual(readiness.generation, 4)
         self.assertFalse(readiness.is_ready)
         self.assertTrue(readiness.is_repairable)
         self.assertFalse(DocumentIndexReadiness(0, 0).is_ready)
@@ -142,8 +145,8 @@ class Phase4RagTests(unittest.TestCase):
         ]
 
         with (
-            patch("services.ai_service._get_api_key", return_value="test-key"),
-            patch("services.ai_service._get_client", return_value=client),
+            patch("services.llm_provider._get_api_key", return_value="test-key"),
+            patch("services.llm_provider._get_client", return_value=client),
         ):
             generate_embeddings_batch(["document chunk"])
             generate_query_embedding("search query")
