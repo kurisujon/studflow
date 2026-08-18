@@ -132,9 +132,36 @@ Goal: replace isolated AI report sessions with durable, ownership-safe conversat
 - [x] Prevent post-commit detached assistant responses by capturing the flushed assistant UUID as a scalar, with a default-expiring real-session regression
 
 ### Later Phases
-- [ ] Add page-aware PDF chunking and controlled legacy-document reindexing
+- [x] Add page-aware PDF chunking and controlled legacy-document reindexing
+- [x] Propagate verified PDF page numbers through active-generation document citations
+- [x] Keep document retrieval selected while rejecting Web and Hybrid before AI generation or persistence
 - [ ] Add verified Google Search grounding with document, web, and hybrid modes
 - [ ] Add authenticated streaming after the synchronous contract is stable
+
+## Phase A: AI Architecture Cleanup (Current Priority)
+
+Goal: Harden the AI architecture to decouple generative orchestration from domain persistence, improve observability, and increase reliability without changing product behavior.
+
+### Step 1: AI Provider Abstraction
+- [x] Extract Gemini API client, retry loops, and key rotation out of `ai_service.py` into a dedicated `llm_provider.py` module.
+- [x] Ensure `ai_service.py` handles only prompt construction and schema declaration.
+
+### Step 2: Strict Domain Boundary Enforcement
+- [ ] Define explicit internal domain models mapping to raw LLM output schemas.
+- [ ] Implement validation and sanitation logic before converting LLM outputs to domain models.
+- [ ] Refactor `services/documents.py` and `services/ai_chat.py` to depend only on these sanitized internal domain models.
+
+### Step 3: Granular Observability & Telemetry
+- [x] Introduce a standardized structured logging decorator for LLM calls.
+- [x] Log generation duration, attempt counts, token usage, and fallback models.
+
+### Step 4: Fallback & Default Hardening
+- [x] Audit generation functions for graceful retry exhaustion handling.
+- [x] Return defined deterministic fallback states instead of bubbling up raw SDK errors.
+
+### Step 5: Verification & Gate
+- [ ] Run full backend test suite (`pytest`) and compile checks (`python -m compileall .`).
+- [ ] Run frontend build and lint validation.
 
 ## Explicit Non-Goals For This Workstream
 

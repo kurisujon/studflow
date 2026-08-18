@@ -1,24 +1,20 @@
 from __future__ import annotations
 
-import itertools
 import logging
-import time
 from collections.abc import Sequence
-from typing import Iterable, Literal
+from typing import Iterable
 
-from google import genai
-from google.genai import errors as genai_errors
-from google.genai import types
 from pydantic import BaseModel, Field, ValidationError
 
 from core.config import settings
+from services.llm_provider import (
+    AIServiceError,
+    _embed_contents,
+    _generate_structured,
+)
 
 
 logger = logging.getLogger(__name__)
-
-
-class AIServiceError(Exception):
-    """Raised when Gemini generation fails."""
 
 
 class StudyMaterialQualityError(AIServiceError):
@@ -134,137 +130,6 @@ supporting supplied source.
 Prefer a concise explanation first, followed by useful detail when needed.
 Return only JSON matching the required schema.
 """.strip()
-
-
-_key_iterator = None
-
-
-def _get_api_key() -> str:
-    global _key_iterator
-    keys = settings.gemini_api_keys
-    if not keys:
-        raise AIServiceError("Gemini is not configured. Set GEMINI_API_KEY.")
-    
-    if _key_iterator is None:
-        _key_iterator = itertools.cycle(keys)
-        
-    return next(_key_iterator)
-
-
-def _get_client(api_key: str | None = None) -> genai.Client:
-    key_to_use = api_key or _get_api_key()
-    return genai.Client(api_key=key_to_use)
-
-
-def _candidate_models() -> list[str]:
-    fallback_models = [
-        model.strip()
-        for model in settings.gemini_fallback_models.split(",")
-        if model.strip()
-    ]
-    return [settings.gemini_model, *fallback_models]
-
-
-def _is_retryable_error(exc: Exception) -> bool:
-    status_code = getattr(exc, "code", None) or getattr(exc, "status_code", None)
-    return status_code in {401, 403, 429, 500, 503, 504}
-
-
-def _generate_structured(
-    *,
-    prompt: str,
-    response_schema: type[BaseModel] | type[list[FlashcardPayload]] | type[list[QuizQuestionPayload]],
-):
-    last_error: Exception | None = None
-    
-    # Initialize with the next key in the pool
-    current_key = _get_api_key()
-
-    for model_name in _candidate_models():
-        for attempt in range(settings.gemini_max_retries):
-            client = _get_client(api_key=current_key)
-            try:
-                response = client.models.generate_content(
-                    model=model_name,
-                    contents=prompt,
-                    config=types.GenerateContentConfig(
-                        response_mime_type="application/json",
-                        response_schema=response_schema,
-                    ),
-                )
-            except Exception as exc:  # pragma: no cover - third-party SDK/network errors vary
-                last_error = exc
-                if _is_retryable_error(exc) and attempt < settings.gemini_max_retries - 1:
-                    status_code = getattr(exc, "code", getattr(exc, "status_code", None))
-                    if status_code in {401, 403, 429}:
-                        # 403/429 -> Immediately rotate to the next key
-                        current_key = _get_api_key()
-                        time.sleep(0.5)  # Brief pause before retrying with new key
-                    else:
-                        # Standard exponential backoff for 5xx errors
-                        time.sleep(2 ** attempt)
-                    continue
-                break
-
-            if not response.text:
-                last_error = AIServiceError("Gemini returned an empty response.")
-                break
-
-            return response
-
-    raise AIServiceError("Gemini generation failed after retries and fallbacks.") from last_error
-
-
-def _embed_contents(
-    contents: Sequence[str],
-    *,
-    task_type: Literal["RETRIEVAL_DOCUMENT", "RETRIEVAL_QUERY"],
-) -> list[list[float]]:
-    if not contents:
-        return []
-
-    last_error: Exception | None = None
-    current_key = _get_api_key()
-
-    for attempt in range(settings.gemini_max_retries):
-        client = _get_client(api_key=current_key)
-        try:
-            response = client.models.embed_content(
-                model=settings.gemini_embedding_model,
-                contents=list(contents),
-                config=types.EmbedContentConfig(
-                    task_type=task_type,
-                    output_dimensionality=settings.embedding_dimensions,
-                ),
-            )
-            embeddings = response.embeddings or []
-            vectors = [list(embedding.values or []) for embedding in embeddings]
-
-            if len(vectors) != len(contents):
-                raise AIServiceError(
-                    "Gemini returned a different number of embeddings than requested."
-                )
-            if any(len(vector) != settings.embedding_dimensions for vector in vectors):
-                raise AIServiceError(
-                    "Gemini returned embeddings with an unexpected dimension."
-                )
-
-            return [[float(value) for value in vector] for vector in vectors]
-        except AIServiceError:
-            raise
-        except Exception as exc:  # pragma: no cover - third-party SDK/network errors vary
-            last_error = exc
-            if _is_retryable_error(exc) and attempt < settings.gemini_max_retries - 1:
-                status_code = getattr(exc, "code", getattr(exc, "status_code", None))
-                if status_code in {401, 403, 429}:
-                    current_key = _get_api_key()
-                    time.sleep(0.5)
-                else:
-                    time.sleep(2**attempt)
-                continue
-            break
-
-    raise AIServiceError("Gemini embedding generation failed after retries.") from last_error
 
 
 def generate_embeddings_batch(chunks: list[str]) -> list[list[float]]:

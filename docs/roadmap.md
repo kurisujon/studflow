@@ -1,6 +1,6 @@
 # Studflow Roadmap and Handoff
 
-Last updated: 2026-08-14
+Last updated: 2026-08-15
 
 ## Purpose
 
@@ -133,12 +133,12 @@ Current emphasis in `docs/tasks.md`:
 Current product state:
 - Phase 1 conversation persistence and backend contracts are complete.
 - Phase 2 persistent conversation UI is complete.
-- The next implementation phase is page-aware PDF chunking with controlled legacy-document reindexing.
-- Verified web grounding follows page-aware extraction; authenticated streaming remains last in the current sequence.
+- Page-aware PDF chunking and controlled legacy-document reindexing are implemented.
+- Verified web grounding is the next implementation phase; authenticated streaming remains last in the current sequence.
 
 Workstream constraints:
-- Do not display page labels until page-aware extraction and controlled reindexing are implemented.
-- Do not expose web or hybrid retrieval modes until grounding is verified.
+- Display page labels only from persisted page-aware citation metadata; DOCX citations remain unlabeled.
+- Keep web and hybrid retrieval disabled until grounding is verified.
 - Keep the existing synchronous, document-only conversation contract stable while later phases are added.
 - Preserve the legacy Ask AI and AI History endpoints during the compatibility rollout.
 
@@ -728,5 +728,67 @@ When a future agent completes a meaningful feature, they should update this file
 **What to do next:**
 - Commit, push, and deploy the backend change, then run an authenticated production conversation retest.
 - Refresh the conversation before retrying; the refresh may reveal turns that were successfully saved before the pre-fix response failed.
+
+---
+
+### Update: 2026-08-15 — Page-Aware PDF Index Generations
+
+**What Changed:**
+- Added additive active/pending document index generations and generation/page metadata for chunks through `backend/alembic/versions/20260815_0001_add_page_aware_index_generations.py` and `backend/models/tables.py`.
+- Added page-local PDF extraction with selective PyMuPDF/Tesseract OCR, null-page DOCX chunks, active-generation readiness/retrieval/repair, and page-by-page staged checkpoints in `backend/services/` and `backend/tasks/document_processing.py`.
+- Added the default-disabled, owner-only `POST /api/documents/{document_id}/reindex` path. Token-fenced expiring leases, a durable sequential page cursor, late task acknowledgement, and generation-locked embedding batches make retries and worker-loss recovery resumable. Terminal failures safely clean incomplete staged chunks while preserving the old active generation and study artifacts.
+- Conversation turns snapshot and recheck the active generation, persist PDF page citations, default to Document retrieval, and reject Web or Hybrid with a stable 409 before embedding, generation, or persistence.
+- The study assistant now sends Document mode explicitly and exposes an accessible source selector with unavailable Web and Hybrid choices disabled.
+- Validation evidence after final review corrections: full backend suite 96 PASS, including page-aware/index recovery tests 33 PASS and chat tests 32 PASS; Python compile, FastAPI import, Alembic head/static SQL generation, and diff check PASS; frontend TypeScript, lint, and production build PASS from the implementation pass. A live PostgreSQL race, migration round trip, Redis/Celery worker-loss recovery, and OCR run were NOT RUN.
+
+**Contracts Changed:**
+- Database: added active/pending index generations, a durable active page cursor, pending lease token/timestamps/page cursor, and chunk generation/page metadata with consistency, generation, and page constraints and indexes. Downgrade retains only active-generation chunks before removing the discriminator.
+- API: message requests accept optional `retrieval_mode` defaulting to `document`; document status includes `active_index_generation` and `reindex_in_progress`; chunk responses include `page_number`; legacy PDF reindexing returns a task and active/pending generations.
+- Environment/runtime: added `PDF_OCR_ENABLED`, `PDF_OCR_LANGUAGE`, `PDF_OCR_DPI`, `PDF_OCR_MIN_TEXT_CHARS`, `DOCUMENT_REINDEX_ENABLED`, and `DOCUMENT_REINDEX_LEASE_SECONDS`; the backend image installs English Tesseract data.
+
+**Docs Stale:**
+- No.
+
+**What to do next:**
+- Run independent testing and review, then exercise migration, OCR, and one owner-triggered legacy PDF reindex against PostgreSQL, Redis, and Celery before enabling reindexing in production.
+- Implement verified Google Search grounding before enabling Web or Hybrid retrieval; authenticated streaming remains later.
+
+---
+
+### Update: 2026-08-18 — Phase A Discovery and Planning
+
+**What Changed:**
+- Completed the repository audit and architecture discovery for Phase A (AI Architecture Cleanup).
+- Drafted the detailed architectural assessment and execution roadmap in `phase-a-audit-and-roadmap.md` artifact.
+- Added the structured Phase A execution checklist to `docs/tasks.md`.
+
+**Contracts Changed:**
+- None.
+
+**Docs Stale:**
+- No.
+
+**What to do next:**
+- Implement Phase A Step 1 (AI Provider Abstraction) by extracting the Gemini API client and retry logic out of `ai_service.py` into a dedicated `llm_provider.py` module.
+- Implement Phase A Step 2 (Strict Domain Boundary Enforcement) by defining internal domain models mapped from raw LLM outputs and refactoring dependent services.
+
+---
+
+### Update: 2026-08-18 — Phase A AI Provider Abstraction
+
+**What Changed:**
+- Implemented Phase A Step 1, 3, and 4: Extracted the Gemini API client, key rotation, and retry loops out of `backend/services/ai_service.py` into a new `backend/services/llm_provider.py` module.
+- `ai_service.py` now purely handles prompt construction and schema declaration.
+- Added structured telemetry logging for all LLM calls (generation and embedding).
+- Hardened exception handling to ensure no raw SDK errors escape the provider layer (`AIServiceError` is raised uniformly).
+
+**Contracts Changed:**
+- None. `ai_service.py` re-exports all public symbols required by consumers.
+
+**Docs Stale:**
+- No. `docs/tasks.md` was updated.
+
+**What to do next:**
+- Implement Phase A Step 2 (Strict Domain Boundary Enforcement) by defining explicit internal domain models and validating LLM outputs before they reach domain services.
 
 ---
