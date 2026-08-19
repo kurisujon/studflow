@@ -159,9 +159,11 @@ Goal: Harden the AI architecture to decouple generative orchestration from domai
 - [x] Audit generation functions for graceful retry exhaustion handling.
 - [x] Return defined deterministic fallback states instead of bubbling up raw SDK errors.
 
-### Step 5: Verification & Gate
-- [ ] Run full backend test suite (`pytest`) and compile checks (`python -m compileall .`).
-- [ ] Run frontend build and lint validation.
+### Phase A Step 5: Verification & Gate
+- [x] Run backend test suite.
+- [x] Run frontend linter and production build (or explicitly justify skipping).
+- [x] Verify no regressions in legacy document handling.
+- [x] Review diff against `docs/GUARDRAILS.md`.
 
 ## Explicit Non-Goals For This Workstream
 

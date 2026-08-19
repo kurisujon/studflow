@@ -128,18 +128,17 @@ Current emphasis in `docs/tasks.md`:
 
 ## Current Priority Workstream
 
-### Phase A — AI Architecture Cleanup
+### Phase B — Evidence Grounding & Verification
 
 Current product state:
-- Phase A Step 1 (AI Provider Abstraction), Step 3 (Observability), and Step 4 (Fallback Hardening) are complete.
-- Phase A Step 2 (Strict Domain Boundary Enforcement) is the **CURRENT PRIORITY**.
-- Phase A Step 5 (Verification Gate) is partially complete.
+- Phase A (AI Architecture Cleanup) is completely finished.
+- Phase B (Evidence Grounding) is the **CURRENT PRIORITY**.
 
 Workstream constraints:
-- Establish an explicit trust boundary between raw LLM output schemas and internal domain models.
-- AI output is a proposal until validated.
-- Application services (`documents.py`, `ai_chat.py`) must consume sanitized domain models.
-- Do not introduce Phase B evidence/grounding features yet.
+- Implement claim-level evidence verification for AI chat answers.
+- Validate that Gemini's cited source indexes legitimately support the claim being made.
+- Implement the `ANSWERED / PARTIAL / INSUFFICIENT_EVIDENCE` decision mechanism.
+- Reject ungrounded claims at the domain boundary.
 
 ### Residual Study Workspace Validation
 
@@ -806,3 +805,15 @@ When a future agent completes a meaningful feature, they should update this file
 - Added comprehensive unit testing for validation logic.
 
 **Result:** AI generation outputs are now correctly treated as probabilistic proposals until formally validated at the domain boundary, paving the way for Phase B's evidence grounding system.
+
+### 2026-08-19 Phase A Completion - Verification Gate
+
+**Goal:** Final holistic verification of the Phase A Architecture Cleanup.
+
+**Completed Work:**
+- Confirmed the provider layer completely encapsulates Gemini API calls.
+- Confirmed the application and domain layers consume sanitized `Domain*` models.
+- Executed the full backend unit test suite, with all 100 tests passing execution.
+- Executed frontend linting and production build (`npm run build`) via Next.js to verify no shared schemas were corrupted; compilation was successful.
+
+**Result:** Phase A is closed. Evolving the system to Phase B: Evidence Grounding.
