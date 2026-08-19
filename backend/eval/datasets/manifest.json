@@ -1,0 +1,19 @@
+{
+  "dataset_version": "c1-v1",
+  "description": "Initial StudFlow academic RAG golden evaluation set",
+  "case_count": 24,
+  "corpora": [
+    {
+      "source_id": "biology-cellular-respiration-v1",
+      "path": "../corpus/biology/cellular_respiration_v1.md"
+    },
+    {
+      "source_id": "networking-http-tcp-v1",
+      "path": "../corpus/networking/http_tcp_v1.md"
+    },
+    {
+      "source_id": "algorithms-sorting-searching-v1",
+      "path": "../corpus/algorithms/sorting_searching_v1.md"
+    }
+  ]
+}
