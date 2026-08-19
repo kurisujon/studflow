@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -315,7 +315,7 @@ class AIChatSendTests(unittest.TestCase):
     def setUp(self) -> None:
         self.document_id = uuid.uuid4()
         self.conversation_id = uuid.uuid4()
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
         self.conversation = AIConversation(
             id=self.conversation_id,
             clerk_user_id="user_owner",
@@ -381,7 +381,7 @@ class AIChatSendTests(unittest.TestCase):
         session = MagicMock()
         locked_conversation = self.conversation.model_copy(deep=True)
         if stale:
-            locked_conversation.updated_at = datetime.utcnow()
+            locked_conversation.updated_at = datetime.now(timezone.utc)
         conversation_result = MagicMock()
         conversation_result.first.return_value = locked_conversation
         document_result = MagicMock()

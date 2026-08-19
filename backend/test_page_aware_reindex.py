@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 import uuid
 import importlib.util
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -376,8 +376,8 @@ class ReindexGenerationTests(unittest.TestCase):
             file_url="uploads/legacy.pdf",
             status=DocumentStatus.COMPLETED,
             pending_index_generation=2,
-            pending_index_started_at=datetime.utcnow(),
-            pending_index_heartbeat_at=datetime.utcnow(),
+            pending_index_started_at=datetime.now(timezone.utc),
+            pending_index_heartbeat_at=datetime.now(timezone.utc),
             pending_index_page_cursor=3,
             pending_index_lease_token=current_token,
         )
@@ -847,8 +847,8 @@ class ReindexCheckpointTests(unittest.TestCase):
             status=DocumentStatus.COMPLETED,
             active_index_generation=1,
             pending_index_generation=2,
-            pending_index_started_at=datetime.utcnow(),
-            pending_index_heartbeat_at=datetime.utcnow(),
+            pending_index_started_at=datetime.now(timezone.utc),
+            pending_index_heartbeat_at=datetime.now(timezone.utc),
             pending_index_page_cursor=0,
             pending_index_lease_token=lease_token,
         )

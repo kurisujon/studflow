@@ -1,6 +1,6 @@
 import enum
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from collections.abc import Sequence
 from typing import Optional
 
@@ -106,7 +106,7 @@ class User(SQLModel, table=True):
     email: str = Field(unique=True, index=True, max_length=255, nullable=False)
     hashed_password: str = Field(nullable=False)
     is_active: bool = Field(default=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
 
     # Relationships
     documents: list["Document"] = Relationship(back_populates="user")
@@ -130,8 +130,8 @@ class UserPreferences(SQLModel, table=True):
     daily_review_goal: int = Field(default=20)
     # 2.5 is standard SM-2. Lower = harder (cards appear sooner).
     sm2_aggressiveness: float = Field(default=2.5) 
-    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
-    updated_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
 
 # ---------------------------------------------------------------------------
 # Document
@@ -194,8 +194,8 @@ class Document(SQLModel, table=True):
     pending_index_heartbeat_at: Optional[datetime] = Field(default=None, nullable=True)
     pending_index_lease_token: Optional[uuid.UUID] = Field(default=None, nullable=True)
     pending_index_page_cursor: Optional[int] = Field(default=None, ge=0, nullable=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
-    updated_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
 
     # Relationships
     user: Optional[User] = Relationship(back_populates="documents")
@@ -228,7 +228,7 @@ class Summary(SQLModel, table=True):
         foreign_key="documents.id", unique=True, nullable=False, index=True
     )
     content: str = Field(nullable=False)  # Plain text summary from Gemini
-    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
 
     # Relationships
     document: Optional[Document] = Relationship(back_populates="summary")
@@ -256,12 +256,12 @@ class Flashcard(SQLModel, table=True):
     order_index: int = Field(default=0, nullable=False)
     
     # Spaced Repetition System (SRS) fields
-    next_review_date: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    next_review_date: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
     interval: int = Field(default=0, nullable=False)  # Days until next review
     repetition: int = Field(default=0, nullable=False) # Number of consecutive successful reviews
     easiness_factor: float = Field(default=2.5, nullable=False) # SM-2 easiness factor multiplier
     
-    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
 
     # Relationships
     document: Optional[Document] = Relationship(back_populates="flashcards")
@@ -313,7 +313,7 @@ class DocumentChunk(SQLModel, table=True):
         default=None,
         sa_column=Column(Vector(768), nullable=True),
     )
-    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
 
     # Relationships
     document: Optional[Document] = Relationship(back_populates="chunks")
@@ -336,7 +336,7 @@ class Quiz(SQLModel, table=True):
     document_id: uuid.UUID = Field(
         foreign_key="documents.id", unique=True, nullable=False, index=True
     )
-    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
 
     # Relationships
     document: Optional[Document] = Relationship(back_populates="quiz")
@@ -364,7 +364,7 @@ class QuizQuestion(SQLModel, table=True):
     correct_answer_index: int = Field(nullable=False)  # 0-based index
     explanation: str = Field(nullable=False)
     order_index: int = Field(default=0, nullable=False)
-    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
 
     quiz: Optional[Quiz] = Relationship(back_populates="questions")
 
@@ -389,7 +389,7 @@ class QuizAttempt(SQLModel, table=True):
     score: int = Field(nullable=False)
     total_questions: int = Field(nullable=False)
     incorrect_question_ids: str = Field(nullable=False, default="[]")
-    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
 
     document: Optional[Document] = Relationship(back_populates="quiz_attempts")
 
@@ -419,7 +419,7 @@ class RelatedVideo(SQLModel, table=True):
     description: str = Field(nullable=False)
     relevance_reason: str = Field(nullable=False)
     published_at: str = Field(default="", nullable=False)
-    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
 
     # Relationships
     document: Optional[Document] = Relationship(back_populates="related_videos")
@@ -451,8 +451,8 @@ class StudyAnnotation(SQLModel, table=True):
     underline_color: Optional[str] = Field(default=None)
     note_content: Optional[str] = Field(default=None)
     deleted_at: Optional[datetime] = Field(default=None, nullable=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
-    updated_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
 
     # Relationships
     document: Optional[Document] = Relationship(back_populates="annotations")
@@ -481,8 +481,8 @@ class AIHistory(SQLModel, table=True):
     question: str = Field(nullable=False)
     mode: str = Field(nullable=False)
     answer: str = Field(nullable=False)
-    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
-    updated_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
 
     # Relationships
     document: Optional[Document] = Relationship(back_populates="ai_history_items")
@@ -514,8 +514,8 @@ class AIConversation(SQLModel, table=True):
         index=True,
     )
     title: Optional[str] = Field(default=None, max_length=160, nullable=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
-    updated_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
 
     document: Optional[Document] = Relationship(back_populates="ai_conversations")
     messages: list["AIMessage"] = Relationship(
@@ -574,7 +574,7 @@ class AIMessage(SQLModel, table=True):
         default_factory=list,
         sa_column=Column(JSON, nullable=False, default=list),
     )
-    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
 
     conversation: Optional[AIConversation] = Relationship(back_populates="messages")
     citations: list["AIMessageCitation"] = Relationship(

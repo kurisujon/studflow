@@ -5,7 +5,7 @@ import math
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import delete, func, update
 from sqlmodel import Session, select
@@ -79,7 +79,7 @@ def update_document_status(
     page_count: int | None = None,
 ) -> Document:
     document.status = status
-    document.updated_at = datetime.utcnow()
+    document.updated_at = datetime.now(timezone.utc)
 
     if page_count is not None:
         document.page_count = page_count
@@ -103,7 +103,7 @@ def claim_failed_document_for_retry(
             .where(Document.status == DocumentStatus.FAILED)
             .values(
                 status=DocumentStatus.PENDING,
-                updated_at=datetime.utcnow(),
+                updated_at=datetime.now(timezone.utc),
             )
         )
         claimed = result.rowcount == 1
@@ -464,7 +464,7 @@ def claim_document_reindex(
     """Claim a new generation or resume the same generation after a stale lease."""
     if lease_seconds < 1:
         raise ValueError("Reindex lease duration must be positive.")
-    claimed_at = now or datetime.utcnow()
+    claimed_at = now or datetime.now(timezone.utc)
     try:
         document = session.exec(
             select(Document)
@@ -547,7 +547,7 @@ def release_document_reindex_claim(
             document.pending_index_heartbeat_at = None
             document.pending_index_lease_token = None
             document.pending_index_page_cursor = None
-            document.updated_at = datetime.utcnow()
+            document.updated_at = datetime.now(timezone.utc)
             session.add(document)
         session.commit()
     except Exception:
@@ -576,8 +576,8 @@ def renew_document_reindex_lease(
             or document.pending_index_lease_token != lease_token
         ):
             raise ValueError("The pending document index generation changed.")
-        document.pending_index_heartbeat_at = datetime.utcnow()
-        document.updated_at = datetime.utcnow()
+        document.pending_index_heartbeat_at = datetime.now(timezone.utc)
+        document.updated_at = datetime.now(timezone.utc)
         cursor = document.pending_index_page_cursor or 0
         session.add(document)
         session.commit()
@@ -640,7 +640,7 @@ def checkpoint_reindex_page(
         ]
         if records:
             session.add_all(records)
-        checkpointed_at = datetime.utcnow()
+        checkpointed_at = datetime.now(timezone.utc)
         document.pending_index_page_cursor = page_number
         document.pending_index_heartbeat_at = checkpointed_at
         document.page_count = page_count
@@ -701,7 +701,7 @@ def checkpoint_active_index_page(
         ]
         if records:
             session.add_all(records)
-        checkpointed_at = datetime.utcnow()
+        checkpointed_at = datetime.now(timezone.utc)
         document.active_index_page_cursor = page_number
         document.page_count = page_count
         document.updated_at = checkpointed_at
@@ -747,7 +747,7 @@ def save_reindex_chunk_embeddings(
         for chunk, embedding in zip(chunks, embeddings, strict=True):
             chunk.embedding = list(embedding)
             session.add(chunk)
-        heartbeat = datetime.utcnow()
+        heartbeat = datetime.now(timezone.utc)
         document.pending_index_heartbeat_at = heartbeat
         document.updated_at = heartbeat
         session.add(document)
@@ -842,7 +842,7 @@ def activate_document_index_generation(
         document.pending_index_heartbeat_at = None
         document.pending_index_lease_token = None
         document.pending_index_page_cursor = None
-        document.updated_at = datetime.utcnow()
+        document.updated_at = datetime.now(timezone.utc)
         session.add(document)
         session.commit()
     except Exception:

@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
 from core.database import engine
@@ -20,7 +20,7 @@ def get_due_flashcards(current_user: CurrentUser = Depends(get_current_user)):
             select(Flashcard)
             .join(Document, Flashcard.document_id == Document.id)
             .where(Document.clerk_user_id == current_user.clerk_user_id)
-            .where(Flashcard.next_review_date <= datetime.utcnow())
+            .where(Flashcard.next_review_date <= datetime.now(timezone.utc))
             .order_by(Flashcard.next_review_date.asc())
         )
         flashcards = session.exec(statement).all()

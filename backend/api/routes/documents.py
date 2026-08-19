@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Literal, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
@@ -1209,7 +1209,7 @@ def create_annotation(document_id: uuid.UUID, payload: CreateAnnotationRequest, 
     with Session(engine) as session:
         _get_owned_document(session, document_id, current_user)
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         if payload.type in {"highlight", "underline"}:
             overlapping_statement = (
@@ -1289,7 +1289,7 @@ def update_annotation(annotation_id: uuid.UUID, payload: UpdateAnnotationRequest
         if payload.noteContent is not None:
             annotation.note_content = payload.noteContent.strip()
 
-        annotation.updated_at = datetime.utcnow()
+        annotation.updated_at = datetime.now(timezone.utc)
         session.add(annotation)
         session.commit()
         session.refresh(annotation)
@@ -1308,7 +1308,7 @@ def update_note(note_id: uuid.UUID, payload: UpdateAnnotationRequest, current_us
             )
         if payload.noteContent is not None:
             note.note_content = payload.noteContent.strip()
-        note.updated_at = datetime.utcnow()
+        note.updated_at = datetime.now(timezone.utc)
         session.add(note)
         session.commit()
         session.refresh(note)
@@ -1329,7 +1329,7 @@ def soft_delete_note(note_id: uuid.UUID, current_user: CurrentUser = Depends(get
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Note not found.",
             )
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         note.deleted_at = now
         note.updated_at = now
         session.add(note)
@@ -1347,7 +1347,7 @@ def restore_note(note_id: uuid.UUID, current_user: CurrentUser = Depends(get_cur
                 detail="Note not found.",
             )
         note.deleted_at = None
-        note.updated_at = datetime.utcnow()
+        note.updated_at = datetime.now(timezone.utc)
         session.add(note)
         session.commit()
         session.refresh(note)
@@ -1398,7 +1398,7 @@ def create_ai_history(
 ) -> AIHistoryResponse:
     with Session(engine) as session:
         document = _get_owned_document(session, document_id, current_user)
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         history = AIHistory(
             document_id=document.id,
             source=payload.source,

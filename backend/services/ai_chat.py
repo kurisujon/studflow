@@ -4,7 +4,7 @@ import logging
 import re
 import uuid
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
@@ -152,7 +152,7 @@ def create_conversation(
         raise DocumentNotReadyError
 
     default_title = document.filename.rsplit(".", 1)[0].strip() or "Study conversation"
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     conversation = AIConversation(
         clerk_user_id=clerk_user_id,
         document_id=document.id,
@@ -207,7 +207,7 @@ def update_conversation_title(
         for_update=True,
     )
     conversation.title = title
-    conversation.updated_at = datetime.utcnow()
+    conversation.updated_at = datetime.now(timezone.utc)
     try:
         session.add(conversation)
         session.commit()
@@ -573,7 +573,7 @@ def send_conversation_message(
             )
         ).one()
         next_sequence = int(maximum_sequence or 0) + 1
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         user_message = AIMessage(
             status=ChatAnswerStatus.ANSWERED,
             conversation_id=conversation.id,
@@ -614,7 +614,7 @@ def send_conversation_message(
                         excerpt=citation.excerpt,
                     )
                 )
-            conversation.updated_at = datetime.utcnow()
+            conversation.updated_at = datetime.now(timezone.utc)
             session.add(conversation)
             session.commit()
         except IntegrityError as exc:

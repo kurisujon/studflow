@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import uuid
 from sqlmodel import Session, select
 from models.tables import Flashcard
@@ -50,7 +50,7 @@ def review_flashcard(session: Session, flashcard_id: uuid.UUID, rating: str) -> 
     flashcard.interval = interval
     flashcard.repetition = repetitions
     flashcard.easiness_factor = easiness
-    flashcard.next_review_date = datetime.utcnow() + timedelta(days=interval)
+    flashcard.next_review_date = datetime.now(timezone.utc) + timedelta(days=interval)
     
     session.add(flashcard)
     session.commit()

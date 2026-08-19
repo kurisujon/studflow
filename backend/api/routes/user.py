@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlmodel import Session, select, func
@@ -68,7 +68,7 @@ def update_user_preferences(
         if request.sm2_aggressiveness is not None:
             prefs.sm2_aggressiveness = request.sm2_aggressiveness
             
-        prefs.updated_at = datetime.utcnow()
+        prefs.updated_at = datetime.now(timezone.utc)
         session.commit()
         session.refresh(prefs)
         return prefs
@@ -102,7 +102,7 @@ def get_user_stats(current_user: CurrentUser = Depends(get_current_user)):
             avg_score = int(total_pct / len(attempts))
             
         # Very simple streak logic based on quiz attempts (could be expanded to flashcard reviews)
-        today = datetime.utcnow().date()
+        today = datetime.now(timezone.utc).date()
         activity_dates = set([a.created_at.date() for a in attempts])
         
         streak_activity = []
@@ -140,7 +140,7 @@ def get_user_queue(current_user: CurrentUser = Depends(get_current_user)):
         due_flashcards = session.exec(
             select(func.count(Flashcard.id))
             .where(Flashcard.document_id.in_(doc_ids))
-            .where(Flashcard.next_review_date <= datetime.utcnow())
+            .where(Flashcard.next_review_date <= datetime.now(timezone.utc))
         ).first() or 0
         
         if due_flashcards > 0:
