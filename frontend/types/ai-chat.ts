@@ -1,4 +1,11 @@
 export type AIRetrievalMode = "document" | "web" | "hybrid";
+export type AIChatAnswerStatus =
+  | "ANSWERED"
+  | "PARTIALLY_ANSWERED"
+  | "INSUFFICIENT_EVIDENCE"
+  | "OUT_OF_SCOPE"
+  | "FAILED";
+
 export type AIMessageRole = "user" | "assistant" | "system";
 
 export type AIConversation = {
@@ -30,6 +37,7 @@ export type AIChatMessage = {
   retrieval_mode: AIRetrievalMode;
   suggested_followups: string[];
   citations: AIChatCitation[];
+  status: AIChatAnswerStatus;
   created_at: string;
 };
 
@@ -45,4 +53,5 @@ export type AIChatAnswer = {
   answer_markdown: string;
   citations: AIChatCitation[];
   suggested_followups: string[];
+  status: AIChatAnswerStatus;
 };

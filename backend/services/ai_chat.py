@@ -21,6 +21,7 @@ from models.tables import (
 )
 from schemas.ai_chat import (
     ChatAnswer,
+    ChatAnswerStatus,
     CitationResponse,
     ConversationResponse,
     MessageResponse,
@@ -299,6 +300,7 @@ def list_messages(
             selected_text=message.selected_text,
             retrieval_mode=message.retrieval_mode,
             suggested_followups=list(message.suggested_followups or []),
+            status=ChatAnswerStatus(message.status),
             citations=[
                 _citation_response(citation)
                 for citation in citations_by_message.get(message.id, [])
@@ -441,10 +443,10 @@ def send_conversation_message(
             index_generation=index_generation,
         )
         evidence_set = evaluate_retrieval_quality(
-            chunks, 
+            chunks,
             threshold=settings.retrieval_min_score_threshold
         )
-        
+
         # We still need the original retrieved_chunks format for now
         # but in a real B4/B5 we'd branch here if not evidence_set.quality.threshold_passed
         retrieved_chunks = [
@@ -459,61 +461,65 @@ def send_conversation_message(
             for chunk, distance in chunks
         ]
 
-    if not retrieved_chunks:
-        raise SearchIndexNotReadyError(document_id=document_id, repairable=False)
-
-    source_registry: dict[str, RetrievedChatChunk] = {
-        f"e_{index:02d}": chunk for index, chunk in enumerate(retrieved_chunks, start=1)
-    }
-    raw_generated = answer_conversation_question(
-        sources=[
-            (eid, chunk.content) for eid, chunk in source_registry.items()
-        ],
-        user_question=question,
-        conversation_history=history,
-        selected_text=selected_text,
-    )
-    valid_ids = set(source_registry)
-
-    try:
-        generated = validate_conversation_answer(raw_generated, valid_ids)
-    except ValueError as e:
-        raise AIServiceError(str(e))
-
-    # Phase B3: Semantic Validation
-    if generated.evidence_sufficient:
-        eval_batch = []
-        for claim in generated.claims:
-            for eid in claim.cited_evidence_ids:
-                eval_batch.append((claim.claim_text, eid, source_registry[eid].content))
-        
-        evaluations = evaluate_citations(eval_batch)
-        generated = apply_semantic_validation(generated, evaluations)
-    else:
-        # If evidence isn't sufficient, semantic validation isn't needed.
-        # But we need to upgrade the DomainConversationAnswer to a SemanticallyValidatedAnswer 
-        # to pass type checking. We'll just pass empty evaluations.
-        generated = apply_semantic_validation(generated, [])
-
-    if not generated.evidence_sufficient:
-        total_citations = sum(len(c.citations) for c in generated.claims)
-        if total_citations > 0:
-            logger.warning(
-                "Discarding citations from insufficient-evidence conversation answer: "
-                "conversation_id=%s citation_count=%d",
-                conversation_id,
-                total_citations,
-            )
+    # Phase B5: Deterministic Abstention
+    if not evidence_set.evidence or not evidence_set.quality.threshold_passed:
         answer_markdown = INSUFFICIENT_EVIDENCE_ANSWER
         cited_eids: set[str] = set()
         effective_followups: list[str] = []
+        message_status = ChatAnswerStatus.INSUFFICIENT_EVIDENCE
+        source_registry = {}
     else:
-        answer_markdown, cited_eids = _render_grounded_answer(generated.claims)
-        if not answer_markdown.strip():
-            raise AIServiceError("Gemini returned an empty answer after citation validation.")
-        if not cited_eids:
-            raise AIServiceError("Gemini returned a grounded answer without a valid citation.")
-        effective_followups = generated.suggested_followups
+        source_registry: dict[str, RetrievedChatChunk] = {
+            f"e_{index:02d}": chunk for index, chunk in enumerate(retrieved_chunks, start=1)
+        }
+        raw_generated = answer_conversation_question(
+            sources=[
+                (eid, chunk.content) for eid, chunk in source_registry.items()
+            ],
+            user_question=question,
+            conversation_history=history,
+            selected_text=selected_text,
+        )
+        valid_ids = set(source_registry)
+
+        try:
+            generated = validate_conversation_answer(raw_generated, valid_ids)
+        except ValueError as e:
+            raise AIServiceError(str(e))
+
+        # Phase B3: Semantic Validation
+        if generated.evidence_sufficient:
+            eval_batch = []
+            for claim in generated.claims:
+                for eid in claim.cited_evidence_ids:
+                    eval_batch.append((claim.claim_text, eid, source_registry[eid].content))
+
+            evaluations = evaluate_citations(eval_batch)
+            generated = apply_semantic_validation(generated, evaluations)
+        else:
+            generated = apply_semantic_validation(generated, [])
+
+        if not generated.evidence_sufficient:
+            total_citations = sum(len(c.citations) for c in generated.claims)
+            if total_citations > 0:
+                logger.warning(
+                    "Discarding citations from insufficient-evidence conversation answer: "
+                    "conversation_id=%s citation_count=%d",
+                    conversation_id,
+                    total_citations,
+                )
+            answer_markdown = INSUFFICIENT_EVIDENCE_ANSWER
+            cited_eids = set()
+            effective_followups = []
+            message_status = ChatAnswerStatus.INSUFFICIENT_EVIDENCE
+        else:
+            answer_markdown, cited_eids = _render_grounded_answer(generated.claims)
+            if not answer_markdown.strip():
+                raise AIServiceError("Gemini returned an empty answer after citation validation.")
+            if not cited_eids:
+                raise AIServiceError("Gemini returned a grounded answer without a valid citation.")
+            effective_followups = generated.suggested_followups
+            message_status = ChatAnswerStatus.ANSWERED
 
 
     citation_payloads = []
@@ -523,7 +529,7 @@ def send_conversation_message(
             index = int(eid.replace("e_", ""))
         except ValueError:
             continue
-        
+
         chunk = source_registry[eid]
         citation_payloads.append(
             CitationResponse(
@@ -569,6 +575,7 @@ def send_conversation_message(
         next_sequence = int(maximum_sequence or 0) + 1
         now = datetime.utcnow()
         user_message = AIMessage(
+            status=ChatAnswerStatus.ANSWERED,
             conversation_id=conversation.id,
             sequence_number=next_sequence,
             role="user",
@@ -579,6 +586,7 @@ def send_conversation_message(
             created_at=now,
         )
         assistant_message = AIMessage(
+            status=message_status,
             conversation_id=conversation.id,
             sequence_number=next_sequence + 1,
             role="assistant",
@@ -622,4 +630,5 @@ def send_conversation_message(
         answer_markdown=answer_markdown,
         citations=citation_payloads,
         suggested_followups=effective_followups,
+        status=message_status,
     )

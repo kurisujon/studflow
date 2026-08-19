@@ -535,6 +535,10 @@ class AIMessage(SQLModel, table=True):
             "retrieval_mode IN ('document', 'web', 'hybrid')",
             name="ck_ai_messages_retrieval_mode",
         ),
+        CheckConstraint(
+            "status IN ('ANSWERED', 'PARTIALLY_ANSWERED', 'INSUFFICIENT_EVIDENCE', 'OUT_OF_SCOPE', 'FAILED')",
+            name="ck_ai_messages_status",
+        ),
         UniqueConstraint(
             "conversation_id",
             "sequence_number",
@@ -565,6 +569,7 @@ class AIMessage(SQLModel, table=True):
     content: str = Field(nullable=False)
     selected_text: Optional[str] = Field(default=None, nullable=True)
     retrieval_mode: str = Field(default="document", max_length=16, nullable=False)
+    status: str = Field(default="ANSWERED", max_length=32, nullable=False)
     suggested_followups: list[str] = Field(
         default_factory=list,
         sa_column=Column(JSON, nullable=False, default=list),

@@ -3,6 +3,7 @@ import type {
   AIChatAnswer,
   AIChatCitation,
   AIChatMessage,
+  AIChatAnswerStatus,
   AIConversation,
   AIMessagePage,
 } from "@/types/ai-chat";
@@ -47,6 +48,20 @@ function string(value: unknown, field: string): string {
 function nullableString(value: unknown, field: string): string | null {
   if (value === null) return null;
   return string(value, field);
+}
+
+
+function chatStatus(value: unknown): AIChatAnswerStatus {
+  if (
+    value === "ANSWERED" ||
+    value === "PARTIALLY_ANSWERED" ||
+    value === "INSUFFICIENT_EVIDENCE" ||
+    value === "OUT_OF_SCOPE" ||
+    value === "FAILED"
+  ) {
+    return value;
+  }
+  throw new Error(`Invalid AI chat status: ${value}`);
 }
 
 function conversation(value: unknown): AIConversation {
@@ -162,7 +177,11 @@ export async function getAIConversationMessages(
 
 export async function sendAIConversationMessage(
   conversationId: string,
-  payload: { question: string; selected_text?: string },
+  payload: {
+    question: string;
+    selected_text?: string;
+    retrieval_mode?: "document" | "web" | "hybrid";
+  },
   token: string | null,
   signal?: AbortSignal,
 ): Promise<AIChatAnswer> {

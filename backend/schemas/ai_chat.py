@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from enum import Enum
 from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
@@ -9,6 +10,14 @@ from pydantic import BaseModel, Field, field_validator
 
 MessageRole = Literal["user", "assistant", "system"]
 RetrievalMode = Literal["document", "web", "hybrid"]
+
+class ChatAnswerStatus(str, Enum):
+    ANSWERED = "ANSWERED"
+    PARTIALLY_ANSWERED = "PARTIALLY_ANSWERED"
+    INSUFFICIENT_EVIDENCE = "INSUFFICIENT_EVIDENCE"
+    OUT_OF_SCOPE = "OUT_OF_SCOPE"
+    FAILED = "FAILED"
+
 CitationSourceType = Literal["document", "web"]
 
 
@@ -65,6 +74,7 @@ class MessageResponse(BaseModel):
     content: str
     selected_text: str | None = None
     retrieval_mode: RetrievalMode
+    status: ChatAnswerStatus
     suggested_followups: list[str]
     citations: list[CitationResponse]
     created_at: datetime
@@ -104,3 +114,4 @@ class ChatAnswer(BaseModel):
     answer_markdown: str
     citations: list[CitationResponse]
     suggested_followups: list[str]
+    status: ChatAnswerStatus

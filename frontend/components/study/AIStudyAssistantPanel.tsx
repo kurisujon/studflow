@@ -308,7 +308,11 @@ export function AIStudyAssistantPanel({
       if (!token) throw new Error("Your session is unavailable.");
       await sendAIConversationMessage(
         conversationId,
-        { question: normalized, ...(selected ? { selected_text: selected } : {}) },
+        {
+          question: normalized,
+          ...(selected ? { selected_text: selected } : {}),
+          retrieval_mode: "document",
+        },
         token,
         controller.signal,
       );
@@ -423,6 +427,24 @@ export function AIStudyAssistantPanel({
               <option key={item.id} value={item.id}>{conversationLabel(item, conversations, index)}</option>
             ))}
           </select>
+        </div>
+        <div className="ai-chat-thread-picker">
+          <label htmlFor={`ai-retrieval-mode-${documentId}`} className="study-meta-label">
+            Sources
+          </label>
+          <select
+            id={`ai-retrieval-mode-${documentId}`}
+            value="document"
+            aria-describedby={`ai-retrieval-mode-help-${documentId}`}
+            onChange={() => undefined}
+          >
+            <option value="document">Document</option>
+            <option value="web" disabled>Web — coming later</option>
+            <option value="hybrid" disabled>Hybrid — coming later</option>
+          </select>
+          <span id={`ai-retrieval-mode-help-${documentId}`} className="sr-only">
+            Document is selected. Web and hybrid sources are disabled until verified web grounding is available.
+          </span>
         </div>
         <Button type="button" variant="outline" size="sm" onClick={() => void createNewChat()} disabled={creating || sending}>
           <MessageSquarePlus size={15} /> {creating ? "Creating…" : "New chat"}
