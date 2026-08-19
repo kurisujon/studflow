@@ -29,9 +29,10 @@ from schemas.ai_chat import (
 from services.ai_service import (
     AIServiceError,
     answer_conversation_question,
+    evaluate_citations,
     generate_query_embedding,
 )
-from services.domain_validation import validate_conversation_answer
+from services.domain_validation import validate_conversation_answer, apply_semantic_validation
 from services.documents import get_document_index_readiness, search_owned_similar_chunks
 
 
@@ -326,17 +327,20 @@ def _bounded_history(messages: list[AIMessage]) -> list[tuple[str, str]]:
     return list(reversed(selected))
 
 
-from schemas.domain import DomainGroundedClaim
+from schemas.domain import DomainGroundedClaim, SemanticallyValidatedClaim
 
 
-def _render_grounded_answer(claims: list[DomainGroundedClaim]) -> tuple[str, set[str]]:
+def _render_grounded_answer(claims: list[SemanticallyValidatedClaim]) -> tuple[str, set[str]]:
     """Deterministically render grounded claims to a Markdown string with inline citation markers."""
     paragraphs = []
     cited_eids = set()
 
     for claim in claims:
         marker_numbers = []
-        for eid in claim.cited_evidence_ids:
+        for citation in claim.citations:
+            if citation.support_level == 'UNSUPPORTED':
+                continue
+            eid = citation.evidence_id
             cited_eids.add(eid)
             try:
                 num = int(eid.replace("e_", ""))
@@ -468,8 +472,23 @@ def send_conversation_message(
     except ValueError as e:
         raise AIServiceError(str(e))
 
+    # Phase B3: Semantic Validation
+    if generated.evidence_sufficient:
+        eval_batch = []
+        for claim in generated.claims:
+            for eid in claim.cited_evidence_ids:
+                eval_batch.append((claim.claim_text, eid, source_registry[eid].content))
+        
+        evaluations = evaluate_citations(eval_batch)
+        generated = apply_semantic_validation(generated, evaluations)
+    else:
+        # If evidence isn't sufficient, semantic validation isn't needed.
+        # But we need to upgrade the DomainConversationAnswer to a SemanticallyValidatedAnswer 
+        # to pass type checking. We'll just pass empty evaluations.
+        generated = apply_semantic_validation(generated, [])
+
     if not generated.evidence_sufficient:
-        total_citations = sum(len(c.cited_evidence_ids) for c in generated.claims)
+        total_citations = sum(len(c.citations) for c in generated.claims)
         if total_citations > 0:
             logger.warning(
                 "Discarding citations from insufficient-evidence conversation answer: "

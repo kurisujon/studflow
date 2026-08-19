@@ -104,3 +104,43 @@ def validate_conversation_answer(raw: ConversationAnswer, available_ids: Set[str
         evidence_sufficient=raw.evidence_sufficient,
         suggested_followups=raw.suggested_followups,
     )
+
+from schemas.domain import (
+    SemanticallyValidatedAnswer,
+    SemanticallyValidatedClaim,
+    ValidatedCitation,
+)
+from services.ai_service import RawCitationEvaluation
+
+def apply_semantic_validation(
+    structurally_valid: DomainConversationAnswer,
+    evaluations: list[RawCitationEvaluation]
+) -> SemanticallyValidatedAnswer:
+    # Map eval results for quick lookup: (claim_text, evidence_id) -> support_level
+    eval_map = {
+        (ev.claim_text, ev.evidence_id): ev.support_level 
+        for ev in evaluations
+    }
+    
+    semantically_valid_claims = []
+    
+    for claim in structurally_valid.claims:
+        valid_citations = []
+        for eid in claim.cited_evidence_ids:
+            support_level = eval_map.get((claim.claim_text, eid), "UNSUPPORTED")
+            valid_citations.append(
+                ValidatedCitation(evidence_id=eid, support_level=support_level)
+            )
+            
+        semantically_valid_claims.append(
+            SemanticallyValidatedClaim(
+                claim_text=claim.claim_text,
+                citations=valid_citations
+            )
+        )
+        
+    return SemanticallyValidatedAnswer(
+        claims=semantically_valid_claims,
+        evidence_sufficient=structurally_valid.evidence_sufficient,
+        suggested_followups=structurally_valid.suggested_followups
+    )

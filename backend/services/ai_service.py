@@ -4,7 +4,9 @@ import logging
 from collections.abc import Sequence
 from typing import Iterable
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel
+from pydantic import Field, ValidationError
+from typing import Literal
 
 from core.config import settings
 from services.llm_provider import (
@@ -471,3 +473,57 @@ def extract_youtube_search_query(document_text_or_summary: str) -> YouTubeSearch
     )
     
     return YouTubeSearchQuery.model_validate_json(response.text)
+
+# Citation Validation Schema
+
+class RawCitationEvaluation(BaseModel):
+    claim_text: str
+    evidence_id: str
+    support_level: str
+    reasoning: str
+
+class BatchCitationEvaluationPayload(BaseModel):
+    evaluations: list[RawCitationEvaluation]
+
+CITATION_EVALUATION_PROMPT = """
+You are an objective academic auditor. Your job is to verify whether specific citations actually support the claims they are attached to.
+You will be provided with a list of Claims, each containing the Claim Text, and the exact Source Text for the citations attached to it.
+For each citation, you must evaluate if the Source Text supports the Claim Text.
+
+Use these rules:
+- SUPPORTED: The source text explicitly states or logically implies the claim.
+- PARTIAL: The source text supports part of the claim, but not all of it, or is tangentially related.
+- UNSUPPORTED: The source text does not support the claim at all, or contradicts it.
+
+Provide a brief reasoning for your evaluation.
+You must return the exact claim_text and evidence_id for each evaluation.
+Return only JSON that matches the required schema.
+""".strip()
+
+def evaluate_citations(
+    claims_and_sources: list[tuple[str, str, str]]
+) -> list[RawCitationEvaluation]:
+    """
+    Evaluates a batch of citations for semantic support.
+    Accepts a list of tuples: (claim_text, evidence_id, source_text).
+    Returns a list of RawCitationEvaluation.
+    """
+    if not claims_and_sources:
+        return []
+
+    # Format the payload for the LLM
+    formatted_items = []
+    for claim_text, eid, source_text in claims_and_sources:
+        formatted_items.append(
+            f"Evidence ID: {eid}\n"
+            f"Claim: {claim_text}\n"
+            f"Source Text: {source_text}\n"
+        )
+    
+    prompt = f"{CITATION_EVALUATION_PROMPT}\n\n---\n\n" + "\n---\n".join(formatted_items)
+    
+    result = _generate_structured(
+        prompt=prompt,
+        response_schema=BatchCitationEvaluationPayload,
+    )
+    return BatchCitationEvaluationPayload.model_validate_json(result.text).evaluations

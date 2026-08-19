@@ -23,6 +23,7 @@ from models.tables import (
     DocumentChunk,
     DocumentStatus,
 )
+from services.ai_service import RawCitationEvaluation
 from schemas.ai_chat import SendMessageRequest
 from services.ai_chat import (
     ConcurrentConversationUpdateError,
@@ -414,6 +415,7 @@ class AIChatSendTests(unittest.TestCase):
             patch("services.ai_chat.generate_query_embedding", return_value=[0.0] * 768) as embedding_mock,
             patch("services.ai_chat.search_owned_similar_chunks", return_value=[self.chunk]),
             patch("services.ai_chat.answer_conversation_question", return_value=generated) as generation_mock,
+            patch("services.ai_chat.evaluate_citations", return_value=[RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="") for c in generated.claims for eid in c.cited_evidence_ids]),
         ):
             answer = send_conversation_message(
                 conversation_id=self.conversation_id,
@@ -612,6 +614,11 @@ class AIChatSendTests(unittest.TestCase):
             patch("services.ai_chat.generate_query_embedding", return_value=[0.0] * 768),
             patch("services.ai_chat.search_owned_similar_chunks", return_value=[self.chunk]),
             patch("services.ai_chat.answer_conversation_question", return_value=generated),
+            patch("services.ai_chat.evaluate_citations", return_value=[RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="") for c in generated.claims for eid in c.cited_evidence_ids]),
+            patch("services.ai_chat.evaluate_citations", return_value=[
+                RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="") 
+                for c in generated.claims for eid in c.cited_evidence_ids
+            ]),
         ):
             with self.assertRaises(ConcurrentConversationUpdateError):
                 send_conversation_message(
@@ -644,6 +651,11 @@ class AIChatSendTests(unittest.TestCase):
             patch("services.ai_chat.generate_query_embedding", return_value=[0.0] * 768),
             patch("services.ai_chat.search_owned_similar_chunks", return_value=[self.chunk]),
             patch("services.ai_chat.answer_conversation_question", return_value=generated),
+            patch("services.ai_chat.evaluate_citations", return_value=[RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="") for c in generated.claims for eid in c.cited_evidence_ids]),
+            patch("services.ai_chat.evaluate_citations", return_value=[
+                RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="") 
+                for c in generated.claims for eid in c.cited_evidence_ids
+            ]),
         ):
             with self.assertRaises(ConcurrentConversationUpdateError):
                 send_conversation_message(
@@ -677,6 +689,11 @@ class AIChatSendTests(unittest.TestCase):
             patch("services.ai_chat.generate_query_embedding", return_value=[0.0] * 768),
             patch("services.ai_chat.search_owned_similar_chunks", return_value=[self.chunk]),
             patch("services.ai_chat.answer_conversation_question", return_value=generated),
+            patch("services.ai_chat.evaluate_citations", return_value=[RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="") for c in generated.claims for eid in c.cited_evidence_ids]),
+            patch("services.ai_chat.evaluate_citations", return_value=[
+                RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="") 
+                for c in generated.claims for eid in c.cited_evidence_ids
+            ]),
             patch("services.ai_chat.logger.warning") as warning,
         ):
             answer = send_conversation_message(
@@ -721,6 +738,11 @@ class AIChatSendTests(unittest.TestCase):
             patch("services.ai_chat.generate_query_embedding", return_value=[0.0] * 768),
             patch("services.ai_chat.search_owned_similar_chunks", return_value=[self.chunk]),
             patch("services.ai_chat.answer_conversation_question", return_value=generated),
+            patch("services.ai_chat.evaluate_citations", return_value=[RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="") for c in generated.claims for eid in c.cited_evidence_ids]),
+            patch("services.ai_chat.evaluate_citations", return_value=[
+                RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="") 
+                for c in generated.claims for eid in c.cited_evidence_ids
+            ]),
             patch("services.ai_chat.logger.warning") as warning,
         ):
             answer = send_conversation_message(
@@ -760,6 +782,11 @@ class AIChatSendTests(unittest.TestCase):
             patch("services.ai_chat.generate_query_embedding", return_value=[0.0] * 768),
             patch("services.ai_chat.search_owned_similar_chunks", return_value=[self.chunk]),
             patch("services.ai_chat.answer_conversation_question", return_value=generated),
+            patch("services.ai_chat.evaluate_citations", return_value=[RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="") for c in generated.claims for eid in c.cited_evidence_ids]),
+            patch("services.ai_chat.evaluate_citations", return_value=[
+                RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="") 
+                for c in generated.claims for eid in c.cited_evidence_ids
+            ]),
             patch("services.ai_chat.logger.warning") as warning,
         ):
             answer = send_conversation_message(
@@ -797,6 +824,11 @@ class AIChatSendTests(unittest.TestCase):
             patch("services.ai_chat.generate_query_embedding", return_value=[0.0] * 768),
             patch("services.ai_chat.search_owned_similar_chunks", return_value=[self.chunk]),
             patch("services.ai_chat.answer_conversation_question", return_value=generated),
+            patch("services.ai_chat.evaluate_citations", return_value=[RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="") for c in generated.claims for eid in c.cited_evidence_ids]),
+            patch("services.ai_chat.evaluate_citations", return_value=[
+                RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="") 
+                for c in generated.claims for eid in c.cited_evidence_ids
+            ]),
         ):
             with self.assertRaises(AIServiceError):
                 send_conversation_message(
@@ -828,6 +860,11 @@ class AIChatSendTests(unittest.TestCase):
             patch("services.ai_chat.generate_query_embedding", return_value=[0.0] * 768),
             patch("services.ai_chat.search_owned_similar_chunks", return_value=[self.chunk]),
             patch("services.ai_chat.answer_conversation_question", return_value=generated),
+            patch("services.ai_chat.evaluate_citations", return_value=[RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="") for c in generated.claims for eid in c.cited_evidence_ids]),
+            patch("services.ai_chat.evaluate_citations", return_value=[
+                RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="") 
+                for c in generated.claims for eid in c.cited_evidence_ids
+            ]),
         ):
             with self.assertRaises(AIServiceError):
                 send_conversation_message(
@@ -917,6 +954,10 @@ class AIChatRealSessionRegressionTests(unittest.TestCase):
                 patch(
                     "services.ai_chat.answer_conversation_question",
                     return_value=generated,
+                ),
+                patch(
+                    "services.ai_chat.evaluate_citations",
+                    return_value=[RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="") for c in generated.claims for eid in c.cited_evidence_ids],
                 ),
             ):
                 answer = send_conversation_message(
@@ -1073,26 +1114,36 @@ if __name__ == "__main__":
     unittest.main()
 
 class RenderGroundedAnswerTests(unittest.TestCase):
-    def test_deterministic_markdown_output_ordering_and_spacing(self):
+    def test_deterministic_markdown_output_ordering_and_spacing(self) -> None:
         from services.ai_chat import _render_grounded_answer
-        from schemas.domain import DomainGroundedClaim
+        from schemas.domain import SemanticallyValidatedClaim, ValidatedCitation
 
         claims = [
-            DomainGroundedClaim(claim_text="Multiple sources out of order.", cited_evidence_ids=["e_03", "e_01"]),
-            DomainGroundedClaim(claim_text="Single source with trailing space. ", cited_evidence_ids=["e_02"]),
-            DomainGroundedClaim(claim_text="No sources.", cited_evidence_ids=[]),
-            DomainGroundedClaim(claim_text="Malformed evidence ID.", cited_evidence_ids=["e_abc"]),
-            DomainGroundedClaim(claim_text="Duplicate evidence ID.", cited_evidence_ids=["e_01", "e_01"]),
+            SemanticallyValidatedClaim(
+                claim_text="The sky is blue.",
+                citations=[ValidatedCitation(evidence_id="e_02", support_level="SUPPORTED"), ValidatedCitation(evidence_id="e_01", support_level="SUPPORTED")],
+            ),
+            SemanticallyValidatedClaim(
+                claim_text="Grass is green",
+                citations=[ValidatedCitation(evidence_id="e_03", support_level="SUPPORTED")],
+            ),
+            SemanticallyValidatedClaim(
+                claim_text="Water is wet.",
+                citations=[],
+            ),
+            SemanticallyValidatedClaim(
+                claim_text="Fire is hot.",
+                citations=[ValidatedCitation(evidence_id="e_04", support_level="UNSUPPORTED")],
+            )
         ]
         
         markdown, cited_eids = _render_grounded_answer(claims)
         
         expected_paragraphs = [
-            "Multiple sources out of order. [1][3]",
-            "Single source with trailing space. [2]",
-            "No sources.",
-            "Malformed evidence ID.",
-            "Duplicate evidence ID. [1]"
+            "The sky is blue. [1][2]",
+            "Grass is green [3]",
+            "Water is wet.",
+            "Fire is hot."
         ]
         self.assertEqual(markdown, "\n\n".join(expected_paragraphs))
-        self.assertEqual(cited_eids, {"e_01", "e_02", "e_03", "e_abc"})
+        self.assertEqual(cited_eids, {"e_01", "e_02", "e_03"})

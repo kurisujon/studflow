@@ -138,3 +138,20 @@ class DomainConversationAnswer(BaseModel):
         cleaned = [followup.strip()[:160] for followup in v if followup.strip()]
         return cleaned[:4]
 
+
+from typing import Literal
+
+CitationSupportLevel = Literal["SUPPORTED", "PARTIAL", "UNSUPPORTED"]
+
+class ValidatedCitation(BaseModel):
+    evidence_id: str
+    support_level: CitationSupportLevel
+
+class SemanticallyValidatedClaim(BaseModel):
+    claim_text: str
+    citations: List[ValidatedCitation]
+
+class SemanticallyValidatedAnswer(BaseModel):
+    claims: List[SemanticallyValidatedClaim]
+    evidence_sufficient: bool
+    suggested_followups: List[str]
