@@ -165,6 +165,19 @@ Goal: Harden the AI architecture to decouple generative orchestration from domai
 - [x] Verify no regressions in legacy document handling.
 - [x] Review diff against `docs/GUARDRAILS.md`.
 
+
+## Phase B: Evidence-Grounded Output (Completed)
+
+Goal: Enforce strict semantic validation of AI citations against retrieved document chunks before presenting them to the user.
+
+- [x] B1: Controlled Evidence IDs (1-indexed identifiers mapped to chunks)
+- [x] B2: Claim-Level Structured Output (LLM outputs distinct claims with citation arrays)
+- [x] B3: Citation Validation (Model-assisted semantic citation evaluation)
+- [x] B4: Retrieval Quality Threshold (Short-circuit model if retrieval quality is too low)
+- [x] B5: Abstention States (Add deterministic `status` to ChatAnswer and persist)
+- [x] B6: Unsupported-Claim Defense (Filter claims based on strict validation policy)
+- [x] Phase B Verification & Gate (Holistic pipeline test and frontend alignment)
+
 ## Explicit Non-Goals For This Workstream
 
 - [ ] Do not turn Studflow into a general-purpose AI toolbox

@@ -47,3 +47,6 @@ The conversational assistant remains inside the FastAPI monolith and reuses the 
 8. Conversation messages and citations are returned in stable sequence order and survive refresh.
 
 Conversation ownership is stored as the existing Clerk subject string. Phase 2 remains document-only and synchronous. The frontend loads the latest conversation, persists follow-up turns, pages backward through canonical history, and renders only structured citations returned by the backend. Chat never falls back to ungrounded generation when the index is incomplete or empty. Page-aware citations, web grounding, and streaming remain later phases. The legacy Ask AI and AI History endpoints remain available during the compatibility rollout.
+
+## AI Architecture Pipeline
+The system enforces strict domain boundaries over generative outputs. It uses a **model-assisted semantic citation evaluation** step to verify whether generated claims are supported by retrieved document chunks, avoiding any false "guarantees" of absolute truth. Unsupported claims are aggressively filtered before presentation.

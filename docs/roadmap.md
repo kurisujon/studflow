@@ -817,3 +817,23 @@ When a future agent completes a meaningful feature, they should update this file
 - Executed frontend linting and production build (`npm run build`) via Next.js to verify no shared schemas were corrupted; compilation was successful.
 
 **Result:** Phase A is closed. Evolving the system to Phase B: Evidence Grounding.
+
+### Update: 2026-08-19 — Phase B: Evidence-Grounded Output
+
+**What Changed:**
+- B1 & B2: Switched from inline markdown citations to 1-indexed `e_XX` Evidence IDs mapped to database chunks. The generation model now emits `RawGroundedClaim` objects separating textual claims from their supporting source IDs.
+- B3: Introduced a model-assisted semantic citation evaluation step (`evaluate_citations`) to rigorously verify if generated claims are actually supported by the retrieved context.
+- B4: Implemented `evaluate_retrieval_quality` to pre-flight context relevance. If semantic search returns low-quality chunks, the pipeline deterministically abstains without calling the generation model.
+- B5: Expanded `ChatAnswerStatus` with `ANSWERED`, `PARTIALLY_ANSWERED`, `INSUFFICIENT_EVIDENCE`, and `FAILED` (reserved). Added the `status` column to `ai_messages` and migrated historical rows safely.
+- B6: Enforced a strict validation policy. Claims evaluated as `PARTIAL` or `UNSUPPORTED` are aggressively stripped from the final output. The API now safely returns `INSUFFICIENT_EVIDENCE` if all claims are discarded.
+- Completed the holistic Phase B verification gate: the frontend build succeeds flawlessly matching the updated TS types, all backend tests passed (including B4 abstention and B6 strict filtering tests).
+
+**Contracts Changed:**
+- API & Schema: `ConversationAnswer` requires structured claims rather than raw markdown. `ChatAnswer` and `AIChatMessage` (frontend) now require a deterministic `status` enum field.
+- Database: `ai_messages` table gained the non-nullable `status` column.
+
+**Docs Stale:**
+- No.
+
+**What to do next:**
+- Phase C: Evaluation Foundation (offline pipeline for programmatic accuracy tests).
