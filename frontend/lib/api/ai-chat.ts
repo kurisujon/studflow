@@ -117,6 +117,7 @@ function message(value: unknown): AIChatMessage {
     retrieval_mode: value.retrieval_mode,
     suggested_followups: value.suggested_followups.map((item) => string(item, "follow-up")),
     citations: value.citations.map(citation),
+    status: chatStatus(value.status),
     created_at: string(value.created_at, "message timestamp"),
   };
 }
@@ -199,6 +200,7 @@ export async function sendAIConversationMessage(
     message_id: string(value.message_id, "answer message id"),
     answer_markdown: string(value.answer_markdown, "answer content"),
     citations: value.citations.map(citation),
+    status: chatStatus(value.status),
     suggested_followups: value.suggested_followups.map((item) => string(item, "follow-up")),
   };
 }
