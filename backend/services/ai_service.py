@@ -437,24 +437,7 @@ def answer_conversation_question(
             "Gemini returned an invalid structured conversation answer after retry."
         ) from final_validation_error
 
-    available_indexes = {source_index for source_index, _ in sources}
-    if any(index not in available_indexes for index in answer.cited_source_indexes):
-        raise AIServiceError("Gemini returned an invalid conversation source reference.")
-    if any(index < 1 for index in answer.cited_source_indexes):
-        raise AIServiceError("Gemini returned an invalid conversation source reference.")
-    if answer.evidence_sufficient and not answer.cited_source_indexes:
-        raise AIServiceError("Gemini returned a grounded answer without a source reference.")
-    normalized_followups = [
-        followup.strip()[:160]
-        for followup in answer.suggested_followups
-        if followup.strip()
-    ][:4]
-    return answer.model_copy(
-        update={
-            "cited_source_indexes": list(dict.fromkeys(answer.cited_source_indexes)),
-            "suggested_followups": normalized_followups,
-        }
-    )
+    return answer
 
 
 def extract_youtube_search_query(document_text_or_summary: str) -> YouTubeSearchQuery:

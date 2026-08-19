@@ -28,6 +28,7 @@ from services.ai_chat import (
     ConcurrentConversationUpdateError,
     INSUFFICIENT_EVIDENCE_ANSWER,
     SearchIndexNotReadyError,
+    _get_owned_document,
     _sanitize_markers,
     create_conversation,
     delete_conversation,
@@ -52,6 +53,12 @@ def _context_manager(session: MagicMock) -> MagicMock:
 
 
 class AIChatSchemaTests(unittest.TestCase):
+    def test_retrieval_mode_defaults_to_document(self) -> None:
+        self.assertEqual(
+            SendMessageRequest(question="Explain routing").retrieval_mode,
+            "document",
+        )
+
     def test_question_is_trimmed_and_bounded(self) -> None:
         self.assertEqual(SendMessageRequest(question="  Explain routing  ").question, "Explain routing")
         with self.assertRaises(ValidationError):
@@ -138,49 +145,31 @@ class AIChatGenerationTests(unittest.TestCase):
         self.assertTrue(answer.evidence_sufficient)
         generation.assert_called_once()
 
-    def test_insufficient_evidence_with_valid_structured_citations_is_accepted(self) -> None:
-        response = SimpleNamespace(
-            text=ConversationAnswer(
-                answer_markdown="The sources do not answer this question.",
-                evidence_sufficient=False,
-                cited_source_indexes=[1, 1],
-                suggested_followups=["  Ask about routing instead.  "],
-            ).model_dump_json()
-        )
-
-        with patch("services.ai_service._generate_structured", return_value=response):
-            answer = answer_conversation_question(
-                sources=[(1, "Routing maps URLs to controller actions.")],
-                user_question="What is the capital of Mars?",
-                conversation_history=[],
-            )
-
-        self.assertFalse(answer.evidence_sufficient)
-        self.assertEqual(answer.cited_source_indexes, [1])
-        self.assertEqual(answer.suggested_followups, ["Ask about routing instead."])
-
-    def test_insufficient_evidence_with_invalid_structured_citation_is_rejected(self) -> None:
-        for invalid_index in (-1, 0, 2):
-            with self.subTest(invalid_index=invalid_index):
-                response = SimpleNamespace(
-                    text=ConversationAnswer(
-                        answer_markdown="The sources do not answer this question.",
-                        evidence_sufficient=False,
-                        cited_source_indexes=[invalid_index],
-                        suggested_followups=[],
-                    ).model_dump_json()
-                )
-
-                with patch("services.ai_service._generate_structured", return_value=response):
-                    with self.assertRaises(AIServiceError):
-                        answer_conversation_question(
-                            sources=[(1, "Routing maps URLs to controller actions.")],
-                            user_question="What is the capital of Mars?",
-                            conversation_history=[],
-                        )
-
 
 class AIChatOwnershipQueryTests(unittest.TestCase):
+    def test_final_document_lookup_uses_row_lock_and_refreshes_cached_state(self) -> None:
+        session = MagicMock()
+        result = MagicMock()
+        result.first.return_value = Document(
+            clerk_user_id="user_owner",
+            filename="routing.pdf",
+            file_url="uploads/routing.pdf",
+            status=DocumentStatus.COMPLETED,
+        )
+        session.exec.return_value = result
+
+        _get_owned_document(
+            session,
+            document_id=uuid.uuid4(),
+            clerk_user_id="user_owner",
+            for_update=True,
+        )
+
+        statement = session.exec.call_args.args[0]
+        compiled = str(statement.compile(dialect=postgresql.dialect()))
+        self.assertIn("FOR UPDATE", compiled)
+        self.assertTrue(statement.get_execution_options().get("populate_existing"))
+
     def test_conversation_lookup_filters_clerk_owner(self) -> None:
         session = MagicMock()
         result = MagicMock()
@@ -349,6 +338,8 @@ class AIChatSendTests(unittest.TestCase):
             document_id=self.document_id,
             order_index=4,
             content="Laravel routes map URLs to controller actions.",
+            page_number=7,
+            index_generation=1,
         )
 
     def _read_session(
@@ -378,7 +369,9 @@ class AIChatSendTests(unittest.TestCase):
         session = MagicMock()
         conversation_result = MagicMock()
         conversation_result.first.return_value = self.conversation
-        session.exec.return_value = conversation_result
+        document_result = MagicMock()
+        document_result.first.return_value = self.document
+        session.exec.side_effect = [conversation_result, document_result]
         return session
 
     def _write_session(
@@ -386,6 +379,7 @@ class AIChatSendTests(unittest.TestCase):
         *,
         stale: bool = False,
         maximum_sequence: int = 0,
+        active_index_generation: int = 1,
     ) -> MagicMock:
         session = MagicMock()
         locked_conversation = self.conversation.model_copy(deep=True)
@@ -394,10 +388,12 @@ class AIChatSendTests(unittest.TestCase):
         conversation_result = MagicMock()
         conversation_result.first.return_value = locked_conversation
         document_result = MagicMock()
-        document_result.first.return_value = self.document
+        document = self.document.model_copy(deep=True)
+        document.active_index_generation = active_index_generation
+        document_result.first.return_value = document
         maximum_result = MagicMock()
         maximum_result.one.return_value = maximum_sequence
-        session.exec.side_effect = [conversation_result, document_result, maximum_result]
+        session.exec.side_effect = [document_result, conversation_result, maximum_result]
         return session
 
     def test_success_persists_complete_turn_and_real_chunk_citation_once(self) -> None:
@@ -434,7 +430,7 @@ class AIChatSendTests(unittest.TestCase):
         self.assertEqual(answer.citations[0].chunk_id, self.chunk.id)
         embedding_mock.assert_called_once_with("What is routing?\n\nSelected context:\nLaravel routing")
         self.assertEqual(generation_mock.call_args.kwargs["selected_text"], "Laravel routing")
-        self.assertIsNone(answer.citations[0].page_number)
+        self.assertEqual(answer.citations[0].page_number, 7)
         self.assertIsNone(answer.citations[0].url)
         write_session.commit.assert_called_once_with()
         write_session.rollback.assert_not_called()
@@ -442,6 +438,21 @@ class AIChatSendTests(unittest.TestCase):
         self.assertEqual(sum(isinstance(item, AIMessage) for item in added), 2)
         user_message = next(item for item in added if isinstance(item, AIMessage) and item.role == "user")
         self.assertEqual(user_message.selected_text, "Laravel routing")
+        locked_document_statement = write_session.exec.call_args_list[0].args[0]
+        self.assertIn(
+            "FOR UPDATE",
+            str(locked_document_statement.compile(dialect=postgresql.dialect())),
+        )
+        self.assertTrue(
+            locked_document_statement.get_execution_options().get("populate_existing")
+        )
+        locked_conversation_statement = write_session.exec.call_args_list[1].args[0]
+        self.assertIn(
+            "FOR UPDATE",
+            str(locked_conversation_statement.compile(dialect=postgresql.dialect())),
+        )
+        self.assertIn("documents", str(locked_document_statement))
+        self.assertIn("ai_conversations", str(locked_conversation_statement))
 
     def test_generation_failure_writes_no_partial_turn(self) -> None:
         read_session = self._read_session()
@@ -590,6 +601,39 @@ class AIChatSendTests(unittest.TestCase):
         read_session = self._read_session()
         retrieval_session = self._retrieval_session()
         write_session = self._write_session(stale=True)
+        generated = ConversationAnswer(
+            answer_markdown="Routing connects URLs to application logic.[1]",
+            evidence_sufficient=True,
+            cited_source_indexes=[1],
+            suggested_followups=[],
+        )
+        with (
+            patch(
+                "services.ai_chat._open_session",
+                side_effect=[
+                    _context_manager(read_session),
+                    _context_manager(retrieval_session),
+                    _context_manager(write_session),
+                ],
+            ),
+            patch("services.ai_chat.generate_query_embedding", return_value=[0.0] * 768),
+            patch("services.ai_chat.search_owned_similar_chunks", return_value=[self.chunk]),
+            patch("services.ai_chat.answer_conversation_question", return_value=generated),
+        ):
+            with self.assertRaises(ConcurrentConversationUpdateError):
+                send_conversation_message(
+                    conversation_id=self.conversation_id,
+                    clerk_user_id="user_owner",
+                    question="What is routing?",
+                )
+
+        write_session.add.assert_not_called()
+        write_session.commit.assert_not_called()
+
+    def test_index_activation_during_generation_rejects_turn_before_writes(self) -> None:
+        read_session = self._read_session()
+        retrieval_session = self._retrieval_session()
+        write_session = self._write_session(active_index_generation=2)
         generated = ConversationAnswer(
             answer_markdown="Routing connects URLs to application logic.[1]",
             evidence_sufficient=True,
@@ -942,6 +986,26 @@ class AIChatIndexRepairRouteTests(unittest.TestCase):
         self.assertEqual(
             raised.exception.detail,
             "The document search index is being prepared. Please retry shortly.",
+        )
+
+    def test_web_mode_is_rejected_before_service_call(self) -> None:
+        payload = SendMessageRequest(
+            question="Search the web",
+            retrieval_mode="web",
+        )
+        with patch("api.routes.ai_chat.send_conversation_message") as send:
+            with self.assertRaises(HTTPException) as raised:
+                send_ai_conversation_message(
+                    self.conversation_id,
+                    payload,
+                    self.current_user,
+                )
+
+        send.assert_not_called()
+        self.assertEqual(raised.exception.status_code, 409)
+        self.assertEqual(
+            raised.exception.detail,
+            "Web and hybrid retrieval are not available yet.",
         )
 
     def test_queue_failure_returns_service_unavailable(self) -> None:

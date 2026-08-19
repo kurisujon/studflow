@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Literal, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ValidationError, Field, model_validator
 from sqlmodel import Session, select
 
 from core.database import engine
@@ -32,17 +32,19 @@ from schemas.ai_history import (
     AIHistorySource,
     CreateAIHistoryRequest,
 )
+from schemas.domain import DomainSummary
 from services.ai_service import (
     AIServiceError,
-    ComprehensiveSummary,
     answer_document_question,
     explain_selection,
     generate_query_embedding,
 )
 from services.documents import (
+    claim_document_reindex,
     claim_failed_document_for_retry,
     create_flashcard,
     delete_terminal_document,
+    release_document_reindex_claim,
     search_similar_chunks,
     update_document_status,
 )
@@ -51,7 +53,7 @@ from services.storage import (
     delete_file_from_storage,
     validate_document_storage_path,
 )
-from tasks.document_processing import process_document_task
+from tasks.document_processing import process_document_task, reindex_document_task
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -115,11 +117,20 @@ class DocumentStatusResponse(BaseModel):
     summary_ready: bool
     flashcard_count: int
     quiz_ready: bool
+    active_index_generation: int
+    reindex_in_progress: bool
 
 
 class RetryDocumentResponse(BaseModel):
     document_id: uuid.UUID
     status: str
+
+
+class ReindexDocumentResponse(BaseModel):
+    document_id: uuid.UUID
+    task_id: str
+    active_index_generation: int
+    pending_index_generation: int
 
 
 class FlashcardResponse(BaseModel):
@@ -196,6 +207,7 @@ class DocumentChunkResponse(BaseModel):
     id: uuid.UUID
     order_index: int
     content: str
+    page_number: int | None = Field(default=None, ge=1)
 
 
 class ExplainSelectionRequest(BaseModel):
@@ -448,17 +460,16 @@ def _infer_processing_stage(document: Document, summary: Summary | None, flashca
     return "FINALIZING"
 
 
-def _parse_summary_payload(content: str | None) -> ComprehensiveSummary | None:
+def _parse_summary_payload(content: str | None) -> DomainSummary | None:
     if not content:
         return None
-
     try:
-        return ComprehensiveSummary.model_validate_json(content)
-    except Exception:
+        return DomainSummary.model_validate_json(content)
+    except ValidationError:
         return None
 
 
-def _format_summary_text(summary: ComprehensiveSummary | None) -> str | None:
+def _format_summary_text(summary: DomainSummary | None) -> str | None:
     if summary is None:
         return None
 
@@ -635,6 +646,8 @@ def get_document_status(document_id: uuid.UUID, current_user: CurrentUser = Depe
             summary_ready=summary is not None,
             flashcard_count=len(flashcards),
             quiz_ready=quiz is not None,
+            active_index_generation=document.active_index_generation,
+            reindex_in_progress=document.pending_index_generation is not None,
         )
 
 
@@ -747,6 +760,77 @@ def retry_document_processing(
         return RetryDocumentResponse(
             document_id=document.id,
             status=DocumentStatus.PENDING.value,
+        )
+
+
+@router.post(
+    "/documents/{document_id}/reindex",
+    response_model=ReindexDocumentResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def reindex_document(
+    document_id: uuid.UUID,
+    current_user: CurrentUser = Depends(get_current_user),
+) -> ReindexDocumentResponse:
+    with Session(engine) as session:
+        document = _get_owned_document(session, document_id, current_user)
+        if not settings.document_reindex_enabled:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Document reindexing is not enabled.",
+            )
+        if document.status != DocumentStatus.COMPLETED:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Only completed documents can be reindexed.",
+            )
+        if not document.filename.lower().endswith(".pdf"):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Only PDF documents can be reindexed.",
+            )
+
+        try:
+            active_generation, pending_generation, lease_token = claim_document_reindex(
+                session=session,
+                document_id=document.id,
+                lease_seconds=settings.document_reindex_lease_seconds,
+            )
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=str(exc),
+            ) from exc
+
+        try:
+            queued_task = reindex_document_task.delay(
+                str(document.id),
+                pending_generation,
+                str(lease_token),
+            )
+        except Exception as exc:
+            logger.exception(
+                "Reindex queue failure for document '%s' and user '%s'.",
+                document.id,
+                current_user.clerk_user_id,
+            )
+            release_document_reindex_claim(
+                session=session,
+                document_id=document.id,
+                index_generation=pending_generation,
+                lease_token=lease_token,
+                clean_staged=True,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Document reindexing could not be queued. Please try again.",
+            ) from exc
+
+        return ReindexDocumentResponse(
+            document_id=document.id,
+            task_id=str(queued_task.id),
+            active_index_generation=active_generation,
+            pending_index_generation=pending_generation,
         )
 
 
@@ -920,6 +1004,7 @@ def get_document_chunks(document_id: uuid.UUID, current_user: CurrentUser = Depe
         chunks = session.exec(
             select(DocumentChunk)
             .where(DocumentChunk.document_id == document_id)
+            .where(DocumentChunk.index_generation == document.active_index_generation)
             .order_by(DocumentChunk.order_index.asc())
         ).all()
 
@@ -928,6 +1013,7 @@ def get_document_chunks(document_id: uuid.UUID, current_user: CurrentUser = Depe
                 id=chunk.id,
                 order_index=chunk.order_index,
                 content=chunk.content,
+                page_number=chunk.page_number,
             )
             for chunk in chunks
         ]

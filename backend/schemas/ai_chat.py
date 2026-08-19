@@ -79,6 +79,7 @@ class MessageListResponse(BaseModel):
 class SendMessageRequest(BaseModel):
     question: str = Field(min_length=1, max_length=4000)
     selected_text: str | None = Field(default=None, max_length=8000)
+    retrieval_mode: RetrievalMode = "document"
 
     @field_validator("question")
     @classmethod

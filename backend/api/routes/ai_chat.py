@@ -22,6 +22,7 @@ from services.ai_chat import (
     ConversationNotFoundError,
     DocumentNotReadyError,
     SearchIndexNotReadyError,
+    UnsupportedRetrievalModeError,
     create_conversation,
     delete_conversation,
     get_owned_conversation,
@@ -203,12 +204,18 @@ def send_ai_conversation_message(
     payload: SendMessageRequest,
     current_user: CurrentUser = Depends(get_current_user),
 ) -> ChatAnswer:
+    if payload.retrieval_mode != "document":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Web and hybrid retrieval are not available yet.",
+        )
     try:
         return send_conversation_message(
             conversation_id=conversation_id,
             clerk_user_id=current_user.clerk_user_id,
             question=payload.question,
             selected_text=payload.selected_text,
+            retrieval_mode=payload.retrieval_mode,
         )
     except ConversationNotFoundError as exc:
         raise _not_found() from exc
@@ -238,6 +245,11 @@ def send_ai_conversation_message(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="The conversation changed while the answer was generated. Please retry.",
+        ) from exc
+    except UnsupportedRetrievalModeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Web and hybrid retrieval are not available yet.",
         ) from exc
     except AIServiceError as exc:
         logger.warning(

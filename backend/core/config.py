@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -45,6 +46,16 @@ class Settings(BaseSettings):
     rag_top_k: int = 5
     rag_cluster_max_chunks: int = 5
 
+    # Selective OCR for PDF pages with insufficient native text.
+    pdf_ocr_enabled: bool = True
+    pdf_ocr_language: str = "eng"
+    pdf_ocr_dpi: int = 300
+    pdf_ocr_min_text_chars: int = 40
+
+    # Legacy PDF reindexing is opt-in until operators explicitly enable it.
+    document_reindex_enabled: bool = False
+    document_reindex_lease_seconds: int = 900
+
     # Long-running document processing
     document_processing_max_retries: int = 3
     celery_task_soft_time_limit: int = 300
@@ -81,6 +92,16 @@ class Settings(BaseSettings):
         if self.embedding_dimensions != 768:
             raise ValueError(
                 "EMBEDDING_DIMENSIONS must remain 768 to match document_chunks.embedding."
+            )
+        if not re.fullmatch(r"[A-Za-z0-9_+-]+", self.pdf_ocr_language):
+            raise ValueError("PDF_OCR_LANGUAGE contains unsupported characters.")
+        if not 72 <= self.pdf_ocr_dpi <= 600:
+            raise ValueError("PDF_OCR_DPI must be between 72 and 600.")
+        if self.pdf_ocr_min_text_chars < 0:
+            raise ValueError("PDF_OCR_MIN_TEXT_CHARS must be zero or greater.")
+        if self.document_reindex_lease_seconds <= self.celery_task_time_limit:
+            raise ValueError(
+                "DOCUMENT_REINDEX_LEASE_SECONDS must exceed CELERY_TASK_TIME_LIMIT."
             )
         return self
 

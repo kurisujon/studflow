@@ -147,9 +147,9 @@ Goal: Harden the AI architecture to decouple generative orchestration from domai
 - [x] Ensure `ai_service.py` handles only prompt construction and schema declaration.
 
 ### Step 2: Strict Domain Boundary Enforcement
-- [ ] Define explicit internal domain models mapping to raw LLM output schemas.
-- [ ] Implement validation and sanitation logic before converting LLM outputs to domain models.
-- [ ] Refactor `services/documents.py` and `services/ai_chat.py` to depend only on these sanitized internal domain models.
+- [x] Define explicit internal domain models mapping to raw LLM output schemas
+- [x] Implement validation and sanitation logic before converting LLM outputs to domain models
+- [x] Refactor `services/documents.py` and `services/ai_chat.py` to depend only on sanitized internal domain models.
 
 ### Step 3: Granular Observability & Telemetry
 - [x] Introduce a standardized structured logging decorator for LLM calls.

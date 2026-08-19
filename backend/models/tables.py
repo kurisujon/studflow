@@ -140,6 +140,31 @@ class UserPreferences(SQLModel, table=True):
 
 class Document(SQLModel, table=True):
     __tablename__ = "documents"
+    __table_args__ = (
+        CheckConstraint(
+            "active_index_page_cursor >= 0",
+            name="ck_documents_active_index_page_cursor_nonnegative",
+        ),
+        CheckConstraint(
+            "pending_index_generation IS NULL OR "
+            "pending_index_generation > active_index_generation",
+            name="ck_documents_pending_index_generation_newer",
+        ),
+        CheckConstraint(
+            "(pending_index_generation IS NULL AND "
+            "pending_index_started_at IS NULL AND "
+            "pending_index_heartbeat_at IS NULL AND "
+            "pending_index_lease_token IS NULL AND "
+            "pending_index_page_cursor IS NULL) OR "
+            "(pending_index_generation IS NOT NULL AND "
+            "pending_index_started_at IS NOT NULL AND "
+            "pending_index_heartbeat_at IS NOT NULL AND "
+            "pending_index_lease_token IS NOT NULL AND "
+            "pending_index_page_cursor IS NOT NULL AND "
+            "pending_index_page_cursor >= 0)",
+            name="ck_documents_pending_index_lease_consistent",
+        ),
+    )
 
     id: uuid.UUID = Field(
         default_factory=uuid.uuid4,
@@ -162,6 +187,13 @@ class Document(SQLModel, table=True):
     )
     page_count: Optional[int] = Field(default=None)
     file_size_bytes: Optional[int] = Field(default=None)
+    active_index_generation: int = Field(default=1, ge=1, nullable=False)
+    active_index_page_cursor: int = Field(default=0, ge=0, nullable=False)
+    pending_index_generation: Optional[int] = Field(default=None, ge=1, nullable=True)
+    pending_index_started_at: Optional[datetime] = Field(default=None, nullable=True)
+    pending_index_heartbeat_at: Optional[datetime] = Field(default=None, nullable=True)
+    pending_index_lease_token: Optional[uuid.UUID] = Field(default=None, nullable=True)
+    pending_index_page_cursor: Optional[int] = Field(default=None, ge=0, nullable=True)
     created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
     updated_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
 
@@ -242,6 +274,27 @@ class Flashcard(SQLModel, table=True):
 
 class DocumentChunk(SQLModel, table=True):
     __tablename__ = "document_chunks"
+    __table_args__ = (
+        CheckConstraint(
+            "index_generation > 0",
+            name="ck_document_chunks_positive_generation",
+        ),
+        CheckConstraint(
+            "page_number IS NULL OR page_number > 0",
+            name="ck_document_chunks_positive_page",
+        ),
+        UniqueConstraint(
+            "document_id",
+            "index_generation",
+            "order_index",
+            name="uq_document_chunks_document_generation_order",
+        ),
+        Index(
+            "ix_document_chunks_document_generation",
+            "document_id",
+            "index_generation",
+        ),
+    )
 
     id: uuid.UUID = Field(
         default_factory=uuid.uuid4,
@@ -253,6 +306,8 @@ class DocumentChunk(SQLModel, table=True):
         foreign_key="documents.id", nullable=False, index=True
     )
     order_index: int = Field(default=0, nullable=False)
+    index_generation: int = Field(default=1, ge=1, nullable=False)
+    page_number: Optional[int] = Field(default=None, ge=1, nullable=True)
     content: str = Field(nullable=False)
     embedding: list[float] | None = Field(
         default=None,

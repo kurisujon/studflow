@@ -5,9 +5,9 @@ import math
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 
-from sqlalchemy import func, update
+from sqlalchemy import delete, func, update
 from sqlmodel import Session, select
 
 from models.tables import (
@@ -24,13 +24,15 @@ from models.tables import (
     Summary,
     StudyAnnotation,
 )
-from services.ai_service import ComprehensiveSummary, FlashcardPayload, QuizQuestionPayload
+from schemas.domain import DomainSummary, DomainFlashcard, DomainQuizQuestion
+from services.document_processing import DocumentChunkPayload
 
 
 @dataclass(frozen=True)
 class DocumentIndexReadiness:
     total_chunks: int
     embedded_chunks: int
+    generation: int = 1
 
     @property
     def is_ready(self) -> bool:
@@ -167,7 +169,7 @@ def save_summary(
     *,
     session: Session,
     document_id: uuid.UUID,
-    summary: ComprehensiveSummary,
+    summary: DomainSummary,
 ) -> Summary:
     summary_record = Summary(
         document_id=document_id,
@@ -183,7 +185,7 @@ def save_flashcards(
     *,
     session: Session,
     document_id: uuid.UUID,
-    flashcards: list[FlashcardPayload],
+    flashcards: list[DomainFlashcard],
 ) -> list[Flashcard]:
     records = [
         Flashcard(
@@ -259,59 +261,91 @@ def save_document_chunks(
     *,
     session: Session,
     document_id: uuid.UUID,
-    chunks: list[str],
+    chunks: Sequence[str | DocumentChunkPayload],
+    index_generation: int = 1,
 ) -> list[DocumentChunk]:
     records = [
         DocumentChunk(
             document_id=document_id,
-            content=chunk,
+            content=chunk.content if isinstance(chunk, DocumentChunkPayload) else chunk,
+            page_number=chunk.page_number if isinstance(chunk, DocumentChunkPayload) else None,
+            index_generation=index_generation,
             order_index=index,
         )
         for index, chunk in enumerate(chunks)
     ]
-    session.add_all(records)
-    session.commit()
-    return records
+    try:
+        session.add_all(records)
+        session.commit()
+        return records
+    except Exception:
+        session.rollback()
+        raise
 
 
 def get_document_chunks(
     *,
     session: Session,
     document_id: uuid.UUID,
+    index_generation: int | None = None,
 ) -> list[DocumentChunk]:
-    return session.exec(
-        select(DocumentChunk)
-        .where(DocumentChunk.document_id == document_id)
-        .order_by(DocumentChunk.order_index.asc())
-    ).all()
+    statement = select(DocumentChunk).where(DocumentChunk.document_id == document_id)
+    if index_generation is None:
+        statement = statement.join(Document, Document.id == DocumentChunk.document_id).where(
+            DocumentChunk.index_generation == Document.active_index_generation
+        )
+    else:
+        statement = statement.where(DocumentChunk.index_generation == index_generation)
+    return session.exec(statement.order_by(DocumentChunk.order_index.asc())).all()
 
 
 def get_unembedded_document_chunks(
     *,
     session: Session,
     document_id: uuid.UUID,
+    index_generation: int | None = None,
 ) -> list[DocumentChunk]:
-    return session.exec(
+    statement = (
         select(DocumentChunk)
         .where(DocumentChunk.document_id == document_id)
         .where(DocumentChunk.embedding.is_(None))
-        .order_by(DocumentChunk.order_index.asc())
-    ).all()
+    )
+    if index_generation is None:
+        statement = statement.join(Document, Document.id == DocumentChunk.document_id).where(
+            DocumentChunk.index_generation == Document.active_index_generation
+        )
+    else:
+        statement = statement.where(DocumentChunk.index_generation == index_generation)
+    return session.exec(statement.order_by(DocumentChunk.order_index.asc())).all()
 
 
 def get_document_index_readiness(
     *,
     session: Session,
     document_id: uuid.UUID,
+    index_generation: int | None = None,
 ) -> DocumentIndexReadiness:
     """Return complete index counts; partial indexes are never chat-ready."""
+    if index_generation is None:
+        generation = int(
+            session.exec(
+                select(Document.active_index_generation).where(
+                    Document.id == document_id
+                )
+            ).one()
+        )
+    else:
+        generation = index_generation
     total_chunks, embedded_chunks = session.exec(
         select(
             func.count(DocumentChunk.id),
             func.count(DocumentChunk.id).filter(DocumentChunk.embedding.is_not(None)),
-        ).where(DocumentChunk.document_id == document_id)
+        )
+        .where(DocumentChunk.document_id == document_id)
+        .where(DocumentChunk.index_generation == generation)
     ).one()
     return DocumentIndexReadiness(
+        generation=generation,
         total_chunks=int(total_chunks or 0),
         embedded_chunks=int(embedded_chunks or 0),
     )
@@ -322,16 +356,25 @@ def claim_unembedded_document_chunks(
     session: Session,
     document_id: uuid.UUID,
     limit: int,
+    index_generation: int | None = None,
 ) -> list[DocumentChunk]:
     """Lock one missing-embedding batch so concurrent repair workers do not duplicate work."""
     if limit < 1:
         raise ValueError("limit must be at least one.")
 
-    return session.exec(
+    statement = (
         select(DocumentChunk)
         .where(DocumentChunk.document_id == document_id)
         .where(DocumentChunk.embedding.is_(None))
-        .order_by(DocumentChunk.order_index.asc())
+    )
+    if index_generation is None:
+        statement = statement.join(Document, Document.id == DocumentChunk.document_id).where(
+            DocumentChunk.index_generation == Document.active_index_generation
+        )
+    else:
+        statement = statement.where(DocumentChunk.index_generation == index_generation)
+    return session.exec(
+        statement.order_by(DocumentChunk.order_index.asc())
         .limit(limit)
         .with_for_update(skip_locked=True)
     ).all()
@@ -367,7 +410,9 @@ def search_similar_chunks(
 
     return session.exec(
         select(DocumentChunk)
+        .join(Document, Document.id == DocumentChunk.document_id)
         .where(DocumentChunk.document_id == document_id)
+        .where(DocumentChunk.index_generation == Document.active_index_generation)
         .where(DocumentChunk.embedding.is_not(None))
         .order_by(DocumentChunk.embedding.cosine_distance(query_embedding))
         .limit(top_k)
@@ -381,20 +426,425 @@ def search_owned_similar_chunks(
     clerk_user_id: str,
     query_embedding: Sequence[float],
     top_k: int = 5,
+    index_generation: int | None = None,
 ) -> list[DocumentChunk]:
     """Return semantic chunks only when their parent document belongs to the caller."""
     if top_k < 1:
         raise ValueError("top_k must be at least one.")
 
-    return session.exec(
+    statement = (
         select(DocumentChunk)
         .join(Document, Document.id == DocumentChunk.document_id)
         .where(DocumentChunk.document_id == document_id)
         .where(Document.clerk_user_id == clerk_user_id)
         .where(DocumentChunk.embedding.is_not(None))
-        .order_by(DocumentChunk.embedding.cosine_distance(query_embedding))
+    )
+    if index_generation is None:
+        statement = statement.where(
+            DocumentChunk.index_generation == Document.active_index_generation
+        )
+    else:
+        statement = statement.where(DocumentChunk.index_generation == index_generation)
+    return session.exec(
+        statement.order_by(DocumentChunk.embedding.cosine_distance(query_embedding))
         .limit(top_k)
     ).all()
+
+
+def claim_document_reindex(
+    *,
+    session: Session,
+    document_id: uuid.UUID,
+    lease_seconds: int,
+    now: datetime | None = None,
+) -> tuple[int, int, uuid.UUID]:
+    """Claim a new generation or resume the same generation after a stale lease."""
+    if lease_seconds < 1:
+        raise ValueError("Reindex lease duration must be positive.")
+    claimed_at = now or datetime.utcnow()
+    try:
+        document = session.exec(
+            select(Document)
+            .where(Document.id == document_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        ).first()
+        if document is None:
+            raise ValueError("Document not found.")
+        if document.status != DocumentStatus.COMPLETED:
+            raise ValueError("Only completed documents can be reindexed.")
+        if not document.filename.lower().endswith(".pdf"):
+            raise ValueError("Only PDF documents can be reindexed.")
+        active_generation = document.active_index_generation
+        legacy_chunk_id = session.exec(
+            select(DocumentChunk.id)
+            .where(DocumentChunk.document_id == document.id)
+            .where(DocumentChunk.index_generation == active_generation)
+            .where(DocumentChunk.page_number.is_(None))
+            .limit(1)
+        ).first()
+        if legacy_chunk_id is None:
+            raise ValueError("The active PDF index is already page-aware.")
+        if document.pending_index_generation is not None:
+            stale_before = claimed_at - timedelta(seconds=lease_seconds)
+            if (
+                document.pending_index_heartbeat_at is not None
+                and document.pending_index_heartbeat_at > stale_before
+            ):
+                raise ValueError("Document reindexing is already in progress.")
+            pending_generation = document.pending_index_generation
+            document.pending_index_page_cursor = document.pending_index_page_cursor or 0
+        else:
+            pending_generation = active_generation + 1
+            document.pending_index_generation = pending_generation
+            document.pending_index_page_cursor = 0
+
+        document.pending_index_started_at = claimed_at
+        document.pending_index_heartbeat_at = claimed_at
+        lease_token = uuid.uuid4()
+        document.pending_index_lease_token = lease_token
+        document.updated_at = claimed_at
+        session.add(document)
+        session.commit()
+        return active_generation, pending_generation, lease_token
+    except Exception:
+        session.rollback()
+        raise
+
+
+def release_document_reindex_claim(
+    *,
+    session: Session,
+    document_id: uuid.UUID,
+    index_generation: int,
+    lease_token: uuid.UUID,
+    clean_staged: bool = False,
+) -> None:
+    """Release matching lease metadata and optionally remove its staged chunks."""
+    try:
+        document = session.exec(
+            select(Document)
+            .where(Document.id == document_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        ).first()
+        if (
+            document
+            and document.pending_index_generation == index_generation
+            and document.pending_index_lease_token == lease_token
+        ):
+            if clean_staged:
+                session.exec(
+                    delete(DocumentChunk)
+                    .where(DocumentChunk.document_id == document_id)
+                    .where(DocumentChunk.index_generation == index_generation)
+                )
+            document.pending_index_generation = None
+            document.pending_index_started_at = None
+            document.pending_index_heartbeat_at = None
+            document.pending_index_lease_token = None
+            document.pending_index_page_cursor = None
+            document.updated_at = datetime.utcnow()
+            session.add(document)
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+
+
+def renew_document_reindex_lease(
+    *,
+    session: Session,
+    document_id: uuid.UUID,
+    index_generation: int,
+    lease_token: uuid.UUID,
+) -> int:
+    """Refresh the matching lease and return its last completed page cursor."""
+    try:
+        document = session.exec(
+            select(Document)
+            .where(Document.id == document_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        ).first()
+        if (
+            document is None
+            or document.pending_index_generation != index_generation
+            or document.pending_index_lease_token != lease_token
+        ):
+            raise ValueError("The pending document index generation changed.")
+        document.pending_index_heartbeat_at = datetime.utcnow()
+        document.updated_at = datetime.utcnow()
+        cursor = document.pending_index_page_cursor or 0
+        session.add(document)
+        session.commit()
+        return cursor
+    except Exception:
+        session.rollback()
+        raise
+
+
+def checkpoint_reindex_page(
+    *,
+    session: Session,
+    document_id: uuid.UUID,
+    index_generation: int,
+    lease_token: uuid.UUID,
+    page_number: int,
+    page_count: int,
+    chunks: Sequence[DocumentChunkPayload],
+) -> list[DocumentChunk]:
+    """Atomically persist one page (including empty pages) and advance the cursor."""
+    if page_number < 1 or page_count < page_number:
+        raise ValueError("Invalid reindex page checkpoint.")
+    if any(chunk.page_number != page_number for chunk in chunks):
+        raise ValueError("Every checkpoint chunk must belong to its page.")
+    try:
+        document = session.exec(
+            select(Document)
+            .where(Document.id == document_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        ).first()
+        if (
+            document is None
+            or document.pending_index_generation != index_generation
+            or document.pending_index_lease_token != lease_token
+        ):
+            raise ValueError("The pending document index generation changed.")
+        cursor = document.pending_index_page_cursor or 0
+        if page_number <= cursor:
+            session.rollback()
+            return []
+        if page_number != cursor + 1:
+            raise ValueError("Reindex pages must be checkpointed sequentially.")
+
+        maximum_order = session.exec(
+            select(func.max(DocumentChunk.order_index))
+            .where(DocumentChunk.document_id == document_id)
+            .where(DocumentChunk.index_generation == index_generation)
+        ).one()
+        next_order = int(maximum_order if maximum_order is not None else -1) + 1
+        records = [
+            DocumentChunk(
+                document_id=document_id,
+                index_generation=index_generation,
+                order_index=next_order + offset,
+                page_number=page_number,
+                content=chunk.content,
+            )
+            for offset, chunk in enumerate(chunks)
+        ]
+        if records:
+            session.add_all(records)
+        checkpointed_at = datetime.utcnow()
+        document.pending_index_page_cursor = page_number
+        document.pending_index_heartbeat_at = checkpointed_at
+        document.page_count = page_count
+        document.updated_at = checkpointed_at
+        session.add(document)
+        session.commit()
+        return records
+    except Exception:
+        session.rollback()
+        raise
+
+
+def checkpoint_active_index_page(
+    *,
+    session: Session,
+    document_id: uuid.UUID,
+    index_generation: int,
+    page_number: int,
+    page_count: int,
+    chunks: Sequence[DocumentChunkPayload],
+) -> list[DocumentChunk]:
+    """Atomically persist one active-index page and advance its durable cursor."""
+    if page_number < 1 or page_count < page_number:
+        raise ValueError("Invalid active index page checkpoint.")
+    if any(chunk.page_number != page_number for chunk in chunks):
+        raise ValueError("Every checkpoint chunk must belong to its page.")
+    try:
+        document = session.exec(
+            select(Document)
+            .where(Document.id == document_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        ).first()
+        if document is None or document.active_index_generation != index_generation:
+            raise ValueError("The active document index generation changed.")
+        cursor = document.active_index_page_cursor
+        if page_number <= cursor:
+            session.rollback()
+            return []
+        if page_number != cursor + 1:
+            raise ValueError("Active index pages must be checkpointed sequentially.")
+
+        maximum_order = session.exec(
+            select(func.max(DocumentChunk.order_index))
+            .where(DocumentChunk.document_id == document_id)
+            .where(DocumentChunk.index_generation == index_generation)
+        ).one()
+        next_order = int(maximum_order if maximum_order is not None else -1) + 1
+        records = [
+            DocumentChunk(
+                document_id=document_id,
+                index_generation=index_generation,
+                order_index=next_order + offset,
+                page_number=page_number,
+                content=chunk.content,
+            )
+            for offset, chunk in enumerate(chunks)
+        ]
+        if records:
+            session.add_all(records)
+        checkpointed_at = datetime.utcnow()
+        document.active_index_page_cursor = page_number
+        document.page_count = page_count
+        document.updated_at = checkpointed_at
+        session.add(document)
+        session.commit()
+        return records
+    except Exception:
+        session.rollback()
+        raise
+
+
+def save_reindex_chunk_embeddings(
+    *,
+    session: Session,
+    document_id: uuid.UUID,
+    index_generation: int,
+    lease_token: uuid.UUID,
+    chunks: Sequence[DocumentChunk],
+    embeddings: Sequence[Sequence[float]],
+) -> None:
+    """Checkpoint one locked staged embedding batch and renew its lease."""
+    if len(chunks) != len(embeddings):
+        raise ValueError("Each document chunk must receive exactly one embedding.")
+    if any(
+        chunk.document_id != document_id
+        or chunk.index_generation != index_generation
+        for chunk in chunks
+    ):
+        raise ValueError("Reindex embedding batch belongs to another generation.")
+    try:
+        document = session.exec(
+            select(Document)
+            .where(Document.id == document_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        ).first()
+        if (
+            document is None
+            or document.pending_index_generation != index_generation
+            or document.pending_index_lease_token != lease_token
+        ):
+            raise ValueError("The pending document index generation changed.")
+        for chunk, embedding in zip(chunks, embeddings, strict=True):
+            chunk.embedding = list(embedding)
+            session.add(chunk)
+        heartbeat = datetime.utcnow()
+        document.pending_index_heartbeat_at = heartbeat
+        document.updated_at = heartbeat
+        session.add(document)
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+
+
+def claim_reindex_embedding_batch(
+    *,
+    session: Session,
+    document_id: uuid.UUID,
+    index_generation: int,
+    lease_token: uuid.UUID,
+    limit: int,
+) -> list[DocumentChunk]:
+    """Claim staged chunks only while the caller still owns the reindex lease."""
+    if limit < 1:
+        raise ValueError("limit must be at least one.")
+    try:
+        document = session.exec(
+            select(Document)
+            .where(Document.id == document_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        ).first()
+        if (
+            document is None
+            or document.pending_index_generation != index_generation
+            or document.pending_index_lease_token != lease_token
+        ):
+            raise ValueError("The pending document index generation changed.")
+        return session.exec(
+            select(DocumentChunk)
+            .where(DocumentChunk.document_id == document_id)
+            .where(DocumentChunk.index_generation == index_generation)
+            .where(DocumentChunk.embedding.is_(None))
+            .order_by(DocumentChunk.order_index.asc())
+            .limit(limit)
+            .with_for_update(skip_locked=True)
+        ).all()
+    except Exception:
+        session.rollback()
+        raise
+
+
+def activate_document_index_generation(
+    *,
+    session: Session,
+    document_id: uuid.UUID,
+    index_generation: int,
+    lease_token: uuid.UUID,
+) -> None:
+    """Atomically activate a fully embedded, page-aware staged PDF index."""
+    try:
+        document = session.exec(
+            select(Document)
+            .where(Document.id == document_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        ).first()
+        if (
+            document is None
+            or document.pending_index_generation != index_generation
+            or document.pending_index_lease_token != lease_token
+        ):
+            raise ValueError("The pending document index generation changed.")
+
+        total_chunks, embedded_chunks, page_aware_chunks = session.exec(
+            select(
+                func.count(DocumentChunk.id),
+                func.count(DocumentChunk.id).filter(DocumentChunk.embedding.is_not(None)),
+                func.count(DocumentChunk.id).filter(DocumentChunk.page_number.is_not(None)),
+            )
+            .where(DocumentChunk.document_id == document_id)
+            .where(DocumentChunk.index_generation == index_generation)
+        ).one()
+        if (
+            not total_chunks
+            or total_chunks != embedded_chunks
+            or total_chunks != page_aware_chunks
+            or not document.page_count
+            or document.pending_index_page_cursor != document.page_count
+        ):
+            raise ValueError("The pending document index is incomplete.")
+
+        document.active_index_generation = index_generation
+        document.active_index_page_cursor = int(document.pending_index_page_cursor)
+        document.pending_index_generation = None
+        document.pending_index_started_at = None
+        document.pending_index_heartbeat_at = None
+        document.pending_index_lease_token = None
+        document.pending_index_page_cursor = None
+        document.updated_at = datetime.utcnow()
+        session.add(document)
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
 
 
 def _cosine_similarity(left: Sequence[float], right: Sequence[float]) -> float:
@@ -452,7 +902,7 @@ def save_quiz(
     *,
     session: Session,
     document_id: uuid.UUID,
-    questions: list[QuizQuestionPayload],
+    questions: list[DomainQuizQuestion],
 ) -> Quiz:
     try:
         quiz = session.exec(

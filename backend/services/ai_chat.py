@@ -24,12 +24,14 @@ from schemas.ai_chat import (
     CitationResponse,
     ConversationResponse,
     MessageResponse,
+    RetrievalMode,
 )
 from services.ai_service import (
     AIServiceError,
     answer_conversation_question,
     generate_query_embedding,
 )
+from services.domain_validation import validate_conversation_answer
 from services.documents import get_document_index_readiness, search_owned_similar_chunks
 
 
@@ -61,12 +63,18 @@ class ConcurrentConversationUpdateError(Exception):
     """Raised when another turn changes a conversation during generation."""
 
 
+class UnsupportedRetrievalModeError(Exception):
+    """Raised before generation when an unavailable retrieval mode is requested."""
+
+
 @dataclass(frozen=True)
 class RetrievedChatChunk:
     id: uuid.UUID
     document_id: uuid.UUID
     order_index: int
     content: str
+    page_number: int | None
+    index_generation: int
 
 
 def _open_session() -> Session:
@@ -88,12 +96,18 @@ def _get_owned_document(
     *,
     document_id: uuid.UUID,
     clerk_user_id: str,
+    for_update: bool = False,
 ) -> Document:
-    document = session.exec(
+    statement = (
         select(Document)
         .where(Document.id == document_id)
         .where(Document.clerk_user_id == clerk_user_id)
-    ).first()
+    )
+    if for_update:
+        statement = statement.with_for_update().execution_options(
+            populate_existing=True
+        )
+    document = session.exec(statement).first()
     if document is None:
         raise ConversationNotFoundError
     return document
@@ -331,7 +345,11 @@ def send_conversation_message(
     clerk_user_id: str,
     question: str,
     selected_text: str | None = None,
+    retrieval_mode: RetrievalMode = "document",
 ) -> ChatAnswer:
+    if retrieval_mode != "document":
+        raise UnsupportedRetrievalModeError
+
     with _open_session() as session:
         conversation = get_owned_conversation(
             session,
@@ -350,6 +368,7 @@ def send_conversation_message(
         index_readiness = get_document_index_readiness(
             session=session,
             document_id=document.id,
+            index_generation=document.active_index_generation,
         )
         if not index_readiness.is_ready:
             raise SearchIndexNotReadyError(
@@ -366,6 +385,7 @@ def send_conversation_message(
         snapshot_updated_at = conversation.updated_at
         document_id = document.id
         document_title = document.filename
+        index_generation = document.active_index_generation
 
     retrieval_query = (
         f"{question}\n\nSelected context:\n{selected_text}"
@@ -382,12 +402,20 @@ def send_conversation_message(
         )
         if conversation.document_id != document_id:
             raise ConcurrentConversationUpdateError
+        document = _get_owned_document(
+            session,
+            document_id=document_id,
+            clerk_user_id=clerk_user_id,
+        )
+        if document.active_index_generation != index_generation:
+            raise ConcurrentConversationUpdateError
         chunks = search_owned_similar_chunks(
             session=session,
             document_id=document_id,
             clerk_user_id=clerk_user_id,
             query_embedding=query_embedding,
             top_k=settings.rag_top_k,
+            index_generation=index_generation,
         )
         retrieved_chunks = [
             RetrievedChatChunk(
@@ -395,6 +423,8 @@ def send_conversation_message(
                 document_id=chunk.document_id,
                 order_index=chunk.order_index,
                 content=chunk.content,
+                page_number=chunk.page_number,
+                index_generation=chunk.index_generation,
             )
             for chunk in chunks
         ]
@@ -405,7 +435,7 @@ def send_conversation_message(
     source_registry = {
         index: chunk for index, chunk in enumerate(retrieved_chunks, start=1)
     }
-    generated = answer_conversation_question(
+    raw_generated = answer_conversation_question(
         sources=[
             (index, chunk.content) for index, chunk in source_registry.items()
         ],
@@ -414,6 +444,12 @@ def send_conversation_message(
         selected_text=selected_text,
     )
     valid_indexes = set(source_registry)
+
+    try:
+        generated = validate_conversation_answer(raw_generated, valid_indexes)
+    except ValueError as e:
+        raise AIServiceError(str(e))
+
     inline_marker_count = len(re.findall(r"\[(\d+)\]", generated.answer_markdown))
     answer_markdown, marker_indexes = _sanitize_markers(
         generated.answer_markdown.strip(),
@@ -451,13 +487,24 @@ def send_conversation_message(
             url=None,
             document_id=document_id,
             chunk_id=source_registry[index].id,
-            page_number=None,
+            page_number=source_registry[index].page_number,
             excerpt=source_registry[index].content.strip()[:500] or None,
         )
         for index in sorted(cited_indexes)
     ]
 
     with _open_session() as session:
+        # Match document-deletion lock order: document first, then conversation.
+        document = _get_owned_document(
+            session,
+            document_id=document_id,
+            clerk_user_id=clerk_user_id,
+            for_update=True,
+        )
+        if document.status != DocumentStatus.COMPLETED:
+            raise DocumentNotReadyError
+        if document.active_index_generation != index_generation:
+            raise ConcurrentConversationUpdateError
         conversation = get_owned_conversation(
             session,
             conversation_id=conversation_id,
@@ -468,13 +515,6 @@ def send_conversation_message(
             raise ConcurrentConversationUpdateError
         if conversation.updated_at != snapshot_updated_at:
             raise ConcurrentConversationUpdateError
-        document = _get_owned_document(
-            session,
-            document_id=document_id,
-            clerk_user_id=clerk_user_id,
-        )
-        if document.status != DocumentStatus.COMPLETED:
-            raise DocumentNotReadyError
 
         maximum_sequence = session.exec(
             select(func.max(AIMessage.sequence_number)).where(
@@ -489,7 +529,7 @@ def send_conversation_message(
             role="user",
             content=question,
             selected_text=selected_text,
-            retrieval_mode="document",
+            retrieval_mode=retrieval_mode,
             suggested_followups=[],
             created_at=now,
         )
@@ -498,7 +538,7 @@ def send_conversation_message(
             sequence_number=next_sequence + 1,
             role="assistant",
             content=answer_markdown,
-            retrieval_mode="document",
+            retrieval_mode=retrieval_mode,
             suggested_followups=effective_followups,
             created_at=now,
         )

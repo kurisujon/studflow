@@ -128,19 +128,18 @@ Current emphasis in `docs/tasks.md`:
 
 ## Current Priority Workstream
 
-### Persistent Conversational Assistant — Later Phases
+### Phase A — AI Architecture Cleanup
 
 Current product state:
-- Phase 1 conversation persistence and backend contracts are complete.
-- Phase 2 persistent conversation UI is complete.
-- Page-aware PDF chunking and controlled legacy-document reindexing are implemented.
-- Verified web grounding is the next implementation phase; authenticated streaming remains last in the current sequence.
+- Phase A Step 1 (AI Provider Abstraction), Step 3 (Observability), and Step 4 (Fallback Hardening) are complete.
+- Phase A Step 2 (Strict Domain Boundary Enforcement) is the **CURRENT PRIORITY**.
+- Phase A Step 5 (Verification Gate) is partially complete.
 
 Workstream constraints:
-- Display page labels only from persisted page-aware citation metadata; DOCX citations remain unlabeled.
-- Keep web and hybrid retrieval disabled until grounding is verified.
-- Keep the existing synchronous, document-only conversation contract stable while later phases are added.
-- Preserve the legacy Ask AI and AI History endpoints during the compatibility rollout.
+- Establish an explicit trust boundary between raw LLM output schemas and internal domain models.
+- AI output is a proposal until validated.
+- Application services (`documents.py`, `ai_chat.py`) must consume sanitized domain models.
+- Do not introduce Phase B evidence/grounding features yet.
 
 ### Residual Study Workspace Validation
 
@@ -792,3 +791,18 @@ When a future agent completes a meaningful feature, they should update this file
 - Implement Phase A Step 2 (Strict Domain Boundary Enforcement) by defining explicit internal domain models and validating LLM outputs before they reach domain services.
 
 ---
+
+### 2026-08-19 Phase A Step 2 - Domain Boundaries
+
+**Goal:** Establish an explicit trust boundary between raw LLM probabilistic output and the application domain logic.
+
+**Completed Work:**
+- Created `backend/schemas/domain.py` containing `DomainSummary`, `DomainFlashcard`, `DomainQuizQuestion`, and `DomainConversationAnswer` with strict Pydantic `field_validator` and `model_validator` invariants.
+- Extracted pure, Gemini-independent validation functions into `backend/services/domain_validation.py` to ensure raw output meets application requirements (e.g., minimum valid multiple-choice options, text length, citation constraints).
+- Refactored `backend/services/documents.py` to consume these validated domain models rather than direct SDK payloads.
+- Updated `backend/tasks/document_processing.py` to intercept generation results and map them through validation logic before persisting.
+- Updated `backend/services/ai_chat.py` to map raw chat responses to domain models, performing strict index deduplication.
+- Removed ad-hoc mutation logic from `backend/services/ai_service.py` to keep it focused on API contracts and provider abstraction.
+- Added comprehensive unit testing for validation logic.
+
+**Result:** AI generation outputs are now correctly treated as probabilistic proposals until formally validated at the domain boundary, paving the way for Phase B's evidence grounding system.
