@@ -291,6 +291,7 @@ export function AIStudyAssistantPanel({
       retrieval_mode: "document",
       suggested_followups: [],
       citations: [],
+      status: "ANSWERED",
       created_at: new Date().toISOString(),
     };
     setMessages((current) => [...current, optimistic]);
