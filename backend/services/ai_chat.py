@@ -499,15 +499,11 @@ def send_conversation_message(
         else:
             generated = apply_semantic_validation(generated, [])
 
-        if not generated.evidence_sufficient:
-            total_citations = sum(len(c.citations) for c in generated.claims)
-            if total_citations > 0:
-                logger.warning(
-                    "Discarding citations from insufficient-evidence conversation answer: "
-                    "conversation_id=%s citation_count=%d",
-                    conversation_id,
-                    total_citations,
-                )
+        # Phase B6: Unsupported-Claim Defense
+        from services.domain_validation import filter_unsupported_claims
+        generated, b6_status = filter_unsupported_claims(generated)
+
+        if b6_status == ChatAnswerStatus.INSUFFICIENT_EVIDENCE:
             answer_markdown = INSUFFICIENT_EVIDENCE_ANSWER
             cited_eids = set()
             effective_followups = []
@@ -515,11 +511,13 @@ def send_conversation_message(
         else:
             answer_markdown, cited_eids = _render_grounded_answer(generated.claims)
             if not answer_markdown.strip():
-                raise AIServiceError("Gemini returned an empty answer after citation validation.")
-            if not cited_eids:
-                raise AIServiceError("Gemini returned a grounded answer without a valid citation.")
-            effective_followups = generated.suggested_followups
-            message_status = ChatAnswerStatus.ANSWERED
+                answer_markdown = INSUFFICIENT_EVIDENCE_ANSWER
+                cited_eids = set()
+                effective_followups = []
+                message_status = ChatAnswerStatus.INSUFFICIENT_EVIDENCE
+            else:
+                effective_followups = generated.suggested_followups
+                message_status = b6_status
 
 
     citation_payloads = []

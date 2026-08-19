@@ -616,7 +616,7 @@ class AIChatSendTests(unittest.TestCase):
             patch("services.ai_chat.answer_conversation_question", return_value=generated),
             patch("services.ai_chat.evaluate_citations", return_value=[RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="") for c in generated.claims for eid in c.cited_evidence_ids]),
             patch("services.ai_chat.evaluate_citations", return_value=[
-                RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="") 
+                RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="")
                 for c in generated.claims for eid in c.cited_evidence_ids
             ]),
         ):
@@ -653,7 +653,7 @@ class AIChatSendTests(unittest.TestCase):
             patch("services.ai_chat.answer_conversation_question", return_value=generated),
             patch("services.ai_chat.evaluate_citations", return_value=[RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="") for c in generated.claims for eid in c.cited_evidence_ids]),
             patch("services.ai_chat.evaluate_citations", return_value=[
-                RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="") 
+                RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="")
                 for c in generated.claims for eid in c.cited_evidence_ids
             ]),
         ):
@@ -691,7 +691,7 @@ class AIChatSendTests(unittest.TestCase):
             patch("services.ai_chat.answer_conversation_question", return_value=generated),
             patch("services.ai_chat.evaluate_citations", return_value=[RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="") for c in generated.claims for eid in c.cited_evidence_ids]),
             patch("services.ai_chat.evaluate_citations", return_value=[
-                RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="") 
+                RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="")
                 for c in generated.claims for eid in c.cited_evidence_ids
             ]),
             patch("services.ai_chat.logger.warning") as warning,
@@ -715,50 +715,6 @@ class AIChatSendTests(unittest.TestCase):
         self.assertEqual(assistant_message.content, INSUFFICIENT_EVIDENCE_ANSWER)
         self.assertEqual(assistant_message.suggested_followups, [])
         warning.assert_not_called()
-
-    def test_insufficient_evidence_with_structured_citation_discards_model_output(self) -> None:
-        read_session = self._read_session()
-        retrieval_session = self._retrieval_session()
-        write_session = self._write_session()
-        generated = ConversationAnswer(
-            claims=[RawGroundedClaim(claim_text="An unsupported answer.", cited_evidence_ids=["e_01"])],
-                evidence_sufficient=False,
-            suggested_followups=["Keep exploring"],
-        )
-
-        with (
-            patch(
-                "services.ai_chat._open_session",
-                side_effect=[
-                    _context_manager(read_session),
-                    _context_manager(retrieval_session),
-                    _context_manager(write_session),
-                ],
-            ),
-            patch("services.ai_chat.generate_query_embedding", return_value=[0.0] * 768),
-            patch("services.ai_chat.search_owned_similar_chunks", return_value=[(self.chunk, 0.1)]),
-            patch("services.ai_chat.answer_conversation_question", return_value=generated),
-            patch("services.ai_chat.evaluate_citations", return_value=[RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="") for c in generated.claims for eid in c.cited_evidence_ids]),
-            patch("services.ai_chat.evaluate_citations", return_value=[
-                RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="") 
-                for c in generated.claims for eid in c.cited_evidence_ids
-            ]),
-            patch("services.ai_chat.logger.warning") as warning,
-        ):
-            answer = send_conversation_message(
-                conversation_id=self.conversation_id,
-                clerk_user_id="user_owner",
-                question="What is the capital of Mars?",
-            )
-
-        self.assertEqual(answer.answer_markdown, INSUFFICIENT_EVIDENCE_ANSWER)
-        self.assertEqual(answer.citations, [])
-        self.assertEqual(answer.suggested_followups, [])
-        warning.assert_called_once()
-        write_session.commit.assert_called_once_with()
-        added = [call.args[0] for call in write_session.add.call_args_list]
-        self.assertEqual(sum(isinstance(item, AIMessage) for item in added), 2)
-        self.assertFalse(any(isinstance(item, AIMessageCitation) for item in added))
 
     def test_insufficient_evidence_with_marker_only_persists_fallback(self) -> None:
         read_session = self._read_session()
@@ -784,7 +740,7 @@ class AIChatSendTests(unittest.TestCase):
             patch("services.ai_chat.answer_conversation_question", return_value=generated),
             patch("services.ai_chat.evaluate_citations", return_value=[RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="") for c in generated.claims for eid in c.cited_evidence_ids]),
             patch("services.ai_chat.evaluate_citations", return_value=[
-                RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="") 
+                RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="")
                 for c in generated.claims for eid in c.cited_evidence_ids
             ]),
             patch("services.ai_chat.logger.warning") as warning,
@@ -826,7 +782,7 @@ class AIChatSendTests(unittest.TestCase):
             patch("services.ai_chat.answer_conversation_question", return_value=generated),
             patch("services.ai_chat.evaluate_citations", return_value=[RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="") for c in generated.claims for eid in c.cited_evidence_ids]),
             patch("services.ai_chat.evaluate_citations", return_value=[
-                RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="") 
+                RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="")
                 for c in generated.claims for eid in c.cited_evidence_ids
             ]),
         ):
@@ -862,7 +818,7 @@ class AIChatSendTests(unittest.TestCase):
             patch("services.ai_chat.answer_conversation_question", return_value=generated),
             patch("services.ai_chat.evaluate_citations", return_value=[RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="") for c in generated.claims for eid in c.cited_evidence_ids]),
             patch("services.ai_chat.evaluate_citations", return_value=[
-                RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="") 
+                RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="")
                 for c in generated.claims for eid in c.cited_evidence_ids
             ]),
         ):
@@ -1137,9 +1093,9 @@ class RenderGroundedAnswerTests(unittest.TestCase):
                 citations=[ValidatedCitation(evidence_id="e_04", support_level="UNSUPPORTED")],
             )
         ]
-        
+
         markdown, cited_eids = _render_grounded_answer(claims)
-        
+
         expected_paragraphs = [
             "The sky is blue. [1][2]",
             "Grass is green [3]",

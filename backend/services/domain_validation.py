@@ -1,4 +1,5 @@
 from schemas.domain import (
+    CitationSupportLevel,
     DomainSummary,
     DomainTopicDetail,
     DomainFlashcard,
@@ -69,10 +70,10 @@ from typing import Set
 
 def validate_conversation_answer(raw: ConversationAnswer, available_ids: Set[str]) -> DomainConversationAnswer:
     """Validates and sanitizes a raw ConversationAnswer."""
-    
+
     valid_claims = []
     has_citations = False
-    
+
     for raw_claim in raw.claims:
         try:
             domain_claim = DomainGroundedClaim(
@@ -82,20 +83,20 @@ def validate_conversation_answer(raw: ConversationAnswer, available_ids: Set[str
         except ValueError:
             # Skip claims that fail structural validation (e.g. empty strings)
             continue
-            
+
         # Basic B1/B2 check: were these IDs even supplied?
         for eid in domain_claim.cited_evidence_ids:
             if eid not in available_ids:
                 raise ValueError(f"Invalid Evidence ID reference: {eid}")
-        
+
         if domain_claim.cited_evidence_ids:
             has_citations = True
-            
+
         valid_claims.append(domain_claim)
 
     if raw.evidence_sufficient and not has_citations:
         raise ValueError("Gemini returned a grounded answer without any source references.")
-        
+
     if not valid_claims:
         raise ValueError("Gemini returned an answer with no valid claims.")
 
@@ -106,6 +107,7 @@ def validate_conversation_answer(raw: ConversationAnswer, available_ids: Set[str
     )
 
 from schemas.domain import (
+    CitationSupportLevel,
     SemanticallyValidatedAnswer,
     SemanticallyValidatedClaim,
     ValidatedCitation,
@@ -118,29 +120,72 @@ def apply_semantic_validation(
 ) -> SemanticallyValidatedAnswer:
     # Map eval results for quick lookup: (claim_text, evidence_id) -> support_level
     eval_map = {
-        (ev.claim_text, ev.evidence_id): ev.support_level 
+        (ev.claim_text, ev.evidence_id): ev.support_level
         for ev in evaluations
     }
-    
+
     semantically_valid_claims = []
-    
+
     for claim in structurally_valid.claims:
         valid_citations = []
         for eid in claim.cited_evidence_ids:
-            support_level = eval_map.get((claim.claim_text, eid), "UNSUPPORTED")
+            support_level_str = eval_map.get((claim.claim_text, eid), "UNSUPPORTED")
+            try:
+                support_level = CitationSupportLevel(support_level_str)
+            except ValueError:
+                support_level = CitationSupportLevel.UNSUPPORTED
+
             valid_citations.append(
                 ValidatedCitation(evidence_id=eid, support_level=support_level)
             )
-            
+
         semantically_valid_claims.append(
             SemanticallyValidatedClaim(
                 claim_text=claim.claim_text,
                 citations=valid_citations
             )
         )
-        
+
     return SemanticallyValidatedAnswer(
         claims=semantically_valid_claims,
         evidence_sufficient=structurally_valid.evidence_sufficient,
         suggested_followups=structurally_valid.suggested_followups
     )
+
+from schemas.ai_chat import ChatAnswerStatus
+from schemas.domain import CitationSupportLevel
+
+def filter_unsupported_claims(answer: SemanticallyValidatedAnswer) -> tuple[SemanticallyValidatedAnswer, ChatAnswerStatus]:
+    original_count = len(answer.claims)
+    if original_count == 0:
+        return answer, ChatAnswerStatus.INSUFFICIENT_EVIDENCE
+
+    kept_claims = []
+    for claim in answer.claims:
+        valid_citations = [
+            c for c in claim.citations
+            if c.support_level == CitationSupportLevel.SUPPORTED
+        ]
+
+        if valid_citations:
+            kept_claims.append(
+                SemanticallyValidatedClaim(
+                    claim_text=claim.claim_text,
+                    citations=valid_citations
+                )
+            )
+
+    filtered_answer = SemanticallyValidatedAnswer(
+        claims=kept_claims,
+        evidence_sufficient=answer.evidence_sufficient,
+        suggested_followups=answer.suggested_followups
+    )
+
+    if len(kept_claims) == 0:
+        status = ChatAnswerStatus.INSUFFICIENT_EVIDENCE
+    elif len(kept_claims) < original_count:
+        status = ChatAnswerStatus.PARTIALLY_ANSWERED
+    else:
+        status = ChatAnswerStatus.ANSWERED
+
+    return filtered_answer, status

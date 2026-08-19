@@ -140,9 +140,13 @@ class DomainConversationAnswer(BaseModel):
         return cleaned[:4]
 
 
-from typing import Literal
+from enum import Enum
 
-CitationSupportLevel = Literal["SUPPORTED", "PARTIAL", "UNSUPPORTED"]
+class CitationSupportLevel(str, Enum):
+    SUPPORTED = "SUPPORTED"
+    PARTIAL = "PARTIAL"
+    UNSUPPORTED = "UNSUPPORTED"
+
 
 class ValidatedCitation(BaseModel):
     evidence_id: str
