@@ -326,17 +326,35 @@ def _bounded_history(messages: list[AIMessage]) -> list[tuple[str, str]]:
     return list(reversed(selected))
 
 
-def _sanitize_markers(answer: str, valid_indexes: set[int]) -> tuple[str, set[int]]:
-    referenced: set[int] = set()
+from schemas.domain import DomainGroundedClaim
 
-    def replace_marker(match: re.Match[str]) -> str:
-        index = int(match.group(1))
-        if index in valid_indexes:
-            referenced.add(index)
-            return match.group(0)
-        return ""
 
-    return re.sub(r"\[(\d+)\]", replace_marker, answer), referenced
+def _render_grounded_answer(claims: list[DomainGroundedClaim]) -> tuple[str, set[str]]:
+    """Deterministically render grounded claims to a Markdown string with inline citation markers."""
+    paragraphs = []
+    cited_eids = set()
+
+    for claim in claims:
+        marker_numbers = []
+        for eid in claim.cited_evidence_ids:
+            cited_eids.add(eid)
+            try:
+                num = int(eid.replace("e_", ""))
+                marker_numbers.append(num)
+            except ValueError:
+                pass
+
+        # Sort the markers for a clean UI like [1][2]
+        marker_numbers.sort()
+        markers_str = "".join([f"[{num}]" for num in marker_numbers])
+
+        # Space out the markers from the text if it doesn't end in space
+        if markers_str and claim.claim_text and not claim.claim_text.endswith(" "):
+            paragraphs.append(f"{claim.claim_text} {markers_str}")
+        else:
+            paragraphs.append(f"{claim.claim_text}{markers_str}")
+
+    return "\n\n".join(paragraphs), cited_eids
 
 
 def send_conversation_message(
@@ -432,66 +450,66 @@ def send_conversation_message(
     if not retrieved_chunks:
         raise SearchIndexNotReadyError(document_id=document_id, repairable=False)
 
-    source_registry = {
-        index: chunk for index, chunk in enumerate(retrieved_chunks, start=1)
+    source_registry: dict[str, RetrievedChatChunk] = {
+        f"e_{index:02d}": chunk for index, chunk in enumerate(retrieved_chunks, start=1)
     }
     raw_generated = answer_conversation_question(
         sources=[
-            (index, chunk.content) for index, chunk in source_registry.items()
+            (eid, chunk.content) for eid, chunk in source_registry.items()
         ],
         user_question=question,
         conversation_history=history,
         selected_text=selected_text,
     )
-    valid_indexes = set(source_registry)
+    valid_ids = set(source_registry)
 
     try:
-        generated = validate_conversation_answer(raw_generated, valid_indexes)
+        generated = validate_conversation_answer(raw_generated, valid_ids)
     except ValueError as e:
         raise AIServiceError(str(e))
 
-    inline_marker_count = len(re.findall(r"\[(\d+)\]", generated.answer_markdown))
-    answer_markdown, marker_indexes = _sanitize_markers(
-        generated.answer_markdown.strip(),
-        valid_indexes,
-    )
-    structured_indexes = set(generated.cited_source_indexes)
-    if any(index not in valid_indexes for index in structured_indexes):
-        raise AIServiceError("Gemini returned an invalid document citation.")
-
     if not generated.evidence_sufficient:
-        if structured_indexes or inline_marker_count:
+        total_citations = sum(len(c.cited_evidence_ids) for c in generated.claims)
+        if total_citations > 0:
             logger.warning(
                 "Discarding citations from insufficient-evidence conversation answer: "
-                "conversation_id=%s structured_citation_count=%d inline_citation_count=%d",
+                "conversation_id=%s citation_count=%d",
                 conversation_id,
-                len(structured_indexes),
-                inline_marker_count,
+                total_citations,
             )
         answer_markdown = INSUFFICIENT_EVIDENCE_ANSWER
-        cited_indexes: set[int] = set()
+        cited_eids: set[str] = set()
         effective_followups: list[str] = []
     else:
+        answer_markdown, cited_eids = _render_grounded_answer(generated.claims)
         if not answer_markdown.strip():
             raise AIServiceError("Gemini returned an empty answer after citation validation.")
-        cited_indexes = structured_indexes | marker_indexes
-        if not cited_indexes:
+        if not cited_eids:
             raise AIServiceError("Gemini returned a grounded answer without a valid citation.")
         effective_followups = generated.suggested_followups
 
-    citation_payloads = [
-        CitationResponse(
-            index=index,
-            source_type="document",
-            title=document_title,
-            url=None,
-            document_id=document_id,
-            chunk_id=source_registry[index].id,
-            page_number=source_registry[index].page_number,
-            excerpt=source_registry[index].content.strip()[:500] or None,
+
+    citation_payloads = []
+    for eid in sorted(cited_eids):
+        # Determine the UI index from the string ID
+        try:
+            index = int(eid.replace("e_", ""))
+        except ValueError:
+            continue
+        
+        chunk = source_registry[eid]
+        citation_payloads.append(
+            CitationResponse(
+                index=index,
+                source_type="document",
+                title=document_title,
+                url=None,
+                document_id=document_id,
+                chunk_id=chunk.id,
+                page_number=chunk.page_number,
+                excerpt=chunk.content.strip()[:500] or None,
+            )
         )
-        for index in sorted(cited_indexes)
-    ]
 
     with _open_session() as session:
         # Match document-deletion lock order: document first, then conversation.

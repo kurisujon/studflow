@@ -4,6 +4,7 @@ from schemas.domain import (
     DomainFlashcard,
     DomainQuizQuestion,
     DomainConversationAnswer,
+    DomainGroundedClaim,
 )
 from services.ai_service import (
     ComprehensiveSummary,
@@ -66,27 +67,40 @@ def validate_quiz(raw_quiz: list[QuizQuestionPayload]) -> list[DomainQuizQuestio
 
 from typing import Set
 
-def validate_conversation_answer(raw: ConversationAnswer, available_indexes: Set[int]) -> DomainConversationAnswer:
+def validate_conversation_answer(raw: ConversationAnswer, available_ids: Set[str]) -> DomainConversationAnswer:
     """Validates and sanitizes a raw ConversationAnswer."""
-    # Deduplicate citations while preserving order
-    seen = set()
-    unique_indexes = []
-    for idx in raw.cited_source_indexes:
-        if idx not in seen:
-            seen.add(idx)
-            unique_indexes.append(idx)
     
-    # Phase B validation preparation
-    if any(idx not in available_indexes for idx in unique_indexes):
-        raise ValueError("Gemini returned an invalid conversation source reference.")
-    if any(idx < 1 for idx in unique_indexes):
-        raise ValueError("Gemini returned an invalid conversation source reference.")
-    if raw.evidence_sufficient and not unique_indexes:
-        raise ValueError("Gemini returned a grounded answer without a source reference.")
+    valid_claims = []
+    has_citations = False
+    
+    for raw_claim in raw.claims:
+        try:
+            domain_claim = DomainGroundedClaim(
+                claim_text=raw_claim.claim_text,
+                cited_evidence_ids=raw_claim.cited_evidence_ids,
+            )
+        except ValueError:
+            # Skip claims that fail structural validation (e.g. empty strings)
+            continue
+            
+        # Basic B1/B2 check: were these IDs even supplied?
+        for eid in domain_claim.cited_evidence_ids:
+            if eid not in available_ids:
+                raise ValueError(f"Invalid Evidence ID reference: {eid}")
+        
+        if domain_claim.cited_evidence_ids:
+            has_citations = True
+            
+        valid_claims.append(domain_claim)
+
+    if raw.evidence_sufficient and not has_citations:
+        raise ValueError("Gemini returned a grounded answer without any source references.")
+        
+    if not valid_claims:
+        raise ValueError("Gemini returned an answer with no valid claims.")
 
     return DomainConversationAnswer(
-        answer_markdown=raw.answer_markdown,
+        claims=valid_claims,
         evidence_sufficient=raw.evidence_sufficient,
-        cited_source_indexes=unique_indexes,
         suggested_followups=raw.suggested_followups,
     )

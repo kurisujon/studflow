@@ -29,7 +29,6 @@ from services.ai_chat import (
     INSUFFICIENT_EVIDENCE_ANSWER,
     SearchIndexNotReadyError,
     _get_owned_document,
-    _sanitize_markers,
     create_conversation,
     delete_conversation,
     get_owned_conversation,
@@ -40,6 +39,7 @@ from services.ai_chat import (
 from services.ai_service import (
     AIServiceError,
     ConversationAnswer,
+    RawGroundedClaim,
     answer_conversation_question,
 )
 from services.documents import search_owned_similar_chunks
@@ -75,32 +75,28 @@ class AIChatSchemaTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             SendMessageRequest(question="Explain", selected_text="x" * 8001)
 
-    def test_unknown_inline_markers_are_removed(self) -> None:
-        answer, referenced = _sanitize_markers("Valid [1], invalid [9].", {1, 2})
-        self.assertEqual(answer, "Valid [1], invalid .")
-        self.assertEqual(referenced, {1})
-
-
 class AIChatGenerationTests(unittest.TestCase):
     def setUp(self) -> None:
+        from services.ai_service import RawGroundedClaim
         self.valid_response = SimpleNamespace(
             text=ConversationAnswer(
-                answer_markdown="Routing maps URLs to application logic.[1]",
+                claims=[
+                    RawGroundedClaim(claim_text="Routing maps URLs to application logic.", cited_evidence_ids=["e_01"])
+                ],
                 evidence_sufficient=True,
-                cited_source_indexes=[1],
                 suggested_followups=[],
             ).model_dump_json()
         )
 
     def _answer(self) -> ConversationAnswer:
         return answer_conversation_question(
-            sources=[(1, "Routing maps URLs to controller actions.")],
+            sources=[("e_01", "Routing maps URLs to controller actions.")],
             user_question="What is routing?",
             conversation_history=[],
         )
 
     def test_malformed_response_is_retried_once_then_valid_response_is_returned(self) -> None:
-        malformed_response = SimpleNamespace(text='{"answer_markdown":')
+        malformed_response = SimpleNamespace(text='{"claims":')
 
         with (
             patch(
@@ -111,7 +107,7 @@ class AIChatGenerationTests(unittest.TestCase):
         ):
             answer = self._answer()
 
-        self.assertEqual(answer.answer_markdown, "Routing maps URLs to application logic.[1]")
+        self.assertEqual(answer.claims[0].claim_text, "Routing maps URLs to application logic.")
         self.assertEqual(generation.call_count, 2)
         warning.assert_called_once_with(
             "Retrying malformed conversation answer: attempt=%d error_type=%s",
@@ -120,7 +116,7 @@ class AIChatGenerationTests(unittest.TestCase):
         )
 
     def test_two_malformed_responses_raise_stable_ai_service_error(self) -> None:
-        malformed_response = SimpleNamespace(text='{"answer_markdown":')
+        malformed_response = SimpleNamespace(text='{"claims":')
 
         with patch(
             "services.ai_service._generate_structured",
@@ -401,9 +397,8 @@ class AIChatSendTests(unittest.TestCase):
         retrieval_session = self._retrieval_session()
         write_session = self._write_session()
         generated = ConversationAnswer(
-            answer_markdown="Routing connects a URL to application logic.[1]",
-            evidence_sufficient=True,
-            cited_source_indexes=[1],
+            claims=[RawGroundedClaim(claim_text="Routing connects a URL to application logic.", cited_evidence_ids=["e_01"])],
+                evidence_sufficient=True,
             suggested_followups=["How do route parameters work?"],
         )
 
@@ -485,7 +480,7 @@ class AIChatSendTests(unittest.TestCase):
     def test_malformed_generation_exhaustion_writes_no_turn(self) -> None:
         read_session = self._read_session()
         retrieval_session = self._retrieval_session()
-        malformed_response = SimpleNamespace(text='{"answer_markdown":')
+        malformed_response = SimpleNamespace(text='{"claims":')
         with (
             patch(
                 "services.ai_chat._open_session",
@@ -534,9 +529,8 @@ class AIChatSendTests(unittest.TestCase):
         retrieval_session = self._retrieval_session()
         write_session = self._write_session(maximum_sequence=2)
         generated = ConversationAnswer(
-            answer_markdown="The document does not cover that follow-up.",
-            evidence_sufficient=False,
-            cited_source_indexes=[],
+            claims=[RawGroundedClaim(claim_text="The document does not cover that follow-up.", cited_evidence_ids=[])],
+                evidence_sufficient=False,
             suggested_followups=[],
         )
 
@@ -602,9 +596,8 @@ class AIChatSendTests(unittest.TestCase):
         retrieval_session = self._retrieval_session()
         write_session = self._write_session(stale=True)
         generated = ConversationAnswer(
-            answer_markdown="Routing connects URLs to application logic.[1]",
-            evidence_sufficient=True,
-            cited_source_indexes=[1],
+            claims=[RawGroundedClaim(claim_text="Routing connects URLs to application logic.", cited_evidence_ids=["e_01"])],
+                evidence_sufficient=True,
             suggested_followups=[],
         )
         with (
@@ -635,9 +628,8 @@ class AIChatSendTests(unittest.TestCase):
         retrieval_session = self._retrieval_session()
         write_session = self._write_session(active_index_generation=2)
         generated = ConversationAnswer(
-            answer_markdown="Routing connects URLs to application logic.[1]",
-            evidence_sufficient=True,
-            cited_source_indexes=[1],
+            claims=[RawGroundedClaim(claim_text="Routing connects URLs to application logic.", cited_evidence_ids=["e_01"])],
+                evidence_sufficient=True,
             suggested_followups=[],
         )
         with (
@@ -668,9 +660,8 @@ class AIChatSendTests(unittest.TestCase):
         retrieval_session = self._retrieval_session()
         write_session = self._write_session()
         generated = ConversationAnswer(
-            answer_markdown="A variable model response.",
-            evidence_sufficient=False,
-            cited_source_indexes=[],
+            claims=[RawGroundedClaim(claim_text="A variable model response.", cited_evidence_ids=[])],
+                evidence_sufficient=False,
             suggested_followups=["A model-provided follow-up"],
         )
 
@@ -713,9 +704,8 @@ class AIChatSendTests(unittest.TestCase):
         retrieval_session = self._retrieval_session()
         write_session = self._write_session()
         generated = ConversationAnswer(
-            answer_markdown="An unsupported answer.",
-            evidence_sufficient=False,
-            cited_source_indexes=[1],
+            claims=[RawGroundedClaim(claim_text="An unsupported answer.", cited_evidence_ids=["e_01"])],
+                evidence_sufficient=False,
             suggested_followups=["Keep exploring"],
         )
 
@@ -753,9 +743,8 @@ class AIChatSendTests(unittest.TestCase):
         retrieval_session = self._retrieval_session()
         write_session = self._write_session()
         generated = ConversationAnswer(
-            answer_markdown="[1]",
-            evidence_sufficient=False,
-            cited_source_indexes=[],
+            claims=[RawGroundedClaim(claim_text="I cannot answer this.", cited_evidence_ids=[])],
+                evidence_sufficient=False,
             suggested_followups=["Keep exploring"],
         )
 
@@ -782,7 +771,7 @@ class AIChatSendTests(unittest.TestCase):
         self.assertEqual(answer.answer_markdown, INSUFFICIENT_EVIDENCE_ANSWER)
         self.assertEqual(answer.citations, [])
         self.assertEqual(answer.suggested_followups, [])
-        warning.assert_called_once()
+        warning.assert_not_called()
         write_session.commit.assert_called_once_with()
         added = [call.args[0] for call in write_session.add.call_args_list]
         self.assertEqual(sum(isinstance(item, AIMessage) for item in added), 2)
@@ -792,9 +781,8 @@ class AIChatSendTests(unittest.TestCase):
         read_session = self._read_session()
         retrieval_session = self._retrieval_session()
         generated = ConversationAnswer(
-            answer_markdown="[9]",
+            claims=[],
             evidence_sufficient=True,
-            cited_source_indexes=[1],
             suggested_followups=[],
         )
 
@@ -824,9 +812,8 @@ class AIChatSendTests(unittest.TestCase):
         read_session = self._read_session()
         retrieval_session = self._retrieval_session()
         generated = ConversationAnswer(
-            answer_markdown="Routing maps URLs.[9]",
-            evidence_sufficient=True,
-            cited_source_indexes=[9],
+            claims=[RawGroundedClaim(claim_text="Routing maps URLs.", cited_evidence_ids=["e_09"])],
+                evidence_sufficient=True,
             suggested_followups=[],
         )
 
@@ -900,9 +887,8 @@ class AIChatRealSessionRegressionTests(unittest.TestCase):
             session.commit()
 
         generated = ConversationAnswer(
-            answer_markdown="Routing connects a URL to application logic.[1]",
-            evidence_sufficient=True,
-            cited_source_indexes=[1],
+            claims=[RawGroundedClaim(claim_text="Routing connects a URL to application logic.", cited_evidence_ids=["e_01"])],
+                evidence_sufficient=True,
             suggested_followups=["How do route parameters work?"],
         )
 
@@ -1052,7 +1038,7 @@ class AIChatIndexRepairRouteTests(unittest.TestCase):
     def test_ai_service_error_logs_safe_metadata_and_returns_stable_bad_gateway(self) -> None:
         validation_error: ValidationError
         try:
-            ConversationAnswer.model_validate_json('{"answer_markdown":')
+            ConversationAnswer.model_validate_json('{"claims":')
         except ValidationError as exc:
             validation_error = exc
         error = AIServiceError(
@@ -1085,3 +1071,28 @@ class AIChatIndexRepairRouteTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class RenderGroundedAnswerTests(unittest.TestCase):
+    def test_deterministic_markdown_output_ordering_and_spacing(self):
+        from services.ai_chat import _render_grounded_answer
+        from schemas.domain import DomainGroundedClaim
+
+        claims = [
+            DomainGroundedClaim(claim_text="Multiple sources out of order.", cited_evidence_ids=["e_03", "e_01"]),
+            DomainGroundedClaim(claim_text="Single source with trailing space. ", cited_evidence_ids=["e_02"]),
+            DomainGroundedClaim(claim_text="No sources.", cited_evidence_ids=[]),
+            DomainGroundedClaim(claim_text="Malformed evidence ID.", cited_evidence_ids=["e_abc"]),
+            DomainGroundedClaim(claim_text="Duplicate evidence ID.", cited_evidence_ids=["e_01", "e_01"]),
+        ]
+        
+        markdown, cited_eids = _render_grounded_answer(claims)
+        
+        expected_paragraphs = [
+            "Multiple sources out of order. [1][3]",
+            "Single source with trailing space. [2]",
+            "No sources.",
+            "Malformed evidence ID.",
+            "Duplicate evidence ID. [1]"
+        ]
+        self.assertEqual(markdown, "\n\n".join(expected_paragraphs))
+        self.assertEqual(cited_eids, {"e_01", "e_02", "e_03", "e_abc"})

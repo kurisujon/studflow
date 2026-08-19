@@ -80,10 +80,13 @@ class DocumentQuestionAnswer(BaseModel):
     supporting_chunks: list[SupportingChunk]
 
 
+class RawGroundedClaim(BaseModel):
+    claim_text: str = Field(min_length=1, max_length=2000)
+    cited_evidence_ids: list[str] = Field(default_factory=list)
+
 class ConversationAnswer(BaseModel):
-    answer_markdown: str = Field(min_length=1, max_length=20_000)
+    claims: list[RawGroundedClaim]
     evidence_sufficient: bool
-    cited_source_indexes: list[int] = Field(default_factory=list)
     suggested_followups: list[str] = Field(default_factory=list, max_length=4)
 
 
@@ -120,13 +123,20 @@ Return only JSON that matches the required schema.
 
 CONVERSATION_QA_PROMPT = """
 You are StudFlow AI, a patient study assistant in an ongoing conversation.
-Answer the student's current question using only the supplied document sources.
+Answer the student's current question using ONLY the supplied document sources.
 Conversation history provides context for the student's intent, but it is not evidence.
-Do not invent facts, titles, URLs, page numbers, source numbers, or citations.
-Use inline citation markers such as [1] only when that numbered source supports the claim.
-Set evidence_sufficient to false when the supplied evidence cannot answer the question,
-say so clearly, and return no citations. Otherwise set it to true and cite at least one
-supporting supplied source.
+Do not invent facts, titles, URLs, page numbers, or citations.
+
+Your response must be an array of distinct claims. Each claim represents a distinct sentence or logical thought.
+For each claim, you MUST provide a list of Evidence IDs (e.g. "e_01") that explicitly support that claim.
+Do NOT use inline markdown citation markers (like [1]). Just provide the clean claim text and populate the cited_evidence_ids array with the exact IDs of the provided sources.
+
+If the supplied evidence cannot answer the question at all:
+1. Set evidence_sufficient to false.
+2. Provide a single claim stating you cannot answer the question based on the evidence.
+3. Provide an empty array for cited_evidence_ids.
+
+If the evidence can answer the question, set evidence_sufficient to true and ensure every factual claim cites at least one valid Evidence ID from the supplied sources.
 Prefer a concise explanation first, followed by useful detail when needed.
 Return only JSON matching the required schema.
 """.strip()
@@ -386,7 +396,7 @@ def answer_document_question(
 
 def answer_conversation_question(
     *,
-    sources: list[tuple[int, str]],
+    sources: list[tuple[str, str]],
     user_question: str,
     conversation_history: list[tuple[str, str]],
     selected_text: str | None = None,
@@ -400,8 +410,8 @@ def answer_conversation_question(
         f"{role.upper()}: {content}" for role, content in conversation_history
     ) or "No previous messages."
     source_text = "\n\n".join(
-        f"SOURCE [{source_index}]\nType: document\nContent: {content}"
-        for source_index, content in sources
+        f"Evidence ID: {evidence_id}\nContent: {content}"
+        for evidence_id, content in sources
     )
     prompt = (
         f"{CONVERSATION_QA_PROMPT}\n\n"
@@ -410,8 +420,8 @@ def answer_conversation_question(
         f"Student-selected context for this turn (use it to understand intent, but cite only the verified source registry):\n"
         f"{selected_text or 'No selected context.'}\n\n"
         f"Verified source registry:\n{source_text}\n\n"
-        "cited_source_indexes must contain every source number used in answer_markdown. "
-        "Use only source numbers present in the registry. Suggest no more than four concise follow-ups."
+        "cited_evidence_ids must contain every Evidence ID used to support a claim. "
+        "Use only Evidence IDs present in the registry. Suggest no more than four concise follow-ups."
     )
     answer: ConversationAnswer | None = None
     final_validation_error: ValidationError | None = None

@@ -101,19 +101,36 @@ class DomainQuizQuestion(BaseModel):
         return self
 
 
-class DomainConversationAnswer(BaseModel):
-    answer_markdown: str
-    evidence_sufficient: bool
-    cited_source_indexes: List[int]
-    suggested_followups: List[str]
+class DomainGroundedClaim(BaseModel):
+    claim_text: str
+    cited_evidence_ids: List[str]
 
-    @field_validator("answer_markdown")
+    @field_validator("claim_text")
     @classmethod
-    def validate_answer(cls, v: str) -> str:
+    def validate_text(cls, v: str) -> str:
         cleaned = v.strip()
         if not cleaned:
-            raise ValueError("Answer markdown cannot be empty")
+            raise ValueError("Claim text cannot be empty")
         return cleaned
+
+    @field_validator("cited_evidence_ids")
+    @classmethod
+    def validate_evidence(cls, v: List[str]) -> List[str]:
+        cleaned = [eid.strip() for eid in v if eid.strip()]
+        # Preserve order but remove exact duplicates
+        seen = set()
+        unique = []
+        for eid in cleaned:
+            if eid not in seen:
+                seen.add(eid)
+                unique.append(eid)
+        return unique
+
+
+class DomainConversationAnswer(BaseModel):
+    claims: List[DomainGroundedClaim]
+    evidence_sufficient: bool
+    suggested_followups: List[str]
 
     @field_validator("suggested_followups")
     @classmethod
