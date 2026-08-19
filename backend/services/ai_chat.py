@@ -34,6 +34,7 @@ from services.ai_service import (
 )
 from services.domain_validation import validate_conversation_answer, apply_semantic_validation
 from services.documents import get_document_index_readiness, search_owned_similar_chunks
+from services.retrieval_quality import evaluate_retrieval_quality
 
 
 logger = logging.getLogger(__name__)
@@ -439,6 +440,13 @@ def send_conversation_message(
             top_k=settings.rag_top_k,
             index_generation=index_generation,
         )
+        evidence_set = evaluate_retrieval_quality(
+            chunks, 
+            threshold=settings.retrieval_min_score_threshold
+        )
+        
+        # We still need the original retrieved_chunks format for now
+        # but in a real B4/B5 we'd branch here if not evidence_set.quality.threshold_passed
         retrieved_chunks = [
             RetrievedChatChunk(
                 id=chunk.id,
@@ -448,7 +456,7 @@ def send_conversation_message(
                 page_number=chunk.page_number,
                 index_generation=chunk.index_generation,
             )
-            for chunk in chunks
+            for chunk, distance in chunks
         ]
 
     if not retrieved_chunks:

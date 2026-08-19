@@ -1,3 +1,4 @@
+import uuid
 from typing import List
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -155,3 +156,21 @@ class SemanticallyValidatedAnswer(BaseModel):
     claims: List[SemanticallyValidatedClaim]
     evidence_sufficient: bool
     suggested_followups: List[str]
+
+import uuid
+
+class RetrievedEvidence(BaseModel):
+    chunk_id: uuid.UUID
+    content: str
+    page_number: int | None
+    score: float
+
+class RetrievalQuality(BaseModel):
+    top_score: float | None
+    mean_top_k_score: float | None
+    evidence_count: int
+    threshold_passed: bool
+
+class RetrievalEvidenceSet(BaseModel):
+    evidence: list[RetrievedEvidence]
+    quality: RetrievalQuality

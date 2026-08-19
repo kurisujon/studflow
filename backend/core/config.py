@@ -44,6 +44,7 @@ class Settings(BaseSettings):
     embedding_dimensions: int = 768
     embedding_batch_size: int = 24
     rag_top_k: int = 5
+    retrieval_min_score_threshold: float = 0.50
     rag_cluster_max_chunks: int = 5
 
     # Selective OCR for PDF pages with insufficient native text.

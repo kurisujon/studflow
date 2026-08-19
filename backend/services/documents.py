@@ -427,13 +427,15 @@ def search_owned_similar_chunks(
     query_embedding: Sequence[float],
     top_k: int = 5,
     index_generation: int | None = None,
-) -> list[DocumentChunk]:
-    """Return semantic chunks only when their parent document belongs to the caller."""
+) -> list[tuple[DocumentChunk, float]]:
+    """Return semantic chunks and their cosine distances only when their parent document belongs to the caller."""
     if top_k < 1:
         raise ValueError("top_k must be at least one.")
 
+    distance_col = DocumentChunk.embedding.cosine_distance(query_embedding).label("distance")
+    
     statement = (
-        select(DocumentChunk)
+        select(DocumentChunk, distance_col)
         .join(Document, Document.id == DocumentChunk.document_id)
         .where(DocumentChunk.document_id == document_id)
         .where(Document.clerk_user_id == clerk_user_id)
@@ -445,8 +447,9 @@ def search_owned_similar_chunks(
         )
     else:
         statement = statement.where(DocumentChunk.index_generation == index_generation)
+    
     return session.exec(
-        statement.order_by(DocumentChunk.embedding.cosine_distance(query_embedding))
+        statement.order_by(distance_col)
         .limit(top_k)
     ).all()
 

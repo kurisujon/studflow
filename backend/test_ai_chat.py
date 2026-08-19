@@ -413,7 +413,7 @@ class AIChatSendTests(unittest.TestCase):
                 ],
             ),
             patch("services.ai_chat.generate_query_embedding", return_value=[0.0] * 768) as embedding_mock,
-            patch("services.ai_chat.search_owned_similar_chunks", return_value=[self.chunk]),
+            patch("services.ai_chat.search_owned_similar_chunks", return_value=[(self.chunk, 0.1)]),
             patch("services.ai_chat.answer_conversation_question", return_value=generated) as generation_mock,
             patch("services.ai_chat.evaluate_citations", return_value=[RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="") for c in generated.claims for eid in c.cited_evidence_ids]),
         ):
@@ -463,7 +463,7 @@ class AIChatSendTests(unittest.TestCase):
                 ],
             ),
             patch("services.ai_chat.generate_query_embedding", return_value=[0.0] * 768),
-            patch("services.ai_chat.search_owned_similar_chunks", return_value=[self.chunk]),
+            patch("services.ai_chat.search_owned_similar_chunks", return_value=[(self.chunk, 0.1)]),
             patch(
                 "services.ai_chat.answer_conversation_question",
                 side_effect=AIServiceError("generation failed"),
@@ -492,7 +492,7 @@ class AIChatSendTests(unittest.TestCase):
                 ],
             ) as open_session,
             patch("services.ai_chat.generate_query_embedding", return_value=[0.0] * 768),
-            patch("services.ai_chat.search_owned_similar_chunks", return_value=[self.chunk]),
+            patch("services.ai_chat.search_owned_similar_chunks", return_value=[(self.chunk, 0.1)]),
             patch(
                 "services.ai_service._generate_structured",
                 side_effect=[malformed_response, malformed_response],
@@ -546,7 +546,7 @@ class AIChatSendTests(unittest.TestCase):
                 ],
             ),
             patch("services.ai_chat.generate_query_embedding", return_value=[0.0] * 768),
-            patch("services.ai_chat.search_owned_similar_chunks", return_value=[self.chunk]),
+            patch("services.ai_chat.search_owned_similar_chunks", return_value=[(self.chunk, 0.1)]),
             patch(
                 "services.ai_chat.answer_conversation_question",
                 return_value=generated,
@@ -612,7 +612,7 @@ class AIChatSendTests(unittest.TestCase):
                 ],
             ),
             patch("services.ai_chat.generate_query_embedding", return_value=[0.0] * 768),
-            patch("services.ai_chat.search_owned_similar_chunks", return_value=[self.chunk]),
+            patch("services.ai_chat.search_owned_similar_chunks", return_value=[(self.chunk, 0.1)]),
             patch("services.ai_chat.answer_conversation_question", return_value=generated),
             patch("services.ai_chat.evaluate_citations", return_value=[RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="") for c in generated.claims for eid in c.cited_evidence_ids]),
             patch("services.ai_chat.evaluate_citations", return_value=[
@@ -649,7 +649,7 @@ class AIChatSendTests(unittest.TestCase):
                 ],
             ),
             patch("services.ai_chat.generate_query_embedding", return_value=[0.0] * 768),
-            patch("services.ai_chat.search_owned_similar_chunks", return_value=[self.chunk]),
+            patch("services.ai_chat.search_owned_similar_chunks", return_value=[(self.chunk, 0.1)]),
             patch("services.ai_chat.answer_conversation_question", return_value=generated),
             patch("services.ai_chat.evaluate_citations", return_value=[RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="") for c in generated.claims for eid in c.cited_evidence_ids]),
             patch("services.ai_chat.evaluate_citations", return_value=[
@@ -687,7 +687,7 @@ class AIChatSendTests(unittest.TestCase):
                 ],
             ),
             patch("services.ai_chat.generate_query_embedding", return_value=[0.0] * 768),
-            patch("services.ai_chat.search_owned_similar_chunks", return_value=[self.chunk]),
+            patch("services.ai_chat.search_owned_similar_chunks", return_value=[(self.chunk, 0.1)]),
             patch("services.ai_chat.answer_conversation_question", return_value=generated),
             patch("services.ai_chat.evaluate_citations", return_value=[RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="") for c in generated.claims for eid in c.cited_evidence_ids]),
             patch("services.ai_chat.evaluate_citations", return_value=[
@@ -736,7 +736,7 @@ class AIChatSendTests(unittest.TestCase):
                 ],
             ),
             patch("services.ai_chat.generate_query_embedding", return_value=[0.0] * 768),
-            patch("services.ai_chat.search_owned_similar_chunks", return_value=[self.chunk]),
+            patch("services.ai_chat.search_owned_similar_chunks", return_value=[(self.chunk, 0.1)]),
             patch("services.ai_chat.answer_conversation_question", return_value=generated),
             patch("services.ai_chat.evaluate_citations", return_value=[RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="") for c in generated.claims for eid in c.cited_evidence_ids]),
             patch("services.ai_chat.evaluate_citations", return_value=[
@@ -780,7 +780,7 @@ class AIChatSendTests(unittest.TestCase):
                 ],
             ),
             patch("services.ai_chat.generate_query_embedding", return_value=[0.0] * 768),
-            patch("services.ai_chat.search_owned_similar_chunks", return_value=[self.chunk]),
+            patch("services.ai_chat.search_owned_similar_chunks", return_value=[(self.chunk, 0.1)]),
             patch("services.ai_chat.answer_conversation_question", return_value=generated),
             patch("services.ai_chat.evaluate_citations", return_value=[RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="") for c in generated.claims for eid in c.cited_evidence_ids]),
             patch("services.ai_chat.evaluate_citations", return_value=[
@@ -822,7 +822,7 @@ class AIChatSendTests(unittest.TestCase):
                 ],
             ),
             patch("services.ai_chat.generate_query_embedding", return_value=[0.0] * 768),
-            patch("services.ai_chat.search_owned_similar_chunks", return_value=[self.chunk]),
+            patch("services.ai_chat.search_owned_similar_chunks", return_value=[(self.chunk, 0.1)]),
             patch("services.ai_chat.answer_conversation_question", return_value=generated),
             patch("services.ai_chat.evaluate_citations", return_value=[RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="") for c in generated.claims for eid in c.cited_evidence_ids]),
             patch("services.ai_chat.evaluate_citations", return_value=[
@@ -858,7 +858,7 @@ class AIChatSendTests(unittest.TestCase):
                 ],
             ),
             patch("services.ai_chat.generate_query_embedding", return_value=[0.0] * 768),
-            patch("services.ai_chat.search_owned_similar_chunks", return_value=[self.chunk]),
+            patch("services.ai_chat.search_owned_similar_chunks", return_value=[(self.chunk, 0.1)]),
             patch("services.ai_chat.answer_conversation_question", return_value=generated),
             patch("services.ai_chat.evaluate_citations", return_value=[RawCitationEvaluation(claim_text=c.claim_text, evidence_id=eid, support_level="SUPPORTED", reasoning="") for c in generated.claims for eid in c.cited_evidence_ids]),
             patch("services.ai_chat.evaluate_citations", return_value=[
@@ -929,12 +929,13 @@ class AIChatRealSessionRegressionTests(unittest.TestCase):
             suggested_followups=["How do route parameters work?"],
         )
 
-        def retrieve_seeded_chunks(*, session: Session, **_: object) -> list[DocumentChunk]:
-            return list(
+        def retrieve_seeded_chunks(*, session: Session, **_: object) -> list[tuple[DocumentChunk, float]]:
+            chunks = list(
                 session.exec(
                     select(DocumentChunk).where(DocumentChunk.id == chunk_id)
                 ).all()
             )
+            return [(c, 0.1) for c in chunks]
 
         try:
             with (
