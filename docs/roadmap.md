@@ -837,3 +837,20 @@ When a future agent completes a meaningful feature, they should update this file
 
 **What to do next:**
 - Phase C: Evaluation Foundation (offline pipeline for programmatic accuracy tests).
+
+### Update: 2026-08-20 — Phase C1 & C2: Evaluation Foundation and Retrieval Baseline
+
+**What Changed:**
+- **Phase C1 (Golden evaluation dataset):** Created strict Pydantic schemas and three controlled Markdown corpora (`biology`, `networking`, `algorithms`). Authored 24 evaluation test cases explicitly separating stable golden evidence (`fact_ids`, text anchors) from runtime UUID/chunk-ID dependencies to survive future chunking iterations. Validated all expected facts against text anchors via deterministic integrity tests.
+- **Phase C2 (Retrieval evaluation):** Built a deterministic metrics pipeline (`runner.py`, `models.py`, `report.py`, `metrics.py`) cleanly separated from the generation code. Implemented Hit Rate, Anchor Coverage, MRR, Complete Evidence Rate, and an Abstention Confusion Matrix.
+- Constructed an exact substring `AnchorMapper` to accurately map retrieved RAG chunks to expected golden anchors regardless of text splits (many-to-many chunk-to-anchor mapping).
+- Deployed a LIVE runner (`live_runner.py`) that bypassed standard pgvector index dropout behaviors by executing a pure-Python cosine distance sort over `DocumentChunk` records. Executed the `c1-v1` evaluation baseline producing raw results and aggregate thresholds without tuning the default `0.50` threshold.
+
+**Contracts Changed:**
+- None. Evaluation occurs purely offline using synthetic users and evaluation scripts.
+
+**Docs Stale:**
+- No.
+
+**What to do next:**
+- Proceed to Phase C3: Answer Evaluation.

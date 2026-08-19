@@ -237,3 +237,16 @@ Goal: Scale document processing to support 100+ page documents with high precisi
 - [x] Enforce strict pipeline: `Retrieved Context -> Semantic Generation -> Pydantic Validation -> Quality Verification -> Final Result`
 - [x] Optimize summary, flashcard, and quiz generation prompts to utilize top semantic vector clusters
 - [x] Run backend verification tests (`unittest` / `py_compile`) validating resumability, vector storage, RAG retrieval, and quality control orchestration
+
+## Phase C: Evaluation Foundation (Current Priority)
+
+Goal: Stop relying on "tests pass" and start measuring actual RAG and AI quality to prepare for Phase D chunking changes.
+
+- [x] C1: Golden evaluation dataset
+- [x] C2: Retrieval evaluation
+- [ ] C3: Answer evaluation
+- [ ] C4: Groundedness evaluation
+- [ ] C5: Citation accuracy evaluation
+- [ ] C6: Regression runner
+- [ ] C7: CI integration
+
