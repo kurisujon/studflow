@@ -124,3 +124,35 @@ class TestDomainValidation(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+    def test_filter_unsupported_claims_strict_policy(self):
+        from schemas.domain import SemanticallyValidatedClaim, ValidatedCitation
+        from services.domain_validation import filter_unsupported_claims
+        
+        claims = [
+            SemanticallyValidatedClaim(
+                claim_text="Supported claim",
+                citations=[ValidatedCitation(evidence_id="e_01", support_level="SUPPORTED")]
+            ),
+            SemanticallyValidatedClaim(
+                claim_text="Partial claim",
+                citations=[ValidatedCitation(evidence_id="e_02", support_level="PARTIAL")]
+            ),
+            SemanticallyValidatedClaim(
+                claim_text="Unsupported claim",
+                citations=[ValidatedCitation(evidence_id="e_03", support_level="UNSUPPORTED")]
+            ),
+            SemanticallyValidatedClaim(
+                claim_text="Mixed claim",
+                citations=[
+                    ValidatedCitation(evidence_id="e_04", support_level="UNSUPPORTED"),
+                    ValidatedCitation(evidence_id="e_05", support_level="SUPPORTED")
+                ]
+            )
+        ]
+        
+        filtered = filter_unsupported_claims(claims)
+        
+        self.assertEqual(len(filtered), 2)
+        self.assertEqual(filtered[0].claim_text, "Supported claim")
+        self.assertEqual(filtered[1].claim_text, "Mixed claim")

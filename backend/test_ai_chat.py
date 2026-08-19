@@ -667,6 +667,48 @@ class AIChatSendTests(unittest.TestCase):
         write_session.add.assert_not_called()
         write_session.commit.assert_not_called()
 
+
+    def test_insufficient_evidence_fast_paths_before_model(self) -> None:
+        read_session = self._read_session()
+        retrieval_session = self._retrieval_session()
+        write_session = self._write_session()
+
+        with (
+            patch(
+                "services.ai_chat._open_session",
+                side_effect=[
+                    _context_manager(read_session),
+                    _context_manager(retrieval_session),
+                    _context_manager(write_session),
+                ],
+            ),
+            patch("services.ai_chat.generate_query_embedding", return_value=[0.0] * 768),
+            patch("services.ai_chat.search_owned_similar_chunks", return_value=[(self.chunk, 0.1)]),
+            patch("services.ai_chat.evaluate_retrieval_quality") as evaluate_retrieval_quality,
+            patch("services.ai_chat.answer_conversation_question") as answer_conversation_question,
+            patch("services.ai_chat.logger.warning") as warning,
+        ):
+            from services.retrieval_quality import RetrievalQualityDecision, EvaluatedEvidenceSet
+            
+            evaluate_retrieval_quality.return_value = EvaluatedEvidenceSet(
+                evidence=[self.chunk],
+                quality=RetrievalQualityDecision(
+                    highest_score=0.1,
+                    threshold_passed=False,
+                    reason="Too low"
+                )
+            )
+
+            answer = send_conversation_message(
+                conversation_id=self.conversation_id,
+                clerk_user_id="user_owner",
+                question="What is the capital of Mars?",
+            )
+
+        self.assertEqual(answer.answer_markdown, INSUFFICIENT_EVIDENCE_ANSWER)
+        self.assertEqual(answer.status, "INSUFFICIENT_EVIDENCE")
+        answer_conversation_question.assert_not_called()
+
     def test_insufficient_evidence_answer_persists_without_citations(self) -> None:
         read_session = self._read_session()
         retrieval_session = self._retrieval_session()
@@ -1104,3 +1146,4 @@ class RenderGroundedAnswerTests(unittest.TestCase):
         ]
         self.assertEqual(markdown, "\n\n".join(expected_paragraphs))
         self.assertEqual(cited_eids, {"e_01", "e_02", "e_03"})
+
