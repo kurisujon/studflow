@@ -1,3 +1,4 @@
+import hashlib
 import json
 import sys
 import time
@@ -90,21 +91,25 @@ class C3Runner:
         case_id = case["id"]
         try:
             if not retrieved_chunks:
-                return PipelineOutput(
+                po = PipelineOutput(
                     case_id=case_id,
                     actual_status=ChatAnswerStatus.INSUFFICIENT_EVIDENCE,
                     answer_markdown=INSUFFICIENT_EVIDENCE_ANSWER,
                     retrieved_eids=[],
                     retrieved_context="",
+                    evidence_map={},
                     infrastructure_failed=False,
                     surviving_claims=[]
                 )
+                po.content_hash = hashlib.sha256(po.model_dump_json().encode()).hexdigest()
+                return po
                 
             source_registry = {f"e_{i:02d}": chunk for i, chunk in enumerate(retrieved_chunks, start=1)}
             sources = [(eid, chunk["text"]) for eid, chunk in source_registry.items()]
             context_text = "
 
 ".join([text for _, text in sources])
+            evidence_map = {eid: chunk["text"] for eid, chunk in source_registry.items()}
             
             raw_generated = answer_conversation_question(
                 sources=sources,
@@ -127,62 +132,80 @@ class C3Runner:
                 
             generated, b6_status = filter_unsupported_claims(generated)
             
-            surviving = [FrozenSurvivingClaim(claim_id=f"claim_{i:02d}", claim_text=c.claim_text) for i, c in enumerate(generated.claims, start=1)]
+            surviving = [
+                FrozenSurvivingClaim(
+                    claim_id=f"claim_{i:02d}", 
+                    claim_text=c.claim_text,
+                    cited_evidence_ids=c.cited_evidence_ids
+                ) 
+                for i, c in enumerate(generated.claims, start=1)
+            ]
             
             if b6_status == ChatAnswerStatus.INSUFFICIENT_EVIDENCE:
-                return PipelineOutput(
+                po = PipelineOutput(
                     case_id=case_id,
                     actual_status=ChatAnswerStatus.INSUFFICIENT_EVIDENCE,
                     answer_markdown=INSUFFICIENT_EVIDENCE_ANSWER,
                     retrieved_eids=list(source_registry.keys()),
                     retrieved_context=context_text,
+                    evidence_map=evidence_map,
                     infrastructure_failed=False,
                     surviving_claims=surviving
                 )
             else:
                 answer_markdown, _ = _render_grounded_answer(generated.claims)
                 if not answer_markdown.strip():
-                    return PipelineOutput(
+                    po = PipelineOutput(
                         case_id=case_id,
                         actual_status=ChatAnswerStatus.INSUFFICIENT_EVIDENCE,
                         answer_markdown=INSUFFICIENT_EVIDENCE_ANSWER,
                         retrieved_eids=list(source_registry.keys()),
                         retrieved_context=context_text,
+                        evidence_map=evidence_map,
                         infrastructure_failed=False,
                         surviving_claims=surviving
                     )
                 else:
-                    return PipelineOutput(
+                    po = PipelineOutput(
                         case_id=case_id,
                         actual_status=b6_status,
                         answer_markdown=answer_markdown,
                         retrieved_eids=list(source_registry.keys()),
                         retrieved_context=context_text,
+                        evidence_map=evidence_map,
                         infrastructure_failed=False,
                         surviving_claims=surviving
                     )
+            
+            po.content_hash = hashlib.sha256(po.model_dump_json().encode()).hexdigest()
+            return po
+            
         except AIServiceError as e:
-            return PipelineOutput(
+            po = PipelineOutput(
                 case_id=case_id,
                 actual_status=ChatAnswerStatus.FAILED,
                 answer_markdown="",
                 retrieved_eids=[],
                 retrieved_context=None,
+                evidence_map={},
                 infrastructure_failed=True,
                 error_message=str(e),
                 surviving_claims=[]
             )
+            return po
         except Exception as e:
-            return PipelineOutput(
+            po = PipelineOutput(
                 case_id=case_id,
                 actual_status=ChatAnswerStatus.FAILED,
                 answer_markdown="",
                 retrieved_eids=[],
                 retrieved_context=None,
+                evidence_map={},
                 infrastructure_failed=True,
                 error_message=f"Unknown pipeline error: {str(e)}",
                 surviving_claims=[]
             )
+            return po
     def execute_c3(self, case: dict, pipeline_output: PipelineOutput) -> AnswerEvaluationResult:
         case_id = case["id"]
         expected_status = ExpectedStatus(case["expected_status"])

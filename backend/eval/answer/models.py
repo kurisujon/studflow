@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List, Dict
 from enum import Enum
 from schemas.ai_chat import ChatAnswerStatus
@@ -41,6 +41,7 @@ class RunManifest(BaseModel):
 class FrozenSurvivingClaim(BaseModel):
     claim_id: str
     claim_text: str
+    cited_evidence_ids: List[str] = Field(default_factory=list)
 
 class PipelineOutput(BaseModel):
     case_id: str
@@ -48,9 +49,11 @@ class PipelineOutput(BaseModel):
     answer_markdown: str
     retrieved_eids: List[str]
     retrieved_context: Optional[str] = None
+    evidence_map: Dict[str, str] = Field(default_factory=dict)
     infrastructure_failed: bool
     error_message: Optional[str] = None
-    surviving_claims: List[FrozenSurvivingClaim] = []
+    surviving_claims: List[FrozenSurvivingClaim] = Field(default_factory=list)
+    content_hash: Optional[str] = None
 
 class ExpectedFact(BaseModel):
     id: str
