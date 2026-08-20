@@ -872,3 +872,22 @@ When a future agent completes a meaningful feature, they should update this file
 
 **What to do next:**
 - Phase C3: Answer Evaluation.
+
+### Update: 2026-08-20 — Phase C3: Answer Evaluation
+
+**What Changed:**
+- Built the **C3 Answer Evaluation** architecture in `backend/eval/answer/` to measure exactly whether the final post-B6 output communicates the expected golden facts.
+- **Contract Boundary Enforced:** C3 receives only the Golden Expected Fact and the final text answer. It is strictly blind to the retrieved context chunks to prevent bleeding into C4 Groundedness evaluation.
+- Implemented `exact_matcher.py` for deterministic required-term verification using whitespace/punctuation/unicode normalization without fuzzy drift.
+- Implemented `semantic_evaluator.py` with typed outputs (`PRESENT`, `PARTIAL`, `ABSENT`, `CONTRADICTED`) to provide nuanced coverage insights rather than flat boolean outcomes.
+- Tracked abstention accuracy separately from factual coverage. If a golden case expects `INSUFFICIENT_EVIDENCE` and correctly abstains, `fact_coverage` is marked null rather than 1.0 to prevent average distortion.
+- Fully automated the pipeline (`runner.py`) using the frozen C2.1 provisional threshold (`0.67`) over the `c1-v1` cases, preserving full configurations and case-level results in `answer_summary.json` and `answer_cases.jsonl`.
+
+**Contracts Changed:**
+- Added `ChatAnswerStatus` tracking and `fact_coverage` to evaluation results.
+
+**Docs Stale:**
+- No.
+
+**What to do next:**
+- Review C3 baseline results and proceed to Phase C4 (Groundedness Evaluation).
