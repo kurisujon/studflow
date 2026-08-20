@@ -911,3 +911,23 @@ When a future agent completes a meaningful feature, they should update this file
 **What to do next:**
 - With the C3 runner architecture fully resilient and tested, draft the Phase C4 (Groundedness Evaluation) architecture.
 - Await daily API quota resets to cleanly finish the 2 remaining C3 cases and certify the baseline.
+
+### Update: 2026-08-20 — Phase C4: Groundedness Evaluation Implementation
+
+**What Changed:**
+- Designed and implemented the C4 Groundedness Evaluation runner.
+- Updated `PipelineOutput` to intrinsically persist structured `FrozenSurvivingClaim` (with stable evaluation-local `claim_id`s) and `retrieved_context`.
+- Built `c4_runner.py` which exclusively evaluates frozen pipeline artifacts from C3 (it does not parse markdown, nor rerun retrieval).
+- Instituted claim-level checkpointing so evaluations can resume smoothly in the event of API quota exhaustion, saving partial case progress.
+- Implemented and rigorously mapped four explicit metric typed-judgments: `GROUNDED`, `PARTIAL`, `UNGROUNDED`, and `CONTRADICTED`. `PARTIAL` correctly registers as a failure for strict groundedness scoring. 
+- Abstention/empty-claim cases are securely guarded as `NOT_APPLICABLE` (rendering `null` metrics instead of false positives).
+- Validated via unit testing (`test_c4_runner.py`) using isolated mocks to ensure full functionality without expending Gemini API tokens.
+
+**Contracts Changed:**
+- The Groundedness verification boundary isolates itself purely to `claim_text` and `retrieved_context`, explicitly reserving citation-specific mapping verification for Phase C5.
+
+**Docs Stale:**
+- No.
+
+**What to do next:**
+- Execute a clean pipeline resumption to finish the Phase C3 baseline, followed by running the Phase C4 evaluator.
