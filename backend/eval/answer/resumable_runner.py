@@ -95,11 +95,16 @@ class C3Runner:
                     actual_status=ChatAnswerStatus.INSUFFICIENT_EVIDENCE,
                     answer_markdown=INSUFFICIENT_EVIDENCE_ANSWER,
                     retrieved_eids=[],
-                    infrastructure_failed=False
+                    retrieved_context="",
+                    infrastructure_failed=False,
+                    surviving_claims=[]
                 )
                 
             source_registry = {f"e_{i:02d}": chunk for i, chunk in enumerate(retrieved_chunks, start=1)}
             sources = [(eid, chunk["text"]) for eid, chunk in source_registry.items()]
+            context_text = "
+
+".join([text for _, text in sources])
             
             raw_generated = answer_conversation_question(
                 sources=sources,
@@ -122,13 +127,17 @@ class C3Runner:
                 
             generated, b6_status = filter_unsupported_claims(generated)
             
+            surviving = [FrozenSurvivingClaim(claim_id=f"claim_{i:02d}", claim_text=c.claim_text) for i, c in enumerate(generated.claims, start=1)]
+            
             if b6_status == ChatAnswerStatus.INSUFFICIENT_EVIDENCE:
                 return PipelineOutput(
                     case_id=case_id,
                     actual_status=ChatAnswerStatus.INSUFFICIENT_EVIDENCE,
                     answer_markdown=INSUFFICIENT_EVIDENCE_ANSWER,
                     retrieved_eids=list(source_registry.keys()),
-                    infrastructure_failed=False
+                    retrieved_context=context_text,
+                    infrastructure_failed=False,
+                    surviving_claims=surviving
                 )
             else:
                 answer_markdown, _ = _render_grounded_answer(generated.claims)
@@ -138,7 +147,9 @@ class C3Runner:
                         actual_status=ChatAnswerStatus.INSUFFICIENT_EVIDENCE,
                         answer_markdown=INSUFFICIENT_EVIDENCE_ANSWER,
                         retrieved_eids=list(source_registry.keys()),
-                        infrastructure_failed=False
+                        retrieved_context=context_text,
+                        infrastructure_failed=False,
+                        surviving_claims=surviving
                     )
                 else:
                     return PipelineOutput(
@@ -146,7 +157,9 @@ class C3Runner:
                         actual_status=b6_status,
                         answer_markdown=answer_markdown,
                         retrieved_eids=list(source_registry.keys()),
-                        infrastructure_failed=False
+                        retrieved_context=context_text,
+                        infrastructure_failed=False,
+                        surviving_claims=surviving
                     )
         except AIServiceError as e:
             return PipelineOutput(
@@ -154,8 +167,10 @@ class C3Runner:
                 actual_status=ChatAnswerStatus.FAILED,
                 answer_markdown="",
                 retrieved_eids=[],
+                retrieved_context=None,
                 infrastructure_failed=True,
-                error_message=str(e)
+                error_message=str(e),
+                surviving_claims=[]
             )
         except Exception as e:
             return PipelineOutput(
@@ -163,10 +178,11 @@ class C3Runner:
                 actual_status=ChatAnswerStatus.FAILED,
                 answer_markdown="",
                 retrieved_eids=[],
+                retrieved_context=None,
                 infrastructure_failed=True,
-                error_message=f"Unknown pipeline error: {str(e)}"
+                error_message=f"Unknown pipeline error: {str(e)}",
+                surviving_claims=[]
             )
-
     def execute_c3(self, case: dict, pipeline_output: PipelineOutput) -> AnswerEvaluationResult:
         case_id = case["id"]
         expected_status = ExpectedStatus(case["expected_status"])

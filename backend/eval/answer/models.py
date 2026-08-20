@@ -38,13 +38,19 @@ class RunManifest(BaseModel):
     config: RunConfig
     status: RunStatus
 
+class FrozenSurvivingClaim(BaseModel):
+    claim_id: str
+    claim_text: str
+
 class PipelineOutput(BaseModel):
     case_id: str
     actual_status: ChatAnswerStatus
     answer_markdown: str
     retrieved_eids: List[str]
+    retrieved_context: Optional[str] = None
     infrastructure_failed: bool
     error_message: Optional[str] = None
+    surviving_claims: List[FrozenSurvivingClaim] = []
 
 class ExpectedFact(BaseModel):
     id: str
