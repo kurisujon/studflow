@@ -33,6 +33,7 @@ class GroundednessCategoryMetrics(BaseModel):
     partial_claim_rate: float
     ungrounded_claim_rate: float
     contradiction_rate: float
+    post_b6_ungrounded_leakage_rate: float
     applicable_case_count: int
     evaluated_claim_count: int
     infrastructure_failure_count: int

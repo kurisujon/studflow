@@ -39,6 +39,7 @@ def _calc_category_metrics(cases: list[CaseGroundednessResult]) -> GroundednessC
     partial_rate = (partial / total_claims) if total_claims > 0 else 0.0
     ungrounded_rate = (ungrounded / total_claims) if total_claims > 0 else 0.0
     contradiction_rate = (contradicted / total_claims) if total_claims > 0 else 0.0
+    leakage_rate = ((ungrounded + contradicted) / total_claims) if total_claims > 0 else 0.0
     
     fully_grounded_cases = sum(1 for c in applicable_cases if c.fully_grounded)
     fully_grounded_rate = (fully_grounded_cases / len(applicable_cases)) if applicable_cases else 0.0
@@ -49,6 +50,7 @@ def _calc_category_metrics(cases: list[CaseGroundednessResult]) -> GroundednessC
         partial_claim_rate=partial_rate,
         ungrounded_claim_rate=ungrounded_rate,
         contradiction_rate=contradiction_rate,
+        post_b6_ungrounded_leakage_rate=leakage_rate,
         applicable_case_count=len(applicable_cases),
         evaluated_claim_count=total_claims,
         infrastructure_failure_count=infra_failures

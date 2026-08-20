@@ -83,7 +83,7 @@ def test_c5_comprehensive(temp_run_dir):
         # Claims logic validation
         case_res = [c for c in runner.run(golden).per_category["test"].__dict__]
         # Instead, let's load the metrics to verify
-        assert metrics.overall.evaluated_citation_count == 8 # c1(1), c2(1), c3(1), c5(2), c6(2), c8(2) - c8_e1 loaded = 1 + 1 + 1 + 2 + 2 + 2 = 9? Wait:
+        assert metrics.overall.evaluated_citation_count == 9 # c1(1), c2(1), c3(1), c5(2), c6(2), c8(2) - c8_e1 loaded = 1 + 1 + 1 + 2 + 2 + 2 = 9? Wait:
         # c1: 1 (correct)
         # c2: 1 (partial)
         # c3: 1 (incorrect)
