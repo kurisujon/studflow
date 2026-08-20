@@ -931,3 +931,24 @@ When a future agent completes a meaningful feature, they should update this file
 
 **What to do next:**
 - Execute a clean pipeline resumption to finish the Phase C3 baseline, followed by running the Phase C4 evaluator.
+
+### Update: 2026-08-20 — Phase C5: Citation Evaluation Implementation
+
+**What Changed:**
+- Designed and implemented the C5 Citation Evaluation runner (`backend/eval/citation/runner.py`).
+- Integrated `cited_evidence_ids` intrinsically into `FrozenSurvivingClaim`.
+- Included `evidence_map` (deterministic hash-locked chunk dictionary) into `PipelineOutput`.
+- Implemented C5's explicit strict metrics (`CORRECT`, `PARTIAL`, `INCORRECT`, `MISSING`).
+- Missing citations natively compute without expending LLM calls.
+- Claim/Evidence pair-level checkpointing enables deep resiliency against rate limits.
+- Evaluator boundaries explicitly prevent context contamination or Golden Fact spillage.
+- Completed full local testing against exact edge cases (Missing, Unknown IDs, Multi-citation logic).
+
+**Contracts Changed:**
+- Finalized Phase C (Evaluation Architecture) stack, fully ready for the daily API quota restock to execute.
+
+**Docs Stale:**
+- No.
+
+**What to do next:**
+- Execute the pipeline automatically to run through C3, C4, and C5 incrementally as provider quotas safely allow.
