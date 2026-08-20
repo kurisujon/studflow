@@ -244,6 +244,7 @@ Goal: Stop relying on "tests pass" and start measuring actual RAG and AI quality
 
 - [x] C1: Golden evaluation dataset
 - [x] C2: Retrieval evaluation
+- [x] C2.1: Threshold analysis
 - [ ] C3: Answer evaluation
 - [ ] C4: Groundedness evaluation
 - [ ] C5: Citation accuracy evaluation

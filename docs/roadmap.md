@@ -854,3 +854,21 @@ When a future agent completes a meaningful feature, they should update this file
 
 **What to do next:**
 - Proceed to Phase C3: Answer Evaluation.
+
+### Update: 2026-08-20 — Phase C2.1: Offline Threshold Analysis
+
+**What Changed:**
+- Re-labeled the previous RAG retrieval test explicitly as the **C2 Exact Retrieval Baseline**, because utilizing pure Python calculations isolates *semantic retrieval capacity* from *pgvector/ANN indexing behavior*, isolating the latter as a variable for Phase D optimization.
+- Processed a sweeping threshold analysis (from 0.40 to 0.90) entirely offline using the raw `top_score` results from the Exact Retrieval baseline.
+- Derived score distributions showing **substantial overlap** between Answerable cases (0.657 – 0.775) and Negative/Abstention cases (0.614 – 0.720).
+- Proved that a single scalar threshold cannot cleanly separate the groups on `c1-v1`, reinforcing the need for Phase B4's architecture to eventually pull from more than one signal.
+- Selected a provisional, evaluation-derived threshold of `0.67` which maximizes overall accuracy at 83.3% (correctly rejecting 6/9 abstention cases while protecting 14/15 answerable cases).
+
+**Contracts Changed:**
+- None. Production configuration remains untouched to prevent overfitting to 24 evaluation cases.
+
+**Docs Stale:**
+- No.
+
+**What to do next:**
+- Phase C3: Answer Evaluation.
