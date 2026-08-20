@@ -1,4 +1,5 @@
-from eval.answer.models import AnswerEvaluationResult, CategoryMetrics, AnswerMetrics, SemanticFactJudgment, ExpectedStatus, ChatAnswerStatus
+from eval.answer.models import AnswerEvaluationResult, CategoryMetrics, AnswerMetrics, SemanticFactJudgment, ExpectedStatus
+from schemas.ai_chat import ChatAnswerStatus
 
 def _calc_category_metrics(results: list[AnswerEvaluationResult]) -> CategoryMetrics:
     if not results:
@@ -9,8 +10,8 @@ def _calc_category_metrics(results: list[AnswerEvaluationResult]) -> CategoryMet
             contradiction_rate=0.0, case_count=0, infrastructure_failure_count=0
         )
         
-    failures = sum(1 for r in results if r.actual_status == ChatAnswerStatus.FAILED)
-    valid_results = [r for r in results if r.actual_status != ChatAnswerStatus.FAILED]
+    failures = sum(1 for r in results if r.infrastructure_failed)
+    valid_results = [r for r in results if not r.infrastructure_failed]
     
     if not valid_results:
         return CategoryMetrics(

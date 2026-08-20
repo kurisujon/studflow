@@ -19,7 +19,7 @@ from eval.answer.metrics import calculate_answer_metrics
 from eval.answer.report import generate_answer_report
 
 RETRIEVAL_THRESHOLD = 0.67
-EVAL_CASE_DELAY_SECONDS = 15
+EVAL_CASE_DELAY_SECONDS = 30
 
 def run_answer_eval(retrieval_dir: str, output_dir: str):
     retrieval_cases_file = Path(retrieval_dir) / "retrieval_cases.jsonl"

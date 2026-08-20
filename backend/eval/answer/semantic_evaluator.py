@@ -1,59 +1,53 @@
+import json
 from pydantic import BaseModel, Field
 from eval.answer.models import ExpectedFact, FactEvaluationResult, SemanticFactJudgment
-from services.llm_provider import _generate_structured
+from eval.answer.exceptions import InfrastructureError
+from services.llm_provider import _generate_structured, AIServiceError
 
 class RawSemanticFactEvaluation(BaseModel):
     judgment: SemanticFactJudgment = Field(
-        description="PRESENT if the answer communicates the fact fully. "
-                    "PARTIAL if it communicates part of it. "
-                    "ABSENT if the fact is not in the answer. "
-                    "CONTRADICTED if the answer states something logically opposing the fact."
+        description="Whether the fact is PRESENT, PARTIAL, ABSENT, or CONTRADICTED in the final answer."
     )
-    reason: str = Field(description="Brief explanation of the judgment.")
+    reasoning: str = Field(
+        description="A brief explanation for the judgment."
+    )
 
-def evaluate_semantic_fact(fact: ExpectedFact, answer_text: str) -> FactEvaluationResult:
-    if not answer_text.strip():
-        return FactEvaluationResult(
-            fact_id=fact.id,
-            match_type=fact.match_type,
-            passed=False,
-            judgment=SemanticFactJudgment.ABSENT,
-            reason="Answer is empty."
-        )
-
+def evaluate_semantic_fact(expected_fact: ExpectedFact, answer_markdown: str) -> FactEvaluationResult:
     prompt = f"""
-You are an expert evaluator grading a factual answer. 
-You must determine if the final answer communicates the following expected fact.
+Evaluate whether the expected fact is communicated correctly in the final answer.
+Focus ONLY on whether the factual meaning is present. Do not evaluate citations or formatting.
 
 Expected Fact:
-{fact.canonical}
+"{expected_fact.canonical}"
 
 Final Answer:
-{answer_text}
-
-Does the final answer communicate this expected fact? 
-Classify as PRESENT, PARTIAL, ABSENT, or CONTRADICTED.
+"{answer_markdown}"
 """
     try:
-        raw_eval = _generate_structured(
+        raw_result = _generate_structured(
             prompt=prompt,
-            response_schema=RawSemanticFactEvaluation,
-            
+            response_model=RawSemanticFactEvaluation,
+            model_name="gemini-1.5-flash"
         )
-        passed = raw_eval.judgment == SemanticFactJudgment.PRESENT
-        
+        passed = (raw_result.judgment == SemanticFactJudgment.PRESENT)
         return FactEvaluationResult(
-            fact_id=fact.id,
-            match_type=fact.match_type,
+            fact_id=expected_fact.id,
+            match_type="semantic",
             passed=passed,
-            judgment=raw_eval.judgment,
-            reason=raw_eval.reason
+            score=1.0 if passed else 0.0,
+            reason=raw_result.reasoning,
+            judgment=raw_result.judgment
         )
+    except AIServiceError as e:
+        # Re-raise as infrastructure error so runner can pause/skip it
+        raise InfrastructureError(str(e))
     except Exception as e:
+        print(f"Semantic evaluator exception: {e}")
         return FactEvaluationResult(
-            fact_id=fact.id,
-            match_type=fact.match_type,
+            fact_id=expected_fact.id,
+            match_type="semantic",
             passed=False,
-            judgment=SemanticFactJudgment.ABSENT,
-            reason=f"Evaluation error: {str(e)}"
+            score=0.0,
+            reason=f"Evaluation error: {str(e)}",
+            judgment=SemanticFactJudgment.ABSENT
         )

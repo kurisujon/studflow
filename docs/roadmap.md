@@ -891,3 +891,23 @@ When a future agent completes a meaningful feature, they should update this file
 
 **What to do next:**
 - Review C3 baseline results and proceed to Phase C4 (Groundedness Evaluation).
+
+### Update: 2026-08-20 — Phase C3: Resumable Checkpointing Architecture
+
+**What Changed:**
+- Rebuilt the C3 `resumable_runner.py` to process evaluations transparently across strict provider API limits.
+- Persists intermediate pipeline outputs (`PipelineOutput`) separately from fact judgments (`AnswerEvaluationResult`) to fully isolate RAG generation costs from evaluation costs.
+- Automatically handles checkpointing: resuming a partially completed run parses `pipeline_outputs.jsonl` and `answer_cases.jsonl` to execute only the missing evaluations. 
+- Integrated a strict configuration manifest to block resumption if dependencies (like top_k, thresholds, prompts, or models) change mid-run.
+- Enforced isolation of `InfrastructureError` failures out of the factual correctness denominators.
+- Fully unit-tested resumption flow without requiring live Gemini API execution.
+
+**Contracts Changed:**
+- All future C-phase evaluation runners (including C4 and C5) will inherit this checkpointed, resumable state machine pattern instead of monolithic passes.
+
+**Docs Stale:**
+- No.
+
+**What to do next:**
+- With the C3 runner architecture fully resilient and tested, draft the Phase C4 (Groundedness Evaluation) architecture.
+- Await daily API quota resets to cleanly finish the 2 remaining C3 cases and certify the baseline.
