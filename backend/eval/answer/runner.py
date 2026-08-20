@@ -1,5 +1,6 @@
 import json
 import sys
+import time
 from pathlib import Path
 
 # Setup paths so we can import from backend
@@ -18,9 +19,10 @@ from eval.answer.metrics import calculate_answer_metrics
 from eval.answer.report import generate_answer_report
 
 RETRIEVAL_THRESHOLD = 0.67
+EVAL_CASE_DELAY_SECONDS = 15
 
-def run_answer_eval(run_dir: str):
-    retrieval_cases_file = Path(run_dir) / "retrieval_cases.jsonl"
+def run_answer_eval(retrieval_dir: str, output_dir: str):
+    retrieval_cases_file = Path(retrieval_dir) / "retrieval_cases.jsonl"
     golden_cases_file = Path("backend/eval/datasets/golden_cases.jsonl")
     
     golden_cases = {}
@@ -35,6 +37,7 @@ def run_answer_eval(run_dir: str):
             retrieval_cases.append(json.loads(line))
             
     eval_results = []
+    failed_case_count = 0
     
     for rcase in retrieval_cases:
         case_id = rcase["case_id"]
@@ -43,20 +46,16 @@ def run_answer_eval(run_dir: str):
         expected_status_str = golden["expected_status"]
         expected_status = ExpectedStatus(expected_status_str)
         
-        # 1. Apply frozen retrieval policy (Threshold 0.67)
         retrieved_chunks = [chunk for chunk in rcase["retrieved"] if chunk["score"] >= RETRIEVAL_THRESHOLD]
         
-        # 2. Replicate B4/B5 Abstention
         if not retrieved_chunks:
             answer_markdown = INSUFFICIENT_EVIDENCE_ANSWER
             actual_status = ChatAnswerStatus.INSUFFICIENT_EVIDENCE
         else:
-            # 3. Setup sources
             source_registry = {f"e_{i:02d}": chunk for i, chunk in enumerate(retrieved_chunks, start=1)}
             sources = [(eid, chunk["text"]) for eid, chunk in source_registry.items()]
             
             try:
-                # 4. Generate Answer
                 raw_generated = answer_conversation_question(
                     sources=sources,
                     user_question=golden["question"],
@@ -66,7 +65,6 @@ def run_answer_eval(run_dir: str):
                 valid_ids = set(source_registry.keys())
                 generated = validate_conversation_answer(raw_generated, valid_ids)
                 
-                # 5. B3 Semantic Validation
                 if generated.evidence_sufficient:
                     eval_batch = []
                     for claim in generated.claims:
@@ -77,7 +75,6 @@ def run_answer_eval(run_dir: str):
                 else:
                     generated = apply_semantic_validation(generated, [])
                     
-                # 6. B6 Unsupported-Claim Defense
                 generated, b6_status = filter_unsupported_claims(generated)
                 
                 if b6_status == ChatAnswerStatus.INSUFFICIENT_EVIDENCE:
@@ -98,41 +95,47 @@ def run_answer_eval(run_dir: str):
                 
         actual_status_enum = EvalChatAnswerStatus(actual_status.value)
         
-        # 7. Evaluate facts
-        fact_results = []
-        expected_facts = [ExpectedFact(**f) for f in golden.get("expected_facts", [])]
-        
-        if expected_status == ExpectedStatus.INSUFFICIENT_EVIDENCE and actual_status_enum == EvalChatAnswerStatus.INSUFFICIENT_EVIDENCE:
-            status_correct = True
-            answer_correct = True
-            fact_coverage = None
-        elif expected_status == ExpectedStatus.INSUFFICIENT_EVIDENCE and actual_status_enum != EvalChatAnswerStatus.INSUFFICIENT_EVIDENCE:
+        if actual_status_enum == EvalChatAnswerStatus.FAILED:
+            failed_case_count += 1
             status_correct = False
             answer_correct = False
-            fact_coverage = None
+            fact_coverage = 0.0
+            fact_results = []
         else:
-            status_correct = (expected_status.value == actual_status_enum.value)
+            fact_results = []
+            expected_facts = [ExpectedFact(**f) for f in golden.get("expected_facts", [])]
             
-            passed_facts = 0
-            for fact in expected_facts:
-                if fact.match_type == "exact":
-                    res = evaluate_exact_fact(fact, answer_markdown)
-                else:
-                    res = evaluate_semantic_fact(fact, answer_markdown)
-                fact_results.append(res)
-                if res.passed:
-                    passed_facts += 1
-                    
-            fact_coverage = (passed_facts / len(expected_facts)) if expected_facts else 0.0
-            answer_correct = (fact_coverage == 1.0)
+            if expected_status == ExpectedStatus.INSUFFICIENT_EVIDENCE and actual_status_enum == EvalChatAnswerStatus.INSUFFICIENT_EVIDENCE:
+                status_correct = True
+                answer_correct = True
+                fact_coverage = None
+            elif expected_status == ExpectedStatus.INSUFFICIENT_EVIDENCE and actual_status_enum != EvalChatAnswerStatus.INSUFFICIENT_EVIDENCE:
+                status_correct = False
+                answer_correct = False
+                fact_coverage = None
+            else:
+                status_correct = (expected_status.value == actual_status_enum.value)
+                
+                passed_facts = 0
+                for fact in expected_facts:
+                    if fact.match_type == "exact":
+                        res = evaluate_exact_fact(fact, answer_markdown)
+                    else:
+                        res = evaluate_semantic_fact(fact, answer_markdown)
+                    fact_results.append(res)
+                    if res.passed:
+                        passed_facts += 1
+                        
+                fact_coverage = (passed_facts / len(expected_facts)) if expected_facts else 0.0
+                answer_correct = (fact_coverage == 1.0)
             
         result = AnswerEvaluationResult(
             case_id=case_id,
             expected_status=expected_status,
             actual_status=actual_status_enum,
             fact_results=fact_results,
-            expected_fact_count=len(expected_facts),
-            matched_fact_count=sum(1 for f in fact_results if f.passed),
+            expected_fact_count=len(golden.get("expected_facts", [])),
+            matched_fact_count=sum(1 for f in fact_results if getattr(f, "passed", False)),
             fact_coverage=fact_coverage,
             status_correct=status_correct,
             answer_correct=answer_correct,
@@ -141,6 +144,7 @@ def run_answer_eval(run_dir: str):
         
         print(f"Evaluated {case_id}: status={actual_status_enum.value}, expected={expected_status.value}, coverage={fact_coverage}")
         eval_results.append(result)
+        time.sleep(EVAL_CASE_DELAY_SECONDS)
         
     metrics = calculate_answer_metrics(eval_results)
     
@@ -152,13 +156,17 @@ def run_answer_eval(run_dir: str):
         "retrieval_threshold": RETRIEVAL_THRESHOLD,
         "threshold_status": "provisional",
         "generation_model": "gemini-1.5-flash",
+        "rate_limit_delay_seconds": EVAL_CASE_DELAY_SECONDS,
+        "failed_case_count": failed_case_count,
     }
     
-    generate_answer_report(run_dir, eval_results, metrics, config)
+    generate_answer_report(output_dir, eval_results, metrics, config)
     
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        run_dir = sys.argv[1]
+    if len(sys.argv) > 2:
+        retrieval_dir = sys.argv[1]
+        output_dir = sys.argv[2]
     else:
-        run_dir = "backend/eval/results/live_72b513d6"
-    run_answer_eval(run_dir)
+        print("Usage: python runner.py <retrieval_dir> <output_dir>")
+        sys.exit(1)
+    run_answer_eval(retrieval_dir, output_dir)

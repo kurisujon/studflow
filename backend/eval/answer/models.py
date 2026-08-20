@@ -60,6 +60,7 @@ class CategoryMetrics(BaseModel):
     incorrect_answer_rate: float
     contradiction_rate: float
     case_count: int
+    infrastructure_failure_count: int
 
 class AnswerMetrics(BaseModel):
     overall: CategoryMetrics

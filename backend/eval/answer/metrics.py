@@ -6,13 +6,23 @@ def _calc_category_metrics(results: list[AnswerEvaluationResult]) -> CategoryMet
             exact_accuracy=0.0, semantic_accuracy=0.0, overall_accuracy=0.0,
             mean_fact_coverage=0.0, complete_answer_rate=0.0, partial_answer_rate=0.0,
             status_accuracy=0.0, correct_abstention_rate=0.0, incorrect_answer_rate=0.0,
-            contradiction_rate=0.0, case_count=0
+            contradiction_rate=0.0, case_count=0, infrastructure_failure_count=0
         )
         
-    answerable_cases = [r for r in results if r.expected_status == ExpectedStatus.ANSWERED]
-    abstention_cases = [r for r in results if r.expected_status == ExpectedStatus.INSUFFICIENT_EVIDENCE]
+    failures = sum(1 for r in results if r.actual_status == ChatAnswerStatus.FAILED)
+    valid_results = [r for r in results if r.actual_status != ChatAnswerStatus.FAILED]
     
-    # Facts in answerable cases ONLY! (Abstention cases shouldn't drag down fact accuracy)
+    if not valid_results:
+        return CategoryMetrics(
+            exact_accuracy=0.0, semantic_accuracy=0.0, overall_accuracy=0.0,
+            mean_fact_coverage=0.0, complete_answer_rate=0.0, partial_answer_rate=0.0,
+            status_accuracy=0.0, correct_abstention_rate=0.0, incorrect_answer_rate=0.0,
+            contradiction_rate=0.0, case_count=len(results), infrastructure_failure_count=failures
+        )
+    
+    answerable_cases = [r for r in valid_results if r.expected_status == ExpectedStatus.ANSWERED]
+    abstention_cases = [r for r in valid_results if r.expected_status == ExpectedStatus.INSUFFICIENT_EVIDENCE]
+    
     exact_facts_total = 0
     exact_facts_passed = 0
     semantic_facts_total = 0
@@ -38,7 +48,6 @@ def _calc_category_metrics(results: list[AnswerEvaluationResult]) -> CategoryMet
     overall_acc = (overall_passed / overall_total) if overall_total > 0 else 0.0
     contradiction_rate = (semantic_facts_contradicted / semantic_facts_total) if semantic_facts_total > 0 else 0.0
     
-    # Coverage
     coverages = [r.fact_coverage for r in answerable_cases if r.fact_coverage is not None]
     mean_coverage = sum(coverages) / len(coverages) if coverages else 0.0
     
@@ -47,9 +56,8 @@ def _calc_category_metrics(results: list[AnswerEvaluationResult]) -> CategoryMet
     complete_rate = (complete_cases / len(answerable_cases)) if answerable_cases else 0.0
     partial_rate = (partial_cases / len(answerable_cases)) if answerable_cases else 0.0
     
-    # Status
-    status_correct_count = sum(1 for r in results if r.status_correct)
-    status_acc = status_correct_count / len(results)
+    status_correct_count = sum(1 for r in valid_results if r.status_correct)
+    status_acc = status_correct_count / len(valid_results)
     
     correct_abstentions = sum(1 for r in abstention_cases if r.status_correct)
     correct_abstention_rate = (correct_abstentions / len(abstention_cases)) if abstention_cases else 0.0
@@ -68,7 +76,8 @@ def _calc_category_metrics(results: list[AnswerEvaluationResult]) -> CategoryMet
         correct_abstention_rate=correct_abstention_rate,
         incorrect_answer_rate=incorrect_answer_rate,
         contradiction_rate=contradiction_rate,
-        case_count=len(results)
+        case_count=len(results),
+        infrastructure_failure_count=failures
     )
 
 def calculate_answer_metrics(results: list[AnswerEvaluationResult]) -> AnswerMetrics:
