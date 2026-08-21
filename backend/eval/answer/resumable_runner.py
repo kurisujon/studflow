@@ -106,9 +106,8 @@ class C3Runner:
                 
             source_registry = {f"e_{i:02d}": chunk for i, chunk in enumerate(retrieved_chunks, start=1)}
             sources = [(eid, chunk["text"]) for eid, chunk in source_registry.items()]
-            context_text = "
+            context_text = "\n\n".join([text for _, text in sources])
 
-".join([text for _, text in sources])
             evidence_map = {eid: chunk["text"] for eid, chunk in source_registry.items()}
             
             raw_generated = answer_conversation_question(

@@ -63,10 +63,21 @@ The runtime path for documents:
 *   Pipeline generates a `PipelineOutput` with a deterministic `content_hash`. C4 and C5 strictly consume this frozen output.
 
 ## 9. Current Live Baseline State
-*   `backend/eval/results/c3_certified_baseline/` holds the active run.
-*   7 pipeline generations succeeded; 17 failed due to `RESOURCE_EXHAUSTED`.
-*   Zero cases have completed C3 fact evaluation (they queue until pipeline generation finishes).
-*   C4 and C5 have not executed yet.
+**Historical run: `c3_run_01`**
+*   22 / 24 cases successfully evaluated
+*   2 provider/infrastructure failures
+*   Historical partial/contaminated run
+*   NOT certified
+*   Preserved only for diagnostics/reproducibility
+*   MUST NOT be resumed as the canonical baseline
+
+**Current canonical run: `c3_certified_baseline`**
+*   7 / 24 currently checkpointed
+*   17 cases pending
+*   Canonical resumable baseline
+*   Configuration locked to gemini-2.5-flash
+*   This is the ONLY C3 run that future Orca evaluation work should resume
+*   Not certified until 24/24 and zero unresolved infrastructure failures
 
 ## 10. Provider / Quota State
 *   **GENERATION_MODEL:** `gemini-2.5-flash`
@@ -78,6 +89,13 @@ The runtime path for documents:
 ## 11. Testing & Verification Commands
 *   **Run Unit Tests:** `PYTHONPATH=backend backend/.venv312/bin/pytest backend/tests/ backend/eval/answer/test_resumable_runner.py backend/eval/groundedness/test_c4_runner.py backend/eval/citation/test_c5_runner.py`
 *   **Check Integrity:** `PYTHONPATH=backend backend/.venv312/bin/python backend/eval/test_eval_integrity.py`
+
+**Canonical Live Evaluation Commands:**
+*   **C3:** `PYTHONPATH=backend backend/.venv312/bin/python backend/eval/run_c3.py`
+*   **C4:** `PYTHONPATH=backend backend/.venv312/bin/python backend/eval/run_c4.py`
+*   **C5:** `PYTHONPATH=backend backend/.venv312/bin/python backend/eval/run_c5.py`
+
+**DO NOT** use any background infinite retry daemon.
 
 ## 12. Git / Phase Finalization Policy
 *   Local commits are heavily encouraged during task loops.

@@ -1,0 +1,4 @@
+interface:
+  display_name: "StudFlow Status Sync"
+  short_description: "Verify shipped work and sync project status docs"
+  default_prompt: "Use $studflow-status-sync to verify completed work and synchronize the StudFlow task checklist and roadmap handoff."

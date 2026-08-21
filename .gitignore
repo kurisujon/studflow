@@ -27,3 +27,12 @@ build/
 # OS/editor noise
 .DS_Store
 Thumbs.db
+
+# Local Codex configuration
+.codex/
+
+# Local test virtual environment
+backend/.venv_test/
+
+# Local evaluation checkpoints/results
+backend/eval/results/

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Project Orchestrator"
+  short_description: "Coordinate complex StudFlow development"
+  default_prompt: "Use $project-orchestrator to investigate, plan, implement, test, review, and verify this StudFlow task."

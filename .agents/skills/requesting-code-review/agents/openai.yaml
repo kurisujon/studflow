@@ -1,0 +1,4 @@
+interface:
+  display_name: "Requesting Code Review"
+  short_description: "Prepare complete context for independent review"
+  default_prompt: "Use $requesting-code-review to prepare this StudFlow change for an independent reviewer."
