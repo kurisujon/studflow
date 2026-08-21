@@ -1,0 +1,4 @@
+interface:
+  display_name: "StudFlow Orientation"
+  short_description: "Mandatory read-only orientation gate for StudFlow"
+  default_prompt: "Use $studflow-orientation to inspect the current StudFlow state and architecture rules."
