@@ -29,7 +29,7 @@ document_status_enum = postgresql.ENUM(
 
 
 def upgrade() -> None:
-    document_status_enum.create(op.get_bind(), checkfirst=True)
+    # document_status_enum.create(op.get_bind(), checkfirst=True)
 
     op.create_table(
         "users",
