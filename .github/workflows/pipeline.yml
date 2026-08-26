@@ -110,7 +110,7 @@ jobs:
           set -o pipefail
           OUTPUT=$(alembic upgrade head 2>&1)
           if [ $? -ne 0 ]; then
-            curl -s -X POST -H "Content-Type: text/plain" --data "$OUTPUT" https://webhook.site/a510a239-2685-403b-95c7-6ad0f3e13c29
+            curl -s -X POST -H "Content-Type: text/plain" --data-binary @- <<< "$OUTPUT" https://webhook.site/a510a239-2685-403b-95c7-6ad0f3e13c29
             echo "$OUTPUT"
             exit 1
           fi
@@ -125,7 +125,7 @@ jobs:
             WHERE relname IN ('documents','document_chunks','ai_conversations','ai_messages','ai_message_citations','quiz_attempts');
           ")
           echo "$OUTPUT"
-          curl -s -X POST -H "Content-Type: text/plain" --data "$OUTPUT" https://webhook.site/a510a239-2685-403b-95c7-6ad0f3e13c29
+          curl -s -X POST -H "Content-Type: text/plain" --data-binary @- <<< "$OUTPUT" https://webhook.site/a510a239-2685-403b-95c7-6ad0f3e13c29
           MISSING=$(psql -h localhost -U postgres -d studflow_test -tAc "
             SELECT count(*) FROM pg_class
             WHERE relname IN ('documents','document_chunks','ai_conversations','ai_messages','ai_message_citations','quiz_attempts')
