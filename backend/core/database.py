@@ -19,7 +19,7 @@ def get_session(current_user: CurrentUser = Depends(get_current_user)) -> Genera
     session = Session(engine)
     try:
         session.execute(
-            text("SET LOCAL app.current_user_id = :uid"),
+            text("SELECT set_config('app.current_user_id', :uid, true)"),
             {"uid": current_user.clerk_user_id}
         )
         yield session
@@ -58,6 +58,6 @@ def commit_and_reassert_rls(session: Session, clerk_user_id: str) -> None:
     """
     session.commit()
     session.execute(
-        text("SET LOCAL app.current_user_id = :uid"),
+        text("SELECT set_config('app.current_user_id', :uid, true)"),
         {"uid": clerk_user_id}
     )

@@ -20,16 +20,16 @@ def test_rls_persists_after_intermediate_commit(db_session):
     doc_b_id = uuid.uuid4()
     
     # 1. Setup users and docs properly by context-switching to owner for insert
-    db_session.execute(text("SET LOCAL app.current_user_id = :uid"), {"uid": user_a_id})
+    db_session.execute(text("SELECT set_config('app.current_user_id', :uid, true)"), {"uid": user_a_id})
     db_session.add(Document(id=doc_a_id, clerk_user_id=user_a_id, filename="A.pdf", status=DocumentStatus.COMPLETED))
     db_session.flush()
 
-    db_session.execute(text("SET LOCAL app.current_user_id = :uid"), {"uid": user_b_id})
+    db_session.execute(text("SELECT set_config('app.current_user_id', :uid, true)"), {"uid": user_b_id})
     db_session.add(Document(id=doc_b_id, clerk_user_id=user_b_id, filename="B.pdf", status=DocumentStatus.COMPLETED))
     db_session.commit()
     
     # 2. Enter User A's context
-    db_session.execute(text("SET LOCAL app.current_user_id = :uid"), {"uid": user_a_id})
+    db_session.execute(text("SELECT set_config('app.current_user_id', :uid, true)"), {"uid": user_a_id})
     
     # 3. Perform a write and intermediate commit USING THE FIX
     attempt_a = QuizAttempt(

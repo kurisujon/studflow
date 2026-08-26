@@ -87,7 +87,7 @@ def _open_session(clerk_user_id: str) -> Session:
     assert clerk_user_id, "clerk_user_id required to open a tenant-scoped session"
     session = Session(engine)
     session.execute(
-        text("SET LOCAL app.current_user_id = :uid"),
+        text("SELECT set_config('app.current_user_id', :uid, true)"),
         {"uid": clerk_user_id}
     )
     return session
