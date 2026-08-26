@@ -3,7 +3,7 @@ import json
 import os
 import unittest
 from pathlib import Path
-from schemas import GoldenCase
+from eval.schemas import GoldenCase
 from pydantic import ValidationError
 
 class TestEvalIntegrity(unittest.TestCase):

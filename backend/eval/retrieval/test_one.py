@@ -1,5 +1,10 @@
-import sys
+import sys, os
 from pathlib import Path
+
+import pytest
+if os.environ.get("CI"):
+    pytest.skip("Manual eval script requiring live DB and seeded data", allow_module_level=True)
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "backend"))
 from core.database import Session, engine
 from models import Document, DocumentChunk, User

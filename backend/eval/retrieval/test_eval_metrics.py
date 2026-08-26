@@ -1,8 +1,8 @@
 
 import unittest
-from backend.eval.retrieval.models import RetrievedChunkMatch, RetrievalCaseResult
-from backend.eval.retrieval.metrics import calculate_answerable_metrics
-from backend.eval.retrieval.threshold_analysis import calculate_confusion_matrix
+from eval.retrieval.models import RetrievedChunkMatch, RetrievalCaseResult
+from eval.retrieval.metrics import calculate_answerable_metrics
+from eval.retrieval.threshold_analysis import calculate_confusion_matrix
 
 class TestRetrievalMetrics(unittest.TestCase):
     def test_answerable_metrics(self):
