@@ -21,11 +21,11 @@ def test_rls_persists_after_intermediate_commit(db_session):
     
     # 1. Setup users and docs properly by context-switching to owner for insert
     db_session.execute(text("SELECT set_config('app.current_user_id', :uid, true)"), {"uid": user_a_id})
-    db_session.add(Document(id=doc_a_id, clerk_user_id=user_a_id, filename="A.pdf", status=DocumentStatus.COMPLETED))
+    db_session.add(Document(id=doc_a_id, clerk_user_id=user_a_id, filename="A.pdf", file_url="uploads/A.pdf", status=DocumentStatus.COMPLETED))
     db_session.flush()
 
     db_session.execute(text("SELECT set_config('app.current_user_id', :uid, true)"), {"uid": user_b_id})
-    db_session.add(Document(id=doc_b_id, clerk_user_id=user_b_id, filename="B.pdf", status=DocumentStatus.COMPLETED))
+    db_session.add(Document(id=doc_b_id, clerk_user_id=user_b_id, filename="B.pdf", file_url="uploads/B.pdf", status=DocumentStatus.COMPLETED))
     db_session.commit()
     
     # 2. Enter User A's context

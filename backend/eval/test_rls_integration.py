@@ -17,13 +17,13 @@ def test_rls_denies_cross_tenant_access_at_db_layer(db_session):
     
     # Setup User A's Data
     db_session.execute(text("SELECT set_config('app.current_user_id', :uid, true)"), {"uid": user_a})
-    doc_a = Document(id=uuid.uuid4(), clerk_user_id=user_a, filename="A.pdf", status=DocumentStatus.COMPLETED)
+    doc_a = Document(id=uuid.uuid4(), clerk_user_id=user_a, filename="A.pdf", file_url="uploads/A.pdf", status=DocumentStatus.COMPLETED)
     db_session.add(doc_a)
     db_session.flush()
 
     # Setup User B's Data (doc, chunk, conversation, message, citation)
     db_session.execute(text("SELECT set_config('app.current_user_id', :uid, true)"), {"uid": user_b})
-    doc_b = Document(id=uuid.uuid4(), clerk_user_id=user_b, filename="B.pdf", status=DocumentStatus.COMPLETED)
+    doc_b = Document(id=uuid.uuid4(), clerk_user_id=user_b, filename="B.pdf", file_url="uploads/B.pdf", status=DocumentStatus.COMPLETED)
     chunk_b = DocumentChunk(id=uuid.uuid4(), document_id=doc_b.id, content="Secret B", page_number=1, chunk_index=0)
     conv_b = AIConversation(id=uuid.uuid4(), clerk_user_id=user_b, document_id=doc_b.id, title="B's Chat")
     msg_b = AIMessage(id=uuid.uuid4(), conversation_id=conv_b.id, role="user", content="msg B")
