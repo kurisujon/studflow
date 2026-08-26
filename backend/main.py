@@ -11,7 +11,6 @@ from api.routes.study import router as study_router
 from api.routes.upload import router as upload_router
 from api.routes.user import router as user_router
 from core.config import settings
-from core.database import init_db
 
 
 @asynccontextmanager
@@ -19,7 +18,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Run startup and shutdown logic."""
     # Startup: explicit opt-in for create_all during local bootstrap only.
     if settings.auto_create_tables:
-        init_db()
+        pass
     yield
     # Shutdown: nothing to clean up at this stage
 

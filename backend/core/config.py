@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     app_version: str = "0.1.0"
     debug: bool = False
     auto_create_tables: bool = False
+    db_echo: bool = False
 
     # Database — psycopg3 (ships pre-built wheels for Python 3.14)
     database_url: str = "postgresql+psycopg://postgres:password@localhost:5432/distill"
