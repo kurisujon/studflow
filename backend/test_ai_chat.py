@@ -689,13 +689,17 @@ class AIChatSendTests(unittest.TestCase):
             patch("services.ai_chat.logger.warning") as warning,
         ):
             from schemas.domain import RetrievalEvidenceSet, RetrievalQuality, RetrievedEvidence
-            
+
             evaluate_retrieval_quality.return_value = RetrievalEvidenceSet(
-                evidence=[self.chunk],
+                evidence=[RetrievedEvidence(
+                    chunk_id=self.chunk.id,
+                    content=self.chunk.content,
+                    page_number=self.chunk.page_number,
+                    score=0.1,
+                )],
                 quality=RetrievalQuality(
                     top_score=0.1, mean_top_k_score=0.1, evidence_count=1,
                     threshold_passed=False,
-                    
                 )
             )
 
@@ -935,9 +939,14 @@ class AIChatRealSessionRegressionTests(unittest.TestCase):
             )
             return [(c, 0.1) for c in chunks]
 
+        def _sqlite_open_session(clerk_user_id: str) -> Session:
+            """Skip SET LOCAL for SQLite-backed tests."""
+            return Session(test_engine)
+
         try:
             with (
                 patch("services.ai_chat.engine", test_engine),
+                patch("services.ai_chat._open_session", side_effect=_sqlite_open_session),
                 patch(
                     "services.ai_chat.get_document_index_readiness",
                     return_value=SimpleNamespace(is_ready=True, is_repairable=False),
