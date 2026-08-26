@@ -96,6 +96,8 @@ jobs:
       - name: Create non-superuser app role
         run: |
           PGPASSWORD=testpass psql -h localhost -U postgres -d studflow_test -c \
+            "CREATE EXTENSION IF NOT EXISTS vector;"
+          PGPASSWORD=testpass psql -h localhost -U postgres -d studflow_test -c \
             "CREATE ROLE app_role LOGIN NOSUPERUSER NOBYPASSRLS PASSWORD 'app_pw';"
           PGPASSWORD=testpass psql -h localhost -U postgres -d studflow_test -c \
             "GRANT ALL ON SCHEMA public TO app_role;"
