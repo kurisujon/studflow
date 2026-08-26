@@ -160,10 +160,7 @@ class DocumentRetryEndpointTests(unittest.TestCase):
             ) as claim,
             patch("api.routes.documents.process_document_task.delay") as delay,
         ):
-            response = retry_document_processing(
-                self.document.id,
-                self.current_user,
-            )
+            response = retry_document_processing(self.document.id, self.current_user, session=self.session)
 
         self.assertEqual(response.document_id, self.document.id)
         self.assertEqual(response.status, DocumentStatus.PENDING.value)
@@ -207,10 +204,7 @@ class DocumentRetryEndpointTests(unittest.TestCase):
             ) as claim,
         ):
             with self.assertRaises(HTTPException) as raised:
-                retry_document_processing(
-                    self.document.id,
-                    self.current_user,
-                )
+                retry_document_processing(self.document.id, self.current_user, session=self.session)
 
         self.assertEqual(raised.exception.status_code, 409)
         claim.assert_not_called()
@@ -229,10 +223,7 @@ class DocumentRetryEndpointTests(unittest.TestCase):
             patch("api.routes.documents.process_document_task.delay") as delay,
         ):
             with self.assertRaises(HTTPException) as raised:
-                retry_document_processing(
-                    self.document.id,
-                    self.current_user,
-                )
+                retry_document_processing(self.document.id, self.current_user, session=self.session)
 
         self.assertEqual(raised.exception.status_code, 409)
         delay.assert_not_called()
@@ -255,10 +246,7 @@ class DocumentRetryEndpointTests(unittest.TestCase):
             patch("api.routes.documents.update_document_status") as update_status,
         ):
             with self.assertRaises(HTTPException) as raised:
-                retry_document_processing(
-                    self.document.id,
-                    self.current_user,
-                )
+                retry_document_processing(self.document.id, self.current_user, session=self.session)
 
         self.assertEqual(raised.exception.status_code, 503)
         update_status.assert_called_once_with(
@@ -314,7 +302,7 @@ class DocumentDeleteEndpointTests(unittest.TestCase):
             ) as delete_data,
             patch("api.routes.documents.delete_file_from_storage") as delete_file,
         ):
-            response = delete_document(self.document.id, self.current_user)
+            response = delete_document(self.document.id, self.current_user, session=self.session)
 
         self.assertEqual(response.status_code, 204)
         delete_data.assert_called_once_with(
@@ -331,7 +319,7 @@ class DocumentDeleteEndpointTests(unittest.TestCase):
             patch("api.routes.documents.delete_terminal_document") as delete_data,
         ):
             with self.assertRaises(HTTPException) as raised:
-                delete_document(self.document.id, self.current_user)
+                delete_document(self.document.id, self.current_user, session=self.session)
 
         self.assertEqual(raised.exception.status_code, 409)
         delete_data.assert_not_called()
@@ -369,7 +357,7 @@ class DocumentDeleteEndpointTests(unittest.TestCase):
                 side_effect=StorageServiceError("storage unavailable"),
             ),
         ):
-            response = delete_document(self.document.id, self.current_user)
+            response = delete_document(self.document.id, self.current_user, session=self.session)
 
         self.assertEqual(response.status_code, 204)
 

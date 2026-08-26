@@ -437,7 +437,7 @@ class ReindexRouteTests(unittest.TestCase):
                 return_value=SimpleNamespace(id=task_id),
             ) as delay,
         ):
-            response = reindex_document(self.document.id, self.user)
+            response = reindex_document(self.document.id, self.user, session=self.session)
 
         claim.assert_called_once_with(
             session=self.session,
@@ -465,7 +465,7 @@ class ReindexRouteTests(unittest.TestCase):
             patch("api.routes.documents.release_document_reindex_claim") as release,
         ):
             with self.assertRaises(HTTPException) as raised:
-                reindex_document(self.document.id, self.user)
+                reindex_document(self.document.id, self.user, session=self.session)
 
         release.assert_called_once_with(
             session=self.session,
@@ -508,7 +508,7 @@ class ReindexRouteTests(unittest.TestCase):
             patch("api.routes.documents.reindex_document_task.delay") as delay,
         ):
             with self.assertRaises(HTTPException) as raised:
-                reindex_document(self.document.id, self.user)
+                reindex_document(self.document.id, self.user, session=self.session)
 
         self.assertEqual(raised.exception.status_code, 409)
         self.assertEqual(raised.exception.detail, "The active PDF index is already page-aware.")

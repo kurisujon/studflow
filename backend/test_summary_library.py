@@ -127,7 +127,7 @@ class SummaryLibraryEndpointTests(unittest.TestCase):
         ]
         session_factory.return_value.__enter__.return_value = session
 
-        items = list_summaries(CurrentUser(clerk_user_id="user_123"))
+        items = list_summaries(CurrentUser(clerk_user_id="user_123"), session=session)
 
         self.assertEqual(len(items), 1)
         self.assertEqual(items[0].document_id, valid_document.id)
