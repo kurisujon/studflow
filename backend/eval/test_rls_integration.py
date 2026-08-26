@@ -27,7 +27,7 @@ def test_rls_denies_cross_tenant_access_at_db_layer(db_session):
     chunk_b = DocumentChunk(id=uuid.uuid4(), document_id=doc_b.id, content="Secret B", page_number=1, chunk_index=0)
     conv_b = AIConversation(id=uuid.uuid4(), clerk_user_id=user_b, document_id=doc_b.id, title="B's Chat")
     msg_b = AIMessage(id=uuid.uuid4(), conversation_id=conv_b.id, role="user", content="msg B", sequence_number=1)
-    cit_b = AIMessageCitation(id=uuid.uuid4(), message_id=msg_b.id, chunk_id=chunk_b.id, claim_text="secret", exact_quote="sec")
+    cit_b = AIMessageCitation(id=uuid.uuid4(), message_id=msg_b.id, chunk_id=chunk_b.id, citation_index=1, source_type="document", title="Test Doc", excerpt="sec")
     
     db_session.add_all([doc_b, chunk_b, conv_b, msg_b, cit_b])
     db_session.commit()
