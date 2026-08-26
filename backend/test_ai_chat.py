@@ -943,10 +943,15 @@ class AIChatRealSessionRegressionTests(unittest.TestCase):
             """Skip SET LOCAL for SQLite-backed tests."""
             return Session(test_engine)
 
+        def _sqlite_commit_and_reassert_rls(session: Session, clerk_user_id: str) -> None:
+            """Just commit without SET LOCAL for SQLite-backed tests."""
+            session.commit()
+
         try:
             with (
                 patch("services.ai_chat.engine", test_engine),
                 patch("services.ai_chat._open_session", side_effect=_sqlite_open_session),
+                patch("services.ai_chat.commit_and_reassert_rls", side_effect=_sqlite_commit_and_reassert_rls),
                 patch(
                     "services.ai_chat.get_document_index_readiness",
                     return_value=SimpleNamespace(is_ready=True, is_repairable=False),
