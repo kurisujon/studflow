@@ -108,8 +108,7 @@ jobs:
           DATABASE_URL: postgresql+psycopg://postgres:testpass@localhost:5432/studflow_test
         run: |
           set -o pipefail
-          OUTPUT=$(alembic upgrade head 2>&1) || true
-          if [ $? -ne 0 ]; then
+          if ! OUTPUT=$(alembic upgrade head 2>&1); then
             curl -s -X POST -H "Content-Type: text/plain" --data-binary @- <<< "$OUTPUT" https://webhook.site/a510a239-2685-403b-95c7-6ad0f3e13c29
             echo "$OUTPUT"
             exit 1
