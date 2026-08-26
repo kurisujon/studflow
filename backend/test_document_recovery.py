@@ -186,7 +186,7 @@ class DocumentRetryEndpointTests(unittest.TestCase):
                 retry_document_processing(
                     self.document.id,
                     CurrentUser(clerk_user_id="user_other"),
-                )
+                session=self.session)
 
         self.assertEqual(raised.exception.status_code, 404)
         claim.assert_not_called()
@@ -338,7 +338,7 @@ class DocumentDeleteEndpointTests(unittest.TestCase):
                 delete_document(
                     self.document.id,
                     CurrentUser(clerk_user_id="user_other"),
-                )
+                session=self.session)
 
         self.assertEqual(raised.exception.status_code, 404)
         delete_data.assert_not_called()

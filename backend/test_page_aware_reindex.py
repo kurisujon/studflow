@@ -484,7 +484,7 @@ class ReindexRouteTests(unittest.TestCase):
             patch("api.routes.documents.claim_document_reindex") as claim,
         ):
             with self.assertRaises(HTTPException) as raised:
-                reindex_document(self.document.id, CurrentUser(clerk_user_id="other"))
+                reindex_document(self.document.id, CurrentUser(clerk_user_id="other"), session=self.session)
 
         claim.assert_not_called()
         self.assertEqual(raised.exception.status_code, 404)
