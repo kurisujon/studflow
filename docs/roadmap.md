@@ -952,3 +952,20 @@ When a future agent completes a meaningful feature, they should update this file
 
 **What to do next:**
 - Execute the pipeline automatically to run through C3, C4, and C5 incrementally as provider quotas safely allow.
+
+### Update: 2026-08-25 — Security Hardening (Prompt Injection & RLS)
+
+**What Changed:**
+- Wrapped all untrusted document inputs in `<untrusted_document_content>` tags across 11 generative prompts in `backend/services/ai_service.py` to mitigate prompt injection.
+- Refactored `backend/core/database.py` and 28 route endpoints in `documents.py`, `study.py`, and `user.py` to depend on a new RLS-aware `get_session` that executes `SET LOCAL app.current_user_id` per request.
+- Added an Alembic migration (`c00000000000_enable_rls_and_policies.py`) enforcing PostgreSQL Row-Level Security on 14 user-scoped tables with tenant isolation policies.
+
+**Contracts Changed:**
+- Database Schema: All user-scoped tables now require an authenticated context (`app.current_user_id`) to be readable/writable. The application DB role must not be a superuser or have `BYPASSRLS`.
+- Documented the `BYPASSRLS` constraint in `docs/architecture.md`.
+
+**Docs Stale:**
+- No.
+
+**What to do next:**
+- Complete Phase C4-C7: Groundedness evaluation, citation accuracy evaluation, regression runner, and CI integration.

@@ -9,8 +9,9 @@ from typing import Literal, cast
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel, ValidationError, Field, model_validator
 from sqlmodel import Session, select
+from sqlalchemy import text
 
-from core.database import engine
+from core.database import engine, get_session, commit_and_reassert_rls
 from core.auth import get_current_user, CurrentUser
 from core.config import settings
 from models.tables import (
@@ -541,114 +542,111 @@ def _build_summary_library_item(
 
 
 @router.get("/documents", response_model=list[DocumentListItem])
-def list_documents(current_user: CurrentUser = Depends(get_current_user)) -> list[DocumentListItem]:
-    with Session(engine) as session:
-        documents = session.exec(
-            select(Document)
-            .where(Document.clerk_user_id == current_user.clerk_user_id)
-            .order_by(Document.created_at.desc())
-        ).all()
+def list_documents(current_user: CurrentUser = Depends(get_current_user), session: Session = Depends(get_session)) -> list[DocumentListItem]:
+    documents = session.exec(
+        select(Document)
+        .where(Document.clerk_user_id == current_user.clerk_user_id)
+        .order_by(Document.created_at.desc())
+    ).all()
 
-        items: list[DocumentListItem] = []
+    items: list[DocumentListItem] = []
 
-        for document in documents:
-            summary = session.exec(
-                select(Summary).where(Summary.document_id == document.id)
-            ).first()
-            flashcard_count = len(
-                session.exec(
-                    select(Flashcard).where(Flashcard.document_id == document.id)
-                ).all()
+    for document in documents:
+        summary = session.exec(
+            select(Summary).where(Summary.document_id == document.id)
+        ).first()
+        flashcard_count = len(
+            session.exec(
+                select(Flashcard).where(Flashcard.document_id == document.id)
+            ).all()
+        )
+        quiz = session.exec(
+            select(Quiz).where(Quiz.document_id == document.id)
+        ).first()
+
+        items.append(
+            DocumentListItem(
+                id=document.id,
+                filename=document.filename,
+                status=document.status.value,
+                created_at=document.created_at,
+                updated_at=document.updated_at,
+                page_count=document.page_count,
+                summary_ready=summary is not None,
+                flashcard_count=flashcard_count,
+                quiz_ready=quiz is not None,
             )
-            quiz = session.exec(
-                select(Quiz).where(Quiz.document_id == document.id)
-            ).first()
+        )
 
-            items.append(
-                DocumentListItem(
-                    id=document.id,
-                    filename=document.filename,
-                    status=document.status.value,
-                    created_at=document.created_at,
-                    updated_at=document.updated_at,
-                    page_count=document.page_count,
-                    summary_ready=summary is not None,
-                    flashcard_count=flashcard_count,
-                    quiz_ready=quiz is not None,
-                )
-            )
-
-        return items
+    return items
 
 
 @router.get("/summaries", response_model=list[SummaryLibraryItem])
 def list_summaries(
     current_user: CurrentUser = Depends(get_current_user),
-) -> list[SummaryLibraryItem]:
-    with Session(engine) as session:
-        rows = session.exec(
-            select(Document, Summary)
-            .join(Summary, Summary.document_id == Document.id)
-            .where(Document.clerk_user_id == current_user.clerk_user_id)
-            .where(Document.status == DocumentStatus.COMPLETED)
-            .order_by(Summary.created_at.desc(), Document.id.asc())
-        ).all()
+    session: Session = Depends(get_session)) -> list[SummaryLibraryItem]:
+    rows = session.exec(
+        select(Document, Summary)
+        .join(Summary, Summary.document_id == Document.id)
+        .where(Document.clerk_user_id == current_user.clerk_user_id)
+        .where(Document.status == DocumentStatus.COMPLETED)
+        .order_by(Summary.created_at.desc(), Document.id.asc())
+    ).all()
 
-        items: list[SummaryLibraryItem] = []
-        for document, stored_summary in rows:
-            item = _build_summary_library_item(document, stored_summary)
-            if item is None:
-                logger.warning(
-                    "Omitting invalid summary library item summary_id=%s document_id=%s",
-                    stored_summary.id,
-                    document.id,
-                )
-                continue
-            items.append(item)
-        return items
+    items: list[SummaryLibraryItem] = []
+    for document, stored_summary in rows:
+        item = _build_summary_library_item(document, stored_summary)
+        if item is None:
+            logger.warning(
+                "Omitting invalid summary library item summary_id=%s document_id=%s",
+                stored_summary.id,
+                document.id,
+            )
+            continue
+        items.append(item)
+    return items
 
 
 @router.get("/documents/{document_id}/status", response_model=DocumentStatusResponse)
-def get_document_status(document_id: uuid.UUID, current_user: CurrentUser = Depends(get_current_user)) -> DocumentStatusResponse:
-    with Session(engine) as session:
-        document = session.exec(
-            select(Document)
-            .where(Document.id == document_id)
-            .where(Document.clerk_user_id == current_user.clerk_user_id)
-        ).first()
+def get_document_status(document_id: uuid.UUID, current_user: CurrentUser = Depends(get_current_user), session: Session = Depends(get_session)) -> DocumentStatusResponse:
+    document = session.exec(
+        select(Document)
+        .where(Document.id == document_id)
+        .where(Document.clerk_user_id == current_user.clerk_user_id)
+    ).first()
 
-        if document is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Document not found.",
-            )
-
-        summary = session.exec(
-            select(Summary).where(Summary.document_id == document_id)
-        ).first()
-        flashcards = session.exec(
-            select(Flashcard).where(Flashcard.document_id == document_id)
-        ).all()
-        quiz = session.exec(
-            select(Quiz).where(Quiz.document_id == document_id)
-        ).first()
-
-        return DocumentStatusResponse(
-            document_id=document.id,
-            status=document.status.value,
-            processing_stage=_infer_processing_stage(
-                document,
-                summary,
-                len(flashcards),
-                quiz,
-            ),
-            page_count=document.page_count,
-            summary_ready=summary is not None,
-            flashcard_count=len(flashcards),
-            quiz_ready=quiz is not None,
-            active_index_generation=document.active_index_generation,
-            reindex_in_progress=document.pending_index_generation is not None,
+    if document is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found.",
         )
+
+    summary = session.exec(
+        select(Summary).where(Summary.document_id == document_id)
+    ).first()
+    flashcards = session.exec(
+        select(Flashcard).where(Flashcard.document_id == document_id)
+    ).all()
+    quiz = session.exec(
+        select(Quiz).where(Quiz.document_id == document_id)
+    ).first()
+
+    return DocumentStatusResponse(
+        document_id=document.id,
+        status=document.status.value,
+        processing_stage=_infer_processing_stage(
+            document,
+            summary,
+            len(flashcards),
+            quiz,
+        ),
+        page_count=document.page_count,
+        summary_ready=summary is not None,
+        flashcard_count=len(flashcards),
+        quiz_ready=quiz is not None,
+        active_index_generation=document.active_index_generation,
+        reindex_in_progress=document.pending_index_generation is not None,
+    )
 
 
 @router.delete(
@@ -660,46 +658,45 @@ def get_document_status(document_id: uuid.UUID, current_user: CurrentUser = Depe
 def delete_document(
     document_id: uuid.UUID,
     current_user: CurrentUser = Depends(get_current_user),
-) -> Response:
-    with Session(engine) as session:
-        document = _get_owned_document(session, document_id, current_user)
-        if document.status not in {DocumentStatus.COMPLETED, DocumentStatus.FAILED}:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Only completed or failed documents can be deleted.",
-            )
+    session: Session = Depends(get_session)) -> Response:
+    document = _get_owned_document(session, document_id, current_user)
+    if document.status not in {DocumentStatus.COMPLETED, DocumentStatus.FAILED}:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Only completed or failed documents can be deleted.",
+        )
 
-        try:
-            storage_path = validate_document_storage_path(
-                document.file_url,
-                str(document.id),
-            )
-        except StorageServiceError as exc:
-            logger.error(
-                "Refusing deletion for document '%s' because its storage path is invalid.",
-                document.id,
-            )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Document could not be deleted safely.",
-            ) from exc
+    try:
+        storage_path = validate_document_storage_path(
+            document.file_url,
+            str(document.id),
+        )
+    except StorageServiceError as exc:
+        logger.error(
+            "Refusing deletion for document '%s' because its storage path is invalid.",
+            document.id,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Document could not be deleted safely.",
+        ) from exc
 
-        try:
-            storage_path = delete_terminal_document(
-                session=session,
-                document_id=document.id,
-            )
-        except ValueError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Document processing changed before deletion could begin.",
-            ) from exc
-        except Exception as exc:
-            logger.exception("Database deletion failed for document '%s'.", document.id)
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Document could not be deleted.",
-            ) from exc
+    try:
+        storage_path = delete_terminal_document(
+            session=session,
+            document_id=document.id,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Document processing changed before deletion could begin.",
+        ) from exc
+    except Exception as exc:
+        logger.exception("Database deletion failed for document '%s'.", document.id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Document could not be deleted.",
+        ) from exc
 
     try:
         delete_file_from_storage(storage_path)
@@ -720,47 +717,46 @@ def delete_document(
 def retry_document_processing(
     document_id: uuid.UUID,
     current_user: CurrentUser = Depends(get_current_user),
-) -> RetryDocumentResponse:
-    with Session(engine) as session:
-        document = _get_owned_document(session, document_id, current_user)
+    session: Session = Depends(get_session)) -> RetryDocumentResponse:
+    document = _get_owned_document(session, document_id, current_user)
 
-        if document.status != DocumentStatus.FAILED:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Only failed documents can be retried.",
-            )
-
-        if not claim_failed_document_for_retry(
-            session=session,
-            document_id=document.id,
-        ):
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Document processing has already been retried.",
-            )
-
-        try:
-            process_document_task.delay(str(document.id))
-        except Exception as exc:
-            logger.exception(
-                "Retry queue failure for document '%s' and user '%s'.",
-                document.id,
-                current_user.clerk_user_id,
-            )
-            update_document_status(
-                session=session,
-                document=document,
-                status=DocumentStatus.FAILED,
-            )
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Retry could not be queued. Please try again.",
-            ) from exc
-
-        return RetryDocumentResponse(
-            document_id=document.id,
-            status=DocumentStatus.PENDING.value,
+    if document.status != DocumentStatus.FAILED:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Only failed documents can be retried.",
         )
+
+    if not claim_failed_document_for_retry(
+        session=session,
+        document_id=document.id,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Document processing has already been retried.",
+        )
+
+    try:
+        process_document_task.delay(str(document.id))
+    except Exception as exc:
+        logger.exception(
+            "Retry queue failure for document '%s' and user '%s'.",
+            document.id,
+            current_user.clerk_user_id,
+        )
+        update_document_status(
+            session=session,
+            document=document,
+            status=DocumentStatus.FAILED,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Retry could not be queued. Please try again.",
+        ) from exc
+
+    return RetryDocumentResponse(
+        document_id=document.id,
+        status=DocumentStatus.PENDING.value,
+    )
 
 
 @router.post(
@@ -771,133 +767,131 @@ def retry_document_processing(
 def reindex_document(
     document_id: uuid.UUID,
     current_user: CurrentUser = Depends(get_current_user),
-) -> ReindexDocumentResponse:
-    with Session(engine) as session:
-        document = _get_owned_document(session, document_id, current_user)
-        if not settings.document_reindex_enabled:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Document reindexing is not enabled.",
-            )
-        if document.status != DocumentStatus.COMPLETED:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Only completed documents can be reindexed.",
-            )
-        if not document.filename.lower().endswith(".pdf"):
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Only PDF documents can be reindexed.",
-            )
-
-        try:
-            active_generation, pending_generation, lease_token = claim_document_reindex(
-                session=session,
-                document_id=document.id,
-                lease_seconds=settings.document_reindex_lease_seconds,
-            )
-        except ValueError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=str(exc),
-            ) from exc
-
-        try:
-            queued_task = reindex_document_task.delay(
-                str(document.id),
-                pending_generation,
-                str(lease_token),
-            )
-        except Exception as exc:
-            logger.exception(
-                "Reindex queue failure for document '%s' and user '%s'.",
-                document.id,
-                current_user.clerk_user_id,
-            )
-            release_document_reindex_claim(
-                session=session,
-                document_id=document.id,
-                index_generation=pending_generation,
-                lease_token=lease_token,
-                clean_staged=True,
-            )
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Document reindexing could not be queued. Please try again.",
-            ) from exc
-
-        return ReindexDocumentResponse(
-            document_id=document.id,
-            task_id=str(queued_task.id),
-            active_index_generation=active_generation,
-            pending_index_generation=pending_generation,
+    session: Session = Depends(get_session)) -> ReindexDocumentResponse:
+    document = _get_owned_document(session, document_id, current_user)
+    if not settings.document_reindex_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Document reindexing is not enabled.",
         )
+    if document.status != DocumentStatus.COMPLETED:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Only completed documents can be reindexed.",
+        )
+    if not document.filename.lower().endswith(".pdf"):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Only PDF documents can be reindexed.",
+        )
+
+    try:
+        active_generation, pending_generation, lease_token = claim_document_reindex(
+            session=session,
+            document_id=document.id,
+            lease_seconds=settings.document_reindex_lease_seconds,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
+
+    try:
+        queued_task = reindex_document_task.delay(
+            str(document.id),
+            pending_generation,
+            str(lease_token),
+        )
+    except Exception as exc:
+        logger.exception(
+            "Reindex queue failure for document '%s' and user '%s'.",
+            document.id,
+            current_user.clerk_user_id,
+        )
+        release_document_reindex_claim(
+            session=session,
+            document_id=document.id,
+            index_generation=pending_generation,
+            lease_token=lease_token,
+            clean_staged=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Document reindexing could not be queued. Please try again.",
+        ) from exc
+
+    return ReindexDocumentResponse(
+        document_id=document.id,
+        task_id=str(queued_task.id),
+        active_index_generation=active_generation,
+        pending_index_generation=pending_generation,
+    )
 
 
 @router.get("/documents/{document_id}/study", response_model=StudyDocumentResponse)
-def get_study_document(document_id: uuid.UUID, current_user: CurrentUser = Depends(get_current_user)) -> StudyDocumentResponse:
-    with Session(engine) as session:
-        document = _get_owned_document(session, document_id, current_user)
-        if document.status != DocumentStatus.COMPLETED:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Document study materials are not ready.",
-            )
-
-        summary = session.exec(
-            select(Summary).where(Summary.document_id == document_id)
-        ).first()
-        flashcards = session.exec(
-            select(Flashcard)
-            .where(Flashcard.document_id == document_id)
-            .order_by(Flashcard.order_index.asc())
-        ).all()
-        quiz = session.exec(
-            select(Quiz).where(Quiz.document_id == document_id)
-        ).first()
-        quiz_questions: list[QuizQuestion] = []
-
-        if quiz is not None:
-            quiz_questions = session.exec(
-                select(QuizQuestion)
-                .where(QuizQuestion.quiz_id == quiz.id)
-                .order_by(QuizQuestion.order_index.asc())
-            ).all()
-
-        summary_payload = _parse_summary_payload(summary.content if summary else None)
-
-        return StudyDocumentResponse(
-            id=document.id,
-            filename=document.filename,
-            status=document.status.value,
-            created_at=document.created_at,
-            summary=_format_summary_text(summary_payload),
-            summary_data=summary_payload.model_dump() if summary_payload else None,
-            flashcards=[
-                FlashcardResponse(
-                    id=flashcard.id,
-                    front=flashcard.front,
-                    back=flashcard.back,
-                    order_index=flashcard.order_index,
-                    next_review_date=flashcard.next_review_date,
-                    interval=flashcard.interval,
-                    repetition=flashcard.repetition,
-                    easiness_factor=flashcard.easiness_factor,
-                )
-                for flashcard in flashcards
-            ],
-            quiz=[
-                QuizQuestionResponse(
-                    id=question.id,
-                    question=question.question,
-                    options=json.loads(question.options),
-                    correct_answer_index=question.correct_answer_index,
-                    explanation=question.explanation,
-                    order_index=question.order_index,
-                )
-                for question in quiz_questions
-            ],
+def get_study_document(document_id: uuid.UUID, current_user: CurrentUser = Depends(get_current_user), session: Session = Depends(get_session)) -> StudyDocumentResponse:
+    document = _get_owned_document(session, document_id, current_user)
+    if document.status != DocumentStatus.COMPLETED:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Document study materials are not ready.",
         )
+
+    summary = session.exec(
+        select(Summary).where(Summary.document_id == document_id)
+    ).first()
+    flashcards = session.exec(
+        select(Flashcard)
+        .where(Flashcard.document_id == document_id)
+        .order_by(Flashcard.order_index.asc())
+    ).all()
+    quiz = session.exec(
+        select(Quiz).where(Quiz.document_id == document_id)
+    ).first()
+    quiz_questions: list[QuizQuestion] = []
+
+    if quiz is not None:
+        quiz_questions = session.exec(
+            select(QuizQuestion)
+            .where(QuizQuestion.quiz_id == quiz.id)
+            .order_by(QuizQuestion.order_index.asc())
+        ).all()
+
+    summary_payload = _parse_summary_payload(summary.content if summary else None)
+
+    return StudyDocumentResponse(
+        id=document.id,
+        filename=document.filename,
+        status=document.status.value,
+        created_at=document.created_at,
+        summary=_format_summary_text(summary_payload),
+        summary_data=summary_payload.model_dump() if summary_payload else None,
+        flashcards=[
+            FlashcardResponse(
+                id=flashcard.id,
+                front=flashcard.front,
+                back=flashcard.back,
+                order_index=flashcard.order_index,
+                next_review_date=flashcard.next_review_date,
+                interval=flashcard.interval,
+                repetition=flashcard.repetition,
+                easiness_factor=flashcard.easiness_factor,
+            )
+            for flashcard in flashcards
+        ],
+        quiz=[
+            QuizQuestionResponse(
+                id=question.id,
+                question=question.question,
+                options=json.loads(question.options),
+                correct_answer_index=question.correct_answer_index,
+                explanation=question.explanation,
+                order_index=question.order_index,
+            )
+            for question in quiz_questions
+        ],
+    )
 
 
 @router.post("/documents/{document_id}/flashcards", response_model=FlashcardResponse, status_code=status.HTTP_201_CREATED)
@@ -905,40 +899,38 @@ def create_document_flashcard(
     document_id: uuid.UUID,
     payload: CreateFlashcardRequest,
     current_user: CurrentUser = Depends(get_current_user),
-) -> FlashcardResponse:
-    with Session(engine) as session:
-        _get_owned_document(session, document_id, current_user)
-        flashcard = create_flashcard(
-            session=session,
-            document_id=document_id,
-            front=payload.front,
-            back=payload.back,
-        )
-        return FlashcardResponse(
-            id=flashcard.id,
-            front=flashcard.front,
-            back=flashcard.back,
-            order_index=flashcard.order_index,
-            next_review_date=flashcard.next_review_date,
-            interval=flashcard.interval,
-            repetition=flashcard.repetition,
-            easiness_factor=flashcard.easiness_factor,
-        )
+    session: Session = Depends(get_session)) -> FlashcardResponse:
+    _get_owned_document(session, document_id, current_user)
+    flashcard = create_flashcard(
+        session=session,
+        document_id=document_id,
+        front=payload.front,
+        back=payload.back,
+    )
+    return FlashcardResponse(
+        id=flashcard.id,
+        front=flashcard.front,
+        back=flashcard.back,
+        order_index=flashcard.order_index,
+        next_review_date=flashcard.next_review_date,
+        interval=flashcard.interval,
+        repetition=flashcard.repetition,
+        easiness_factor=flashcard.easiness_factor,
+    )
 
 
 @router.get("/documents/{document_id}/quiz-attempts", response_model=list[QuizAttemptResponse])
 def get_quiz_attempts(
     document_id: uuid.UUID,
     current_user: CurrentUser = Depends(get_current_user),
-) -> list[QuizAttemptResponse]:
-    with Session(engine) as session:
-        _get_owned_document(session, document_id, current_user)
-        attempts = session.exec(
-            select(QuizAttempt)
-            .where(QuizAttempt.document_id == document_id)
-            .order_by(QuizAttempt.created_at.desc())
-        ).all()
-        return [_to_quiz_attempt_response(attempt) for attempt in attempts]
+    session: Session = Depends(get_session)) -> list[QuizAttemptResponse]:
+    _get_owned_document(session, document_id, current_user)
+    attempts = session.exec(
+        select(QuizAttempt)
+        .where(QuizAttempt.document_id == document_id)
+        .order_by(QuizAttempt.created_at.desc())
+    ).all()
+    return [_to_quiz_attempt_response(attempt) for attempt in attempts]
 
 
 @router.post("/documents/{document_id}/quiz-attempts", response_model=QuizAttemptResponse, status_code=status.HTTP_201_CREATED)
@@ -946,81 +938,79 @@ def create_quiz_attempt(
     document_id: uuid.UUID,
     payload: CreateQuizAttemptRequest,
     current_user: CurrentUser = Depends(get_current_user),
-) -> QuizAttemptResponse:
-    with Session(engine) as session:
-        _get_owned_document(session, document_id, current_user)
-        quiz = session.exec(
-            select(Quiz).where(Quiz.document_id == document_id)
-        ).first()
+    session: Session = Depends(get_session)) -> QuizAttemptResponse:
+    _get_owned_document(session, document_id, current_user)
+    quiz = session.exec(
+        select(Quiz).where(Quiz.document_id == document_id)
+    ).first()
 
-        if quiz is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Quiz not found.",
-            )
-
-        valid_question_ids = {
-            question.id
-            for question in session.exec(
-                select(QuizQuestion).where(QuizQuestion.quiz_id == quiz.id)
-            ).all()
-        }
-
-        if any(question_id not in valid_question_ids for question_id in payload.incorrectQuestionIds):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Quiz attempt contains invalid question IDs.",
-            )
-
-        attempt = QuizAttempt(
-            document_id=document_id,
-            score=payload.score,
-            total_questions=payload.totalQuestions,
-            incorrect_question_ids=json.dumps(
-                [str(question_id) for question_id in payload.incorrectQuestionIds]
-            ),
+    if quiz is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Quiz not found.",
         )
-        session.add(attempt)
-        session.commit()
-        session.refresh(attempt)
-        return _to_quiz_attempt_response(attempt)
+
+    valid_question_ids = {
+        question.id
+        for question in session.exec(
+            select(QuizQuestion).where(QuizQuestion.quiz_id == quiz.id)
+        ).all()
+    }
+
+    if any(question_id not in valid_question_ids for question_id in payload.incorrectQuestionIds):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Quiz attempt contains invalid question IDs.",
+        )
+
+    attempt = QuizAttempt(
+        document_id=document_id,
+        score=payload.score,
+        total_questions=payload.totalQuestions,
+        incorrect_question_ids=json.dumps(
+            [str(question_id) for question_id in payload.incorrectQuestionIds]
+        ),
+    )
+    session.add(attempt)
+    commit_and_reassert_rls(session, current_user.clerk_user_id)
+    session.refresh(attempt)
+    return _to_quiz_attempt_response(attempt)
 
 
 @router.get("/documents/{document_id}/chunks", response_model=list[DocumentChunkResponse])
-def get_document_chunks(document_id: uuid.UUID, current_user: CurrentUser = Depends(get_current_user)) -> list[DocumentChunkResponse]:
-    with Session(engine) as session:
-        document = session.exec(
-            select(Document)
-            .where(Document.id == document_id)
-            .where(Document.clerk_user_id == current_user.clerk_user_id)
-        ).first()
+def get_document_chunks(document_id: uuid.UUID, current_user: CurrentUser = Depends(get_current_user), session: Session = Depends(get_session)) -> list[DocumentChunkResponse]:
+    document = session.exec(
+        select(Document)
+        .where(Document.id == document_id)
+        .where(Document.clerk_user_id == current_user.clerk_user_id)
+    ).first()
 
-        if document is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Document not found.",
-            )
+    if document is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found.",
+        )
 
-        chunks = session.exec(
-            select(DocumentChunk)
-            .where(DocumentChunk.document_id == document_id)
-            .where(DocumentChunk.index_generation == document.active_index_generation)
-            .order_by(DocumentChunk.order_index.asc())
-        ).all()
+    chunks = session.exec(
+        select(DocumentChunk)
+        .where(DocumentChunk.document_id == document_id)
+        .where(DocumentChunk.index_generation == document.active_index_generation)
+        .order_by(DocumentChunk.order_index.asc())
+    ).all()
 
-        return [
-            DocumentChunkResponse(
-                id=chunk.id,
-                order_index=chunk.order_index,
-                content=chunk.content,
-                page_number=chunk.page_number,
-            )
-            for chunk in chunks
-        ]
+    return [
+        DocumentChunkResponse(
+            id=chunk.id,
+            order_index=chunk.order_index,
+            content=chunk.content,
+            page_number=chunk.page_number,
+        )
+        for chunk in chunks
+    ]
 
 
 @router.post("/ai/explain-selection", response_model=ExplainSelectionResponse)
-def explain_study_selection(payload: ExplainSelectionRequest, current_user: CurrentUser = Depends(get_current_user)) -> ExplainSelectionResponse:
+def explain_study_selection(payload: ExplainSelectionRequest, current_user: CurrentUser = Depends(get_current_user), session: Session = Depends(get_session)) -> ExplainSelectionResponse:
     highlighted_text = payload.highlighted_text.strip()
     note_content = (payload.noteContent or "").strip()
 
@@ -1030,31 +1020,30 @@ def explain_study_selection(payload: ExplainSelectionRequest, current_user: Curr
             detail="Study text or note content is required.",
         )
 
-    with Session(engine) as session:
-        if payload.documentId is not None:
-            _get_owned_document(session, payload.documentId, current_user)
+    if payload.documentId is not None:
+        _get_owned_document(session, payload.documentId, current_user)
 
-        try:
-            explanation = explain_selection(
-                highlighted_text=highlighted_text,
-                note_content=note_content,
-                source=payload.source,
-                user_question=(payload.question or "").strip(),
-            )
-        except AIServiceError as exc:
-            _raise_ai_http_error(exc)
-
-        return ExplainSelectionResponse(
-            historyId=None,
-            selectedText=explanation.selected_text,
-            simplifiedExplanation=explanation.simplified_explanation,
-            beginnerExplanation=explanation.beginner_explanation,
-            example=explanation.example,
-            relatedTerms=explanation.related_terms,
-            suggestedFlashcard=explanation.suggested_flashcard.model_dump(),
-            keyPoints=[],
-            sourceChunks=[],
+    try:
+        explanation = explain_selection(
+            highlighted_text=highlighted_text,
+            note_content=note_content,
+            source=payload.source,
+            user_question=(payload.question or "").strip(),
         )
+    except AIServiceError as exc:
+        _raise_ai_http_error(exc)
+
+    return ExplainSelectionResponse(
+        historyId=None,
+        selectedText=explanation.selected_text,
+        simplifiedExplanation=explanation.simplified_explanation,
+        beginnerExplanation=explanation.beginner_explanation,
+        example=explanation.example,
+        relatedTerms=explanation.related_terms,
+        suggestedFlashcard=explanation.suggested_flashcard.model_dump(),
+        keyPoints=[],
+        sourceChunks=[],
+    )
 
 
 @router.post("/documents/{document_id}/ask-ai", response_model=ExplainSelectionResponse)
@@ -1062,52 +1051,51 @@ def ask_ai_about_document(
     document_id: uuid.UUID,
     payload: DocumentQuestionRequest,
     current_user: CurrentUser = Depends(get_current_user),
-) -> ExplainSelectionResponse:
-    with Session(engine) as session:
-        _get_owned_document(session, document_id, current_user)
-        try:
-            query_embedding = generate_query_embedding(payload.question)
-            chunks = search_similar_chunks(
-                session=session,
-                document_id=document_id,
-                query_embedding=query_embedding,
-                top_k=settings.rag_top_k,
-            )
-        except AIServiceError as exc:
-            _raise_ai_http_error(exc)
-
-        if not chunks:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="The document search index is still being prepared. Please try again shortly.",
-            )
-
-        try:
-            answer = answer_document_question(
-                chunks=[(chunk.order_index, chunk.content) for chunk in chunks],
-                user_question=payload.question,
-            )
-        except AIServiceError as exc:
-            _raise_ai_http_error(exc)
-
-        return ExplainSelectionResponse(
-            historyId=None,
-            selectedText="",
-            simplifiedExplanation=answer.answer,
-            beginnerExplanation=answer.answer,
-            example="",
-            relatedTerms=answer.related_terms,
-            suggestedFlashcard=answer.suggested_flashcard.model_dump(),
-            keyPoints=answer.key_points,
-            sourceChunks=[
-                {
-                    "chunkIndex": chunk.chunk_index,
-                    "excerpt": chunk.excerpt,
-                    "relevanceReason": chunk.relevance_reason,
-                }
-                for chunk in answer.supporting_chunks
-            ],
+    session: Session = Depends(get_session)) -> ExplainSelectionResponse:
+    _get_owned_document(session, document_id, current_user)
+    try:
+        query_embedding = generate_query_embedding(payload.question)
+        chunks = search_similar_chunks(
+            session=session,
+            document_id=document_id,
+            query_embedding=query_embedding,
+            top_k=settings.rag_top_k,
         )
+    except AIServiceError as exc:
+        _raise_ai_http_error(exc)
+
+    if not chunks:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="The document search index is still being prepared. Please try again shortly.",
+        )
+
+    try:
+        answer = answer_document_question(
+            chunks=[(chunk.order_index, chunk.content) for chunk in chunks],
+            user_question=payload.question,
+        )
+    except AIServiceError as exc:
+        _raise_ai_http_error(exc)
+
+    return ExplainSelectionResponse(
+        historyId=None,
+        selectedText="",
+        simplifiedExplanation=answer.answer,
+        beginnerExplanation=answer.answer,
+        example="",
+        relatedTerms=answer.related_terms,
+        suggestedFlashcard=answer.suggested_flashcard.model_dump(),
+        keyPoints=answer.key_points,
+        sourceChunks=[
+            {
+                "chunkIndex": chunk.chunk_index,
+                "excerpt": chunk.excerpt,
+                "relevanceReason": chunk.relevance_reason,
+            }
+            for chunk in answer.supporting_chunks
+        ],
+    )
 
 
 class RelatedVideoResponse(BaseModel):
@@ -1126,43 +1114,42 @@ class RelatedVideosListResponse(BaseModel):
 
 
 @router.get("/documents/{document_id}/related-videos", response_model=RelatedVideosListResponse)
-def get_related_videos(document_id: uuid.UUID, current_user: CurrentUser = Depends(get_current_user)) -> RelatedVideosListResponse:
+def get_related_videos(document_id: uuid.UUID, current_user: CurrentUser = Depends(get_current_user), session: Session = Depends(get_session)) -> RelatedVideosListResponse:
     from models.tables import RelatedVideo
-    with Session(engine) as session:
-        document = session.exec(
-            select(Document)
-            .where(Document.id == document_id)
-            .where(Document.clerk_user_id == current_user.clerk_user_id)
-        ).first()
+    document = session.exec(
+        select(Document)
+        .where(Document.id == document_id)
+        .where(Document.clerk_user_id == current_user.clerk_user_id)
+    ).first()
 
-        if document is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Document not found.",
-            )
-
-        videos = session.exec(
-            select(RelatedVideo)
-            .where(RelatedVideo.document_id == document_id)
-            .order_by(RelatedVideo.created_at.asc())
-        ).all()
-
-        return RelatedVideosListResponse(
-            videos=[
-                RelatedVideoResponse(
-                    id=v.id,
-                    title=v.title,
-                    channelTitle=v.channel_title,
-                    videoId=v.video_id,
-                    url=v.url,
-                    thumbnailUrl=v.thumbnail_url,
-                    description=v.description,
-                    relevanceReason=v.relevance_reason,
-                    publishedAt=v.published_at,
-                )
-                for v in videos
-            ]
+    if document is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found.",
         )
+
+    videos = session.exec(
+        select(RelatedVideo)
+        .where(RelatedVideo.document_id == document_id)
+        .order_by(RelatedVideo.created_at.asc())
+    ).all()
+
+    return RelatedVideosListResponse(
+        videos=[
+            RelatedVideoResponse(
+                id=v.id,
+                title=v.title,
+                channelTitle=v.channel_title,
+                videoId=v.video_id,
+                url=v.url,
+                thumbnailUrl=v.thumbnail_url,
+                description=v.description,
+                relevanceReason=v.relevance_reason,
+                publishedAt=v.published_at,
+            )
+            for v in videos
+        ]
+    )
 
 
 @router.get("/documents/{document_id}/annotations", response_model=list[AnnotationResponse])
@@ -1170,17 +1157,16 @@ def get_annotations(
     document_id: uuid.UUID,
     include_deleted: bool = Query(default=False),
     current_user: CurrentUser = Depends(get_current_user),
-) -> list[AnnotationResponse]:
-    with Session(engine) as session:
-        _get_owned_document(session, document_id, current_user)
+    session: Session = Depends(get_session)) -> list[AnnotationResponse]:
+    _get_owned_document(session, document_id, current_user)
 
-        statement = select(StudyAnnotation).where(StudyAnnotation.document_id == document_id)
-        if not include_deleted:
-            statement = statement.where(StudyAnnotation.deleted_at.is_(None))  # type: ignore[attr-defined]
+    statement = select(StudyAnnotation).where(StudyAnnotation.document_id == document_id)
+    if not include_deleted:
+        statement = statement.where(StudyAnnotation.deleted_at.is_(None))  # type: ignore[attr-defined]
 
-        annotations = session.exec(statement.order_by(StudyAnnotation.created_at.asc())).all()
+    annotations = session.exec(statement.order_by(StudyAnnotation.created_at.asc())).all()
 
-        return [_to_annotation_response(annotation) for annotation in annotations]
+    return [_to_annotation_response(annotation) for annotation in annotations]
 
 
 @router.get("/documents/{document_id}/notes", response_model=list[AnnotationResponse])
@@ -1188,83 +1174,81 @@ def get_notes(
     document_id: uuid.UUID,
     include_deleted: bool = Query(default=False),
     current_user: CurrentUser = Depends(get_current_user),
-) -> list[AnnotationResponse]:
-    with Session(engine) as session:
-        _get_owned_document(session, document_id, current_user)
+    session: Session = Depends(get_session)) -> list[AnnotationResponse]:
+    _get_owned_document(session, document_id, current_user)
 
-        statement = (
-            select(StudyAnnotation)
-            .where(StudyAnnotation.document_id == document_id)
-            .where(StudyAnnotation.type == "note")
-        )
-        if not include_deleted:
-            statement = statement.where(StudyAnnotation.deleted_at.is_(None))  # type: ignore[attr-defined]
+    statement = (
+        select(StudyAnnotation)
+        .where(StudyAnnotation.document_id == document_id)
+        .where(StudyAnnotation.type == "note")
+    )
+    if not include_deleted:
+        statement = statement.where(StudyAnnotation.deleted_at.is_(None))  # type: ignore[attr-defined]
 
-        notes = session.exec(statement.order_by(StudyAnnotation.updated_at.desc())).all()
-        return [_to_annotation_response(note) for note in notes]
+    notes = session.exec(statement.order_by(StudyAnnotation.updated_at.desc())).all()
+    return [_to_annotation_response(note) for note in notes]
 
 
 @router.post("/documents/{document_id}/annotations", response_model=AnnotationResponse)
-def create_annotation(document_id: uuid.UUID, payload: CreateAnnotationRequest, current_user: CurrentUser = Depends(get_current_user)) -> AnnotationResponse:
-    with Session(engine) as session:
-        _get_owned_document(session, document_id, current_user)
+def create_annotation(document_id: uuid.UUID, payload: CreateAnnotationRequest, current_user: CurrentUser = Depends(get_current_user), session: Session = Depends(get_session)) -> AnnotationResponse:
+    _get_owned_document(session, document_id, current_user)
 
-        now = datetime.now(timezone.utc)
+    now = datetime.now(timezone.utc)
 
-        if payload.type in {"highlight", "underline"}:
-            overlapping_statement = (
-                select(StudyAnnotation)
-                .where(StudyAnnotation.document_id == document_id)
-                .where(StudyAnnotation.block_id == payload.blockId)
-                .where(StudyAnnotation.type == payload.type)
-                .where(StudyAnnotation.deleted_at.is_(None))  # type: ignore[attr-defined]
-                .where(StudyAnnotation.start_offset < payload.endOffset)
-                .where(StudyAnnotation.end_offset > payload.startOffset)
-            )
-            overlapping_annotations = session.exec(overlapping_statement).all()
-            exact_annotation = next(
-                (
-                    annotation
-                    for annotation in overlapping_annotations
-                    if annotation.start_offset == payload.startOffset
-                    and annotation.end_offset == payload.endOffset
-                ),
-                None,
-            )
-
-            if exact_annotation and len(overlapping_annotations) == 1:
-                exact_annotation.selected_text = payload.selectedText
-                if payload.type == "highlight":
-                    exact_annotation.color = payload.color
-                if payload.type == "underline":
-                    exact_annotation.underline_color = payload.underlineColor
-                exact_annotation.updated_at = now
-                session.add(exact_annotation)
-                session.commit()
-                session.refresh(exact_annotation)
-                return _to_annotation_response(exact_annotation)
-
-            for overlapping_annotation in overlapping_annotations:
-                session.delete(overlapping_annotation)
-
-        annotation = StudyAnnotation(
-            document_id=document_id,
-            block_id=payload.blockId,
-            selected_text=payload.selectedText,
-            start_offset=payload.startOffset,
-            end_offset=payload.endOffset,
-            type=payload.type,
-            color=payload.color,
-            underline_color=payload.underlineColor,
-            note_content=payload.noteContent.strip() if payload.noteContent else None,
-            created_at=now,
-            updated_at=now,
+    if payload.type in {"highlight", "underline"}:
+        overlapping_statement = (
+            select(StudyAnnotation)
+            .where(StudyAnnotation.document_id == document_id)
+            .where(StudyAnnotation.block_id == payload.blockId)
+            .where(StudyAnnotation.type == payload.type)
+            .where(StudyAnnotation.deleted_at.is_(None))  # type: ignore[attr-defined]
+            .where(StudyAnnotation.start_offset < payload.endOffset)
+            .where(StudyAnnotation.end_offset > payload.startOffset)
         )
-        session.add(annotation)
-        session.commit()
-        session.refresh(annotation)
+        overlapping_annotations = session.exec(overlapping_statement).all()
+        exact_annotation = next(
+            (
+                annotation
+                for annotation in overlapping_annotations
+                if annotation.start_offset == payload.startOffset
+                and annotation.end_offset == payload.endOffset
+            ),
+            None,
+        )
 
-        return _to_annotation_response(annotation)
+        if exact_annotation and len(overlapping_annotations) == 1:
+            exact_annotation.selected_text = payload.selectedText
+            if payload.type == "highlight":
+                exact_annotation.color = payload.color
+            if payload.type == "underline":
+                exact_annotation.underline_color = payload.underlineColor
+            exact_annotation.updated_at = now
+            session.add(exact_annotation)
+            commit_and_reassert_rls(session, current_user.clerk_user_id)
+            session.refresh(exact_annotation)
+            return _to_annotation_response(exact_annotation)
+
+        for overlapping_annotation in overlapping_annotations:
+            session.delete(overlapping_annotation)
+
+    annotation = StudyAnnotation(
+        document_id=document_id,
+        block_id=payload.blockId,
+        selected_text=payload.selectedText,
+        start_offset=payload.startOffset,
+        end_offset=payload.endOffset,
+        type=payload.type,
+        color=payload.color,
+        underline_color=payload.underlineColor,
+        note_content=payload.noteContent.strip() if payload.noteContent else None,
+        created_at=now,
+        updated_at=now,
+    )
+    session.add(annotation)
+    commit_and_reassert_rls(session, current_user.clerk_user_id)
+    session.refresh(annotation)
+
+    return _to_annotation_response(annotation)
 
 
 @router.post("/documents/{document_id}/notes", response_model=AnnotationResponse)
@@ -1278,41 +1262,39 @@ def create_note(document_id: uuid.UUID, payload: CreateAnnotationRequest, curren
 
 
 @router.patch("/annotations/{annotation_id}", response_model=AnnotationResponse)
-def update_annotation(annotation_id: uuid.UUID, payload: UpdateAnnotationRequest, current_user: CurrentUser = Depends(get_current_user)) -> AnnotationResponse:
-    with Session(engine) as session:
-        annotation = _get_owned_annotation(session, annotation_id, current_user)
+def update_annotation(annotation_id: uuid.UUID, payload: UpdateAnnotationRequest, current_user: CurrentUser = Depends(get_current_user), session: Session = Depends(get_session)) -> AnnotationResponse:
+    annotation = _get_owned_annotation(session, annotation_id, current_user)
 
-        if payload.color is not None:
-            annotation.color = payload.color
-        if payload.underlineColor is not None:
-            annotation.underline_color = payload.underlineColor
-        if payload.noteContent is not None:
-            annotation.note_content = payload.noteContent.strip()
+    if payload.color is not None:
+        annotation.color = payload.color
+    if payload.underlineColor is not None:
+        annotation.underline_color = payload.underlineColor
+    if payload.noteContent is not None:
+        annotation.note_content = payload.noteContent.strip()
 
-        annotation.updated_at = datetime.now(timezone.utc)
-        session.add(annotation)
-        session.commit()
-        session.refresh(annotation)
+    annotation.updated_at = datetime.now(timezone.utc)
+    session.add(annotation)
+    commit_and_reassert_rls(session, current_user.clerk_user_id)
+    session.refresh(annotation)
 
-        return _to_annotation_response(annotation)
+    return _to_annotation_response(annotation)
 
 
 @router.patch("/notes/{note_id}", response_model=AnnotationResponse)
-def update_note(note_id: uuid.UUID, payload: UpdateAnnotationRequest, current_user: CurrentUser = Depends(get_current_user)) -> AnnotationResponse:
-    with Session(engine) as session:
-        note = _get_owned_annotation(session, note_id, current_user)
-        if note.type != "note":
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Note not found.",
-            )
-        if payload.noteContent is not None:
-            note.note_content = payload.noteContent.strip()
-        note.updated_at = datetime.now(timezone.utc)
-        session.add(note)
-        session.commit()
-        session.refresh(note)
-        return _to_annotation_response(note)
+def update_note(note_id: uuid.UUID, payload: UpdateAnnotationRequest, current_user: CurrentUser = Depends(get_current_user), session: Session = Depends(get_session)) -> AnnotationResponse:
+    note = _get_owned_annotation(session, note_id, current_user)
+    if note.type != "note":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Note not found.",
+        )
+    if payload.noteContent is not None:
+        note.note_content = payload.noteContent.strip()
+    note.updated_at = datetime.now(timezone.utc)
+    session.add(note)
+    commit_and_reassert_rls(session, current_user.clerk_user_id)
+    session.refresh(note)
+    return _to_annotation_response(note)
 
 
 @router.delete(
@@ -1321,37 +1303,35 @@ def update_note(note_id: uuid.UUID, payload: UpdateAnnotationRequest, current_us
     response_class=Response,
     response_model=None,
 )
-def soft_delete_note(note_id: uuid.UUID, current_user: CurrentUser = Depends(get_current_user)) -> Response:
-    with Session(engine) as session:
-        note = _get_owned_annotation(session, note_id, current_user)
-        if note.type != "note":
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Note not found.",
-            )
-        now = datetime.now(timezone.utc)
-        note.deleted_at = now
-        note.updated_at = now
-        session.add(note)
-        session.commit()
+def soft_delete_note(note_id: uuid.UUID, current_user: CurrentUser = Depends(get_current_user), session: Session = Depends(get_session)) -> Response:
+    note = _get_owned_annotation(session, note_id, current_user)
+    if note.type != "note":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Note not found.",
+        )
+    now = datetime.now(timezone.utc)
+    note.deleted_at = now
+    note.updated_at = now
+    session.add(note)
+    commit_and_reassert_rls(session, current_user.clerk_user_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/notes/{note_id}/restore", response_model=AnnotationResponse)
-def restore_note(note_id: uuid.UUID, current_user: CurrentUser = Depends(get_current_user)) -> AnnotationResponse:
-    with Session(engine) as session:
-        note = _get_owned_annotation(session, note_id, current_user)
-        if note.type != "note":
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Note not found.",
-            )
-        note.deleted_at = None
-        note.updated_at = datetime.now(timezone.utc)
-        session.add(note)
-        session.commit()
-        session.refresh(note)
-        return _to_annotation_response(note)
+def restore_note(note_id: uuid.UUID, current_user: CurrentUser = Depends(get_current_user), session: Session = Depends(get_session)) -> AnnotationResponse:
+    note = _get_owned_annotation(session, note_id, current_user)
+    if note.type != "note":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Note not found.",
+        )
+    note.deleted_at = None
+    note.updated_at = datetime.now(timezone.utc)
+    session.add(note)
+    commit_and_reassert_rls(session, current_user.clerk_user_id)
+    session.refresh(note)
+    return _to_annotation_response(note)
 
 
 @router.delete(
@@ -1360,16 +1340,15 @@ def restore_note(note_id: uuid.UUID, current_user: CurrentUser = Depends(get_cur
     response_class=Response,
     response_model=None,
 )
-def force_delete_note(note_id: uuid.UUID, current_user: CurrentUser = Depends(get_current_user)) -> Response:
-    with Session(engine) as session:
-        note = _get_owned_annotation(session, note_id, current_user)
-        if note.type != "note":
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Note not found.",
-            )
-        session.delete(note)
-        session.commit()
+def force_delete_note(note_id: uuid.UUID, current_user: CurrentUser = Depends(get_current_user), session: Session = Depends(get_session)) -> Response:
+    note = _get_owned_annotation(session, note_id, current_user)
+    if note.type != "note":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Note not found.",
+        )
+    session.delete(note)
+    commit_and_reassert_rls(session, current_user.clerk_user_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -1377,17 +1356,16 @@ def force_delete_note(note_id: uuid.UUID, current_user: CurrentUser = Depends(ge
 def get_ai_history(
     document_id: uuid.UUID,
     current_user: CurrentUser = Depends(get_current_user),
-) -> AIHistoryListResponse:
-    with Session(engine) as session:
-        _get_owned_document(session, document_id, current_user)
-        history_items = session.exec(
-            select(AIHistory)
-            .where(AIHistory.document_id == document_id)
-            .order_by(AIHistory.updated_at.desc(), AIHistory.created_at.desc())
-        ).all()
-        return AIHistoryListResponse(
-            history=[_to_ai_history_response(history) for history in history_items]
-        )
+    session: Session = Depends(get_session)) -> AIHistoryListResponse:
+    _get_owned_document(session, document_id, current_user)
+    history_items = session.exec(
+        select(AIHistory)
+        .where(AIHistory.document_id == document_id)
+        .order_by(AIHistory.updated_at.desc(), AIHistory.created_at.desc())
+    ).all()
+    return AIHistoryListResponse(
+        history=[_to_ai_history_response(history) for history in history_items]
+    )
 
 
 @router.post("/documents/{document_id}/ai-history", response_model=AIHistoryResponse)
@@ -1395,25 +1373,24 @@ def create_ai_history(
     document_id: uuid.UUID,
     payload: CreateAIHistoryRequest,
     current_user: CurrentUser = Depends(get_current_user),
-) -> AIHistoryResponse:
-    with Session(engine) as session:
-        document = _get_owned_document(session, document_id, current_user)
-        now = datetime.now(timezone.utc)
-        history = AIHistory(
-            document_id=document.id,
-            source=payload.source,
-            source_text=payload.sourceText or "",
-            note_content=payload.noteContent,
-            question=payload.question or "",
-            mode=payload.mode,
-            answer=payload.answer,
-            created_at=now,
-            updated_at=now,
-        )
-        session.add(history)
-        session.commit()
-        session.refresh(history)
-        return _to_ai_history_response(history)
+    session: Session = Depends(get_session)) -> AIHistoryResponse:
+    document = _get_owned_document(session, document_id, current_user)
+    now = datetime.now(timezone.utc)
+    history = AIHistory(
+        document_id=document.id,
+        source=payload.source,
+        source_text=payload.sourceText or "",
+        note_content=payload.noteContent,
+        question=payload.question or "",
+        mode=payload.mode,
+        answer=payload.answer,
+        created_at=now,
+        updated_at=now,
+    )
+    session.add(history)
+    commit_and_reassert_rls(session, current_user.clerk_user_id)
+    session.refresh(history)
+    return _to_ai_history_response(history)
 
 
 @router.delete(
@@ -1425,11 +1402,10 @@ def create_ai_history(
 def delete_ai_history(
     history_id: uuid.UUID,
     current_user: CurrentUser = Depends(get_current_user),
-) -> Response:
-    with Session(engine) as session:
-        history = _get_owned_ai_history(session, history_id, current_user)
-        session.delete(history)
-        session.commit()
+    session: Session = Depends(get_session)) -> Response:
+    history = _get_owned_ai_history(session, history_id, current_user)
+    session.delete(history)
+    commit_and_reassert_rls(session, current_user.clerk_user_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -1442,15 +1418,14 @@ def delete_ai_history(
 def clear_document_ai_history(
     document_id: uuid.UUID,
     current_user: CurrentUser = Depends(get_current_user),
-) -> Response:
-    with Session(engine) as session:
-        _get_owned_document(session, document_id, current_user)
-        history_items = session.exec(
-            select(AIHistory).where(AIHistory.document_id == document_id)
-        ).all()
-        for history in history_items:
-            session.delete(history)
-        session.commit()
+    session: Session = Depends(get_session)) -> Response:
+    _get_owned_document(session, document_id, current_user)
+    history_items = session.exec(
+        select(AIHistory).where(AIHistory.document_id == document_id)
+    ).all()
+    for history in history_items:
+        session.delete(history)
+    commit_and_reassert_rls(session, current_user.clerk_user_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -1460,9 +1435,8 @@ def clear_document_ai_history(
     response_class=Response,
     response_model=None,
 )
-def delete_annotation(annotation_id: uuid.UUID, current_user: CurrentUser = Depends(get_current_user)) -> Response:
-    with Session(engine) as session:
-        annotation = _get_owned_annotation(session, annotation_id, current_user)
-        session.delete(annotation)
-        session.commit()
+def delete_annotation(annotation_id: uuid.UUID, current_user: CurrentUser = Depends(get_current_user), session: Session = Depends(get_session)) -> Response:
+    annotation = _get_owned_annotation(session, annotation_id, current_user)
+    session.delete(annotation)
+    commit_and_reassert_rls(session, current_user.clerk_user_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

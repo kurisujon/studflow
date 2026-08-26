@@ -50,6 +50,19 @@ jobs:
   backend:
     name: Backend CI
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_DB: studflow_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     defaults:
       run:
         working-directory: backend
@@ -70,14 +83,67 @@ jobs:
       - name: Install backend dependencies
         run: pip install -r requirements.txt
 
+      - name: Install pytest
+        run: pip install pytest
+
+      - name: Wait for Postgres
+        run: |
+          for i in {1..10}; do
+            pg_isready -h localhost -p 5432 -U postgres && break
+            sleep 2
+          done
+
+      - name: Create non-superuser app role
+        run: |
+          PGPASSWORD=testpass psql -h localhost -U postgres -d studflow_test -c \
+            "CREATE ROLE app_role LOGIN NOSUPERUSER NOBYPASSRLS PASSWORD 'app_pw';"
+          PGPASSWORD=testpass psql -h localhost -U postgres -d studflow_test -c \
+            "GRANT ALL ON SCHEMA public TO app_role;"
+          PGPASSWORD=testpass psql -h localhost -U postgres -d studflow_test -c \
+            "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO app_role;"
+
+      - name: Run Alembic migrations
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:testpass@localhost:5432/studflow_test
+        run: alembic upgrade head
+
+      - name: Verify RLS is enabled and forced
+        env:
+          PGPASSWORD: testpass
+        run: |
+          psql -h localhost -U postgres -d studflow_test -c "
+            SELECT relname, relrowsecurity, relforcerowsecurity
+            FROM pg_class
+            WHERE relname IN ('documents','document_chunks','ai_conversations','ai_messages','ai_message_citations','quiz_attempts');
+          "
+          # Fails the build if any table doesn't have both RLS flags set to true
+          MISSING=$(psql -h localhost -U postgres -d studflow_test -tAc "
+            SELECT count(*) FROM pg_class
+            WHERE relname IN ('documents','document_chunks','ai_conversations','ai_messages','ai_message_citations','quiz_attempts')
+            AND (relrowsecurity = false OR relforcerowsecurity = false);
+          ")
+          if [ "$MISSING" -ne "0" ]; then
+            echo "::error::$MISSING RLS-required table(s) do not have RLS enabled+forced after migration."
+            exit 1
+          fi
+
       - name: Compile backend modules
         run: python -m compileall .
 
       - name: Smoke test FastAPI app import
+        env:
+          DATABASE_URL: postgresql+psycopg://app_role:app_pw@localhost:5432/studflow_test
         run: python -c "from main import app; print(app.title)"
 
       - name: Run backend unit tests
+        env:
+          DATABASE_URL: postgresql+psycopg://app_role:app_pw@localhost:5432/studflow_test
         run: python -m unittest discover -s . -p 'test_*.py'
+
+      - name: Run pytest suite (RLS + prompt injection)
+        env:
+          DATABASE_URL: postgresql+psycopg://app_role:app_pw@localhost:5432/studflow_test
+        run: PYTHONPATH=. pytest eval/ -v
 
   build-images:
     name: Build production images

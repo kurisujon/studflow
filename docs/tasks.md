@@ -159,6 +159,10 @@ Goal: Harden the AI architecture to decouple generative orchestration from domai
 - [x] Audit generation functions for graceful retry exhaustion handling.
 - [x] Return defined deterministic fallback states instead of bubbling up raw SDK errors.
 
+### Step 6: Security & Isolation
+- [x] Mitigate prompt injection by delimiting untrusted document text in AI prompts.
+- [x] Enforce Row-Level Security (RLS) with Clerk user IDs across all tenant tables.
+
 ### Phase A Step 5: Verification & Gate
 - [x] Run backend test suite.
 - [x] Run frontend linter and production build (or explicitly justify skipping).

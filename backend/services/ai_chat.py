@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
+from core.database import commit_and_reassert_rls
 
 from core.config import settings
 from core.database import engine
@@ -80,8 +81,16 @@ class RetrievedChatChunk:
     index_generation: int
 
 
-def _open_session() -> Session:
-    return Session(engine)
+from sqlalchemy import text
+
+def _open_session(clerk_user_id: str) -> Session:
+    assert clerk_user_id, "clerk_user_id required to open a tenant-scoped session"
+    session = Session(engine)
+    session.execute(
+        text("SET LOCAL app.current_user_id = :uid"),
+        {"uid": clerk_user_id}
+    )
+    return session
 
 
 def _conversation_response(conversation: AIConversation) -> ConversationResponse:
@@ -162,7 +171,7 @@ def create_conversation(
     )
     try:
         session.add(conversation)
-        session.commit()
+        commit_and_reassert_rls(session, clerk_user_id)
         session.refresh(conversation)
     except Exception:
         session.rollback()
@@ -210,7 +219,7 @@ def update_conversation_title(
     conversation.updated_at = datetime.now(timezone.utc)
     try:
         session.add(conversation)
-        session.commit()
+        commit_and_reassert_rls(session, clerk_user_id)
         session.refresh(conversation)
     except Exception:
         session.rollback()
@@ -232,7 +241,7 @@ def delete_conversation(
     )
     try:
         session.delete(conversation)
-        session.commit()
+        commit_and_reassert_rls(session, clerk_user_id)
     except Exception:
         session.rollback()
         raise
@@ -375,7 +384,7 @@ def send_conversation_message(
     if retrieval_mode != "document":
         raise UnsupportedRetrievalModeError
 
-    with _open_session() as session:
+    with _open_session(clerk_user_id) as session:
         conversation = get_owned_conversation(
             session,
             conversation_id=conversation_id,
@@ -419,7 +428,7 @@ def send_conversation_message(
     )
     query_embedding = generate_query_embedding(retrieval_query)
 
-    with _open_session() as session:
+    with _open_session(clerk_user_id) as session:
         conversation = get_owned_conversation(
             session,
             conversation_id=conversation_id,
@@ -542,7 +551,7 @@ def send_conversation_message(
             )
         )
 
-    with _open_session() as session:
+    with _open_session(clerk_user_id) as session:
         # Match document-deletion lock order: document first, then conversation.
         document = _get_owned_document(
             session,
@@ -614,7 +623,7 @@ def send_conversation_message(
                 )
             conversation.updated_at = datetime.now(timezone.utc)
             session.add(conversation)
-            session.commit()
+            commit_and_reassert_rls(session, clerk_user_id)
         except IntegrityError as exc:
             session.rollback()
             raise ConcurrentConversationUpdateError from exc

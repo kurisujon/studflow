@@ -50,3 +50,8 @@ Conversation ownership is stored as the existing Clerk subject string. Phase 2 r
 
 ## AI Architecture Pipeline
 The system enforces strict domain boundaries over generative outputs. It uses a **model-assisted semantic citation evaluation** step to verify whether generated claims are supported by retrieved document chunks, avoiding any false "guarantees" of absolute truth. Unsupported claims are aggressively filtered before presentation.
+
+## Security
+### Row-Level Security (RLS)
+The database enforces Row-Level Security (RLS) on all user-scoped tables, keyed to the `clerk_user_id`. The application sets `app.current_user_id` as a local transaction variable via the `get_session` dependency.
+**CRITICAL DEPLOYMENT REQUIREMENT:** The database role used by the FastAPI application MUST NOT be a superuser and MUST NOT have the `BYPASSRLS` attribute. PostgreSQL silently bypasses all RLS policies for roles with these privileges, even if `FORCE ROW LEVEL SECURITY` is set.
