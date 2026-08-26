@@ -688,14 +688,14 @@ class AIChatSendTests(unittest.TestCase):
             patch("services.ai_chat.answer_conversation_question") as answer_conversation_question,
             patch("services.ai_chat.logger.warning") as warning,
         ):
-            from services.retrieval_quality import RetrievalQualityDecision, EvaluatedEvidenceSet
+            from schemas.domain import RetrievalEvidenceSet, RetrievalQuality, RetrievedEvidence
             
-            evaluate_retrieval_quality.return_value = EvaluatedEvidenceSet(
+            evaluate_retrieval_quality.return_value = RetrievalEvidenceSet(
                 evidence=[self.chunk],
-                quality=RetrievalQualityDecision(
-                    highest_score=0.1,
+                quality=RetrievalQuality(
+                    top_score=0.1, mean_top_k_score=0.1, evidence_count=1,
                     threshold_passed=False,
-                    reason="Too low"
+                    
                 )
             )
 
