@@ -1,0 +1,10 @@
+{
+  "run_id": "live_72b513d6",
+  "timestamp": "2026-08-19T16:09:45.523169Z",
+  "dataset_version": "c1-v1",
+  "corpus_version": "c1-v1",
+  "embedding_model": "gemini-embedding-2",
+  "retrieval_top_k": 5,
+  "retrieval_threshold": 0.5,
+  "total_cases_run": 24
+}

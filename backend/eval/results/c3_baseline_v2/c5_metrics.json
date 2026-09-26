@@ -1,0 +1,103 @@
+{
+  "overall": {
+    "strict_citation_accuracy": 0.9310344827586207,
+    "fully_cited_claim_rate": 0.9310344827586207,
+    "missing_citation_rate": 0.0,
+    "partial_citation_rate": 0.06896551724137931,
+    "incorrect_citation_rate": 0.0,
+    "citation_precision": 0.9310344827586207,
+    "applicable_claim_count": 29,
+    "evaluated_citation_count": 29,
+    "infrastructure_failure_count": 0
+  },
+  "per_category": {
+    "citation_sensitive": {
+      "strict_citation_accuracy": 1.0,
+      "fully_cited_claim_rate": 1.0,
+      "missing_citation_rate": 0.0,
+      "partial_citation_rate": 0.0,
+      "incorrect_citation_rate": 0.0,
+      "citation_precision": 1.0,
+      "applicable_claim_count": 4,
+      "evaluated_citation_count": 4,
+      "infrastructure_failure_count": 0
+    },
+    "semantic": {
+      "strict_citation_accuracy": 1.0,
+      "fully_cited_claim_rate": 1.0,
+      "missing_citation_rate": 0.0,
+      "partial_citation_rate": 0.0,
+      "incorrect_citation_rate": 0.0,
+      "citation_precision": 1.0,
+      "applicable_claim_count": 6,
+      "evaluated_citation_count": 6,
+      "infrastructure_failure_count": 0
+    },
+    "exact_term": {
+      "strict_citation_accuracy": 0.5,
+      "fully_cited_claim_rate": 0.5,
+      "missing_citation_rate": 0.0,
+      "partial_citation_rate": 0.5,
+      "incorrect_citation_rate": 0.0,
+      "citation_precision": 0.5,
+      "applicable_claim_count": 2,
+      "evaluated_citation_count": 2,
+      "infrastructure_failure_count": 0
+    },
+    "single_chunk": {
+      "strict_citation_accuracy": 1.0,
+      "fully_cited_claim_rate": 1.0,
+      "missing_citation_rate": 0.0,
+      "partial_citation_rate": 0.0,
+      "incorrect_citation_rate": 0.0,
+      "citation_precision": 1.0,
+      "applicable_claim_count": 3,
+      "evaluated_citation_count": 3,
+      "infrastructure_failure_count": 0
+    },
+    "multi_chunk": {
+      "strict_citation_accuracy": 1.0,
+      "fully_cited_claim_rate": 1.0,
+      "missing_citation_rate": 0.0,
+      "partial_citation_rate": 0.0,
+      "incorrect_citation_rate": 0.0,
+      "citation_precision": 1.0,
+      "applicable_claim_count": 9,
+      "evaluated_citation_count": 9,
+      "infrastructure_failure_count": 0
+    },
+    "ambiguous": {
+      "strict_citation_accuracy": 1.0,
+      "fully_cited_claim_rate": 1.0,
+      "missing_citation_rate": 0.0,
+      "partial_citation_rate": 0.0,
+      "incorrect_citation_rate": 0.0,
+      "citation_precision": 1.0,
+      "applicable_claim_count": 2,
+      "evaluated_citation_count": 2,
+      "infrastructure_failure_count": 0
+    },
+    "adversarial": {
+      "strict_citation_accuracy": 0.6666666666666666,
+      "fully_cited_claim_rate": 0.6666666666666666,
+      "missing_citation_rate": 0.0,
+      "partial_citation_rate": 0.3333333333333333,
+      "incorrect_citation_rate": 0.0,
+      "citation_precision": 0.6666666666666666,
+      "applicable_claim_count": 3,
+      "evaluated_citation_count": 3,
+      "infrastructure_failure_count": 0
+    },
+    "insufficient_evidence": {
+      "strict_citation_accuracy": 0.0,
+      "fully_cited_claim_rate": 0.0,
+      "missing_citation_rate": 0.0,
+      "partial_citation_rate": 0.0,
+      "incorrect_citation_rate": 0.0,
+      "citation_precision": 0.0,
+      "applicable_claim_count": 0,
+      "evaluated_citation_count": 0,
+      "infrastructure_failure_count": 0
+    }
+  }
+}

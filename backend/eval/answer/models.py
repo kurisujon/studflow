@@ -32,7 +32,9 @@ class RunConfig(BaseModel):
     generation_prompt_version: str
     citation_evaluator_version: str
     c3_evaluator_version: str
-    
+    # Optional so pre-v2 manifests (which never recorded a judge) still load.
+    judge_model: Optional[str] = None
+
 class RunManifest(BaseModel):
     run_id: str
     config: RunConfig

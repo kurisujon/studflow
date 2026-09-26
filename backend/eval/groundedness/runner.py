@@ -2,7 +2,7 @@ import json
 import sys
 from pathlib import Path
 from eval.answer.models import PipelineOutput, RunConfig, RunManifest, RunStatus
-from eval.answer.exceptions import ConfigMismatchError, InfrastructureError
+from eval.answer.exceptions import InfrastructureError, UncertifiedBaselineError
 from eval.groundedness.models import ClaimGroundednessResult, CaseGroundednessResult, GroundednessJudgment
 from eval.groundedness.evaluator import evaluate_claim_groundedness
 from eval.groundedness.metrics import calculate_groundedness_metrics
@@ -21,6 +21,10 @@ class C4Runner:
             raise FileNotFoundError("Manifest not found. C4 must run on a C3 directory.")
         with open(self.manifest_path, "r") as f:
             data = json.load(f)
+        if data.get("status") != RunStatus.CERTIFIED_C3_BASELINE.value:
+            raise UncertifiedBaselineError(
+                f"C4 requires a CERTIFIED_C3_BASELINE run; {self.run_dir.name} is {data.get('status')}."
+            )
         return RunConfig(**data["config"])
 
     def load_pipeline_outputs(self) -> dict[str, PipelineOutput]:
@@ -54,7 +58,8 @@ class C4Runner:
         completed_claims = self.load_completed_claims()
             
         case_results = []
-        
+        paused = False
+
         for case_id, po in pipeline_outputs.items():
             if po.infrastructure_failed:
                 continue
@@ -100,7 +105,17 @@ class C4Runner:
                 
                 self.append_claim_output(cr)
                 claim_results_for_case.append(cr)
-                
+
+                if cr.infrastructure_failed:
+                    # Fail fast: leave remaining claims pending for the next resume.
+                    print(f"Infrastructure failed during C4 for {case_id} {claim_id}: {cr.reason}")
+                    print("Run paused - resume after the provider quota resets.")
+                    paused = True
+                    break
+
+            if paused:
+                break
+
             # If all claims in case evaluated successfully, build Case result
             if all(not cr.infrastructure_failed for cr in claim_results_for_case):
                 grounded = sum(1 for c in claim_results_for_case if c.judgment == "GROUNDED")
@@ -123,8 +138,13 @@ class C4Runner:
                     category=category
                 ))
                 
+        if paused:
+            # Partial metrics are never persisted, so c4_metrics.json always
+            # reflects a complete pass.
+            return None
+
         metrics = calculate_groundedness_metrics(case_results)
-        
+
         with open(self.run_dir / "c4_metrics.json", "w") as f:
             f.write(json.dumps(metrics.model_dump(), indent=2))
             

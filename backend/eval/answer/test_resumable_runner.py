@@ -127,3 +127,28 @@ def test_failed_case_retried(temp_run_dir, run_config):
             outputs = runner.load_pipeline_outputs()
             assert not outputs["case_1"].infrastructure_failed
             assert len(outputs) == 1 # Overwritten in dict, file has 2 lines but dict takes latest
+
+def test_infrastructure_failure_pauses_run(temp_run_dir, run_config):
+    runner = C3Runner(temp_run_dir, run_config)
+    retrieval_cases = [
+        {"case_id": "case_1", "retrieved": [{"text": "chunk", "score": 0.9}]},
+        {"case_id": "case_2", "retrieved": [{"text": "chunk", "score": 0.9}]},
+    ]
+    golden = {
+        "case_1": {"id": "case_1", "expected_status": "ANSWERED", "category": "test"},
+        "case_2": {"id": "case_2", "expected_status": "ANSWERED", "category": "test"},
+    }
+
+    with patch.object(runner, 'execute_pipeline') as mock_pipeline:
+        mock_pipeline.return_value = PipelineOutput(
+            case_id="case_1", actual_status=ChatAnswerStatus.FAILED, answer_markdown="",
+            retrieved_eids=[], infrastructure_failed=True, error_message="quota exhausted"
+        )
+        runner.run(retrieval_cases, golden)
+
+        # case_2 is left pending rather than burning another failed attempt.
+        mock_pipeline.assert_called_once()
+
+    assert "case_2" not in runner.load_pipeline_outputs()
+    manifest_status = json.loads((Path(temp_run_dir) / "manifest.json").read_text())["status"]
+    assert manifest_status == RunStatus.INFRASTRUCTURE_BLOCKED.value

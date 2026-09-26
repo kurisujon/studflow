@@ -128,17 +128,18 @@ Current emphasis in `docs/tasks.md`:
 
 ## Current Priority Workstream
 
-### Phase B — Evidence Grounding & Verification
+### Phase D — Chunking Strategy & Hyperparameter Tuning
 
 Current product state:
 - Phase A (AI Architecture Cleanup) is completely finished.
-- Phase B (Evidence Grounding) is the **CURRENT PRIORITY**.
+- Phase B (Evidence-Grounded Output) is completely finished.
+- Phase C (Evaluation Foundation) is completely finished and certified baseline frozen (`c3_baseline_v2`).
+- Phase D (Chunking Strategy & Hyperparameter Tuning) is the **CURRENT PRIORITY**.
 
 Workstream constraints:
-- Implement claim-level evidence verification for AI chat answers.
-- Validate that Gemini's cited source indexes legitimately support the claim being made.
-- Implement the `ANSWERED / PARTIAL / INSUFFICIENT_EVIDENCE` decision mechanism.
-- Reject ungrounded claims at the domain boundary.
+- Measure candidate retrieval, answer, groundedness, and citation accuracy against frozen `c3_baseline_v2`.
+- Run candidates through the automated C6 regression gate (`backend/eval/run_c6.py`).
+- Implement semantic/markdown boundary chunking and evaluate trade-offs before considering any production threshold updates.
 
 ### Residual Study Workspace Validation
 
@@ -969,3 +970,59 @@ When a future agent completes a meaningful feature, they should update this file
 
 **What to do next:**
 - Complete Phase C4-C7: Groundedness evaluation, citation accuracy evaluation, regression runner, and CI integration.
+
+### Update: 2026-08-28 — Phase C Status and Evaluation Gate
+
+**What Changed:**
+- Verified that Phase A (AI Architecture Cleanup) and Phase B (Evidence-Grounded Output) are complete.
+- Verified that Phase C1 (golden dataset), C2 (retrieval evaluation), and C2.1 (threshold analysis) are complete.
+- Verified that C3 answer-evaluation infrastructure, C4 groundedness infrastructure, and C5 citation-accuracy infrastructure are implemented with resumable/checkpointed runners and repository tests.
+- Verified that the canonical `c3_certified_baseline` remains `INFRASTRUCTURE_BLOCKED` at 7/24 checkpointed cases; it is not certified. The historical `c3_run_01` 22/24 run remains partial/contaminated and is not the canonical baseline.
+
+**Contracts Changed:**
+- None. This is a status and evaluation-gate synchronization only.
+
+**Docs Stale:**
+- No.
+
+**Validation Evidence:**
+- Repository and evaluation-artifact inspection: PASS.
+- Local C3/C4/C5 pytest command: NOT RUN because `pytest` is not installed in this worktree; no Gemini quota was consumed.
+- Live Gemini C3 resumption, C4/C5 live runs, C6 regression runner, and C7 CI integration: NOT RUN.
+
+**What to do next:**
+- Wait for the Gemini quota reset, resume only `c3_certified_baseline`, and reach 24/24 with zero unresolved infrastructure failures.
+- Run C4 and C5 sequentially against the frozen C3 artifacts, then implement C6 regression running and C7 CI integration.
+- Do not start Phase D or tune retrieval/chunking/thresholds until Phase C is formally closed.
+
+### Update: 2026-09-26 — Phase C Closure and Certified Baseline Freeze
+
+**What Changed:**
+- Replaced retired `gemini-2.5-flash-lite` judge model with `gemini-3.5-flash-lite` in `backend/eval/judge.py` and evaluation runners.
+- Isolated a revoked API key (403 PERMISSION_DENIED) in `backend/.env` to allow seamless rotation between active valid keys.
+- Executed and certified canonical C3 answer evaluation baseline (`c3_baseline_v2`) across all 24 golden evaluation cases with zero unresolved infrastructure failures (`manifest.json` status: `CERTIFIED_C3_BASELINE`).
+- Executed C4 groundedness evaluation across all 29 claims in 16 applicable cases; achieved 93.1% strict groundedness rate and 0.0% contradiction rate (`c4_metrics.json`).
+- Executed C5 citation accuracy evaluation across all 29 claims; achieved 93.1% strict citation accuracy, 93.1% citation precision, and 0.0% incorrect/missing citation rate (`c5_metrics.json`).
+- Verified C6 regression suite and runner (`backend/eval/run_c6.py` and `eval/regression/test_regression.py`), passing all 13 unit tests and verifying zero integrity delta against `c3_baseline_v2`.
+- Integrated C6 baseline integrity gate into GitHub Actions CI pipeline (`.github/workflows/pipeline.yml`) under job step `Verify Phase C evaluation baseline integrity (C6/C7)`.
+- Updated `.gitignore` to track canonical baseline directories (`c3_baseline_v2` and `live_72b513d6`) while keeping ad-hoc evaluation candidate runs ignored.
+- Formally closed Phase C across `docs/tasks.md` and `docs/roadmap.md`.
+
+**Contracts Changed:**
+- CI Pipeline: Added step to verify Phase C baseline integrity (`python eval/run_c6.py --baseline eval/results/c3_baseline_v2 --integrity-only`).
+- Judge Model Contract: Evaluator judge model pinned to `gemini-3.5-flash-lite`.
+
+**Docs Stale:**
+- No.
+
+**Validation Evidence:**
+- `backend/eval/run_c3.py`: PASS (24/24 completed, 0 infrastructure failures, `CERTIFIED_C3_BASELINE`).
+- `backend/eval/run_c4.py`: PASS (29/29 claims evaluated, 0 infrastructure failures).
+- `backend/eval/run_c5.py`: PASS (29/29 citations evaluated, 0 infrastructure failures).
+- `backend/eval/run_c6.py --baseline eval/results/c3_baseline_v2 --integrity-only`: PASS (Exit code 0).
+- `PYTHONPATH=. pytest --import-mode=importlib eval/regression/test_regression.py`: PASS (13/13 passed).
+- `PYTHONPATH=. pytest --import-mode=importlib eval/test_judge_contract.py`: PASS (10/10 passed).
+- `PYTHONPATH=. pytest --import-mode=importlib eval/answer/test_resumable_runner.py eval/groundedness/test_c4_runner.py eval/citation/test_c5_runner.py`: PASS (12/12 passed).
+
+**What to do next:**
+- Phase D (Chunking Strategy & Hyperparameter Tuning): Begin systematic chunking experiments (e.g. semantic/markdown boundary chunking vs fixed-size chunking) and threshold tuning (evaluating candidate runs against frozen `c3_baseline_v2` using the C6 regression gate).

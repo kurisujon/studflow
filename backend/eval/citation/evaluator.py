@@ -1,7 +1,6 @@
 from pydantic import BaseModel, Field
 from eval.citation.models import CitationEvaluationResult, CitationCorrectnessJudgment
-from eval.answer.exceptions import InfrastructureError
-from services.llm_provider import _generate_structured, AIServiceError
+from eval.judge import judge_structured
 
 class RawCitationCorrectness(BaseModel):
     judgment: CitationCorrectnessJudgment = Field(
@@ -26,28 +25,12 @@ Evaluate strictly based on the cited evidence provided.
 - PARTIAL: the citation supports only part of the claim.
 - INCORRECT: the evidence exists but does not support the claim.
 """
-    try:
-        raw_result = _generate_structured(
-            prompt=prompt,
-            response_model=RawCitationCorrectness,
-            model_name="gemini-1.5-flash"
-        )
-        return CitationEvaluationResult(
-            case_id=case_id,
-            claim_id=claim_id,
-            evidence_id=evidence_id,
-            judgment=raw_result.judgment,
-            reason=raw_result.reasoning,
-            infrastructure_failed=False
-        )
-    except AIServiceError as e:
-        raise InfrastructureError(str(e))
-    except Exception as e:
-        return CitationEvaluationResult(
-            case_id=case_id,
-            claim_id=claim_id,
-            evidence_id=evidence_id,
-            judgment=CitationCorrectnessJudgment.INCORRECT,
-            reason=f"Evaluation error: {str(e)}",
-            infrastructure_failed=True
-        )
+    raw_result = judge_structured(prompt, RawCitationCorrectness)
+    return CitationEvaluationResult(
+        case_id=case_id,
+        claim_id=claim_id,
+        evidence_id=evidence_id,
+        judgment=raw_result.judgment,
+        reason=raw_result.reasoning,
+        infrastructure_failed=False
+    )

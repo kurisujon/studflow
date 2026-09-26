@@ -1,195 +1,75 @@
-# StudFlow Codex CLI Orchestration
+# StudFlow Supervised Antigravity + Codex Workflow
 
-## Overview
+## Purpose and Authority
 
-StudFlow Codex CLI Orchestration v1 provides a small project-local workflow for investigating, planning, implementing, testing, reviewing, and verifying development tasks. It uses native Codex multi-agent support, custom agents, and repository skills. It does not add an external orchestrator or change application behavior.
+This is the required engineering workflow for StudFlow work performed in Orca. It governs agent collaboration only; it does not change application behavior, architecture, runtime configuration, commits, or deployment.
 
-The main Codex session is the orchestrator. `$project-orchestrator` is the authoritative reusable workflow for complex work.
+| Role | Authority and responsibility |
+| --- | --- |
+| Antigravity | Coordinator, planner, architect, task manager, reviewer, and QA authority. |
+| Codex GPT-5.6 (medium) | Primary implementer, coder, and debugger. |
+| Human | Approves the plan before implementation; performs the final diff review and merge after QA passes. |
+| CI and deterministic tools | Provide repeatable validation evidence; they do not replace Antigravity review or human approval. |
 
-## Architecture
+Antigravity owns task state, specifications, review verdicts, and the decision to return work for correction. Codex implements only the approved specification and does not self-approve a task or merge changes.
 
-```text
-User
- ↓
-Main Codex session
- ↓
-$project-orchestrator
- ↓
-Task classification and context gathering
- ↓
-Read-only explorers
- ↓
-Architect
- ↓
-Implementer
- ↓
-Tester
- ↓
-Reviewer
- ↓
-$verification-before-completion
- ↓
-Completion
-```
-
-Read-only requests stop after investigation, synthesis, and verification. They do not invoke the implementer.
-
-## Agent Roles
-
-### Explorer
-
-Locate relevant files, trace frontend/backend/data/configuration paths, distinguish symptoms from root causes, and return exact evidence. Explorer is read-only.
-
-### Architect
-
-Turn verified findings into an ordered implementation plan with affected files, dependencies, acceptance criteria, verification commands, risks, and rollback considerations. Architect is read-only and never implements.
-
-### Implementer
-
-Execute the accepted plan through focused changes that follow existing architecture. One implementer may write to the primary worktree at a time.
-
-### Tester
-
-Independently run applicable validation and report command, exit status, and relevant failure output. Tester may create build/test artifacts but must not edit application source.
-
-### Reviewer
-
-Independently review the final diff, architecture, security, accessibility where applicable, regression risk, tests, and acceptance criteria. Reviewer is read-only and categorizes findings as Critical, High, Medium, or Low.
-
-## Permissions
-
-| Agent | Source writes | Test/build artifacts | Parallel safe |
-| --- | ---: | ---: | ---: |
-| Explorer | No | No | Yes |
-| Architect | No | No | Yes |
-| Implementer | Yes | Yes | Only isolated |
-| Tester | No source changes | Yes | Usually |
-| Reviewer | No | No | Yes |
-
-Sandbox configuration lives in `.codex/agents/*.toml`. Runtime permission choices made by the parent session can still constrain child agents.
-
-## Task Lifecycle
-
-1. **Classify:** Identify task type, scope, risk, affected systems, useful parallel investigation, and whether worktree isolation is required.
-2. **Gather context:** Read applicable `AGENTS.md`, required project documents, Git state, relevant implementation, tests, package scripts, and CI.
-3. **Investigate:** Run independent read-only explorer tasks in parallel when scopes do not depend on each other.
-4. **Plan:** Have the architect synthesize verified findings into a coherent plan and acceptance criteria.
-5. **Implement:** Use one implementer in the primary worktree unless isolated worktrees and non-overlapping ownership are established.
-6. **Test:** Have the tester run repository-supported validation independently.
-7. **Review:** Have the reviewer inspect the final diff and verification evidence.
-8. **Verify:** Apply `$verification-before-completion`; report PASS, FAIL, NOT RUN, or NOT APPLICABLE for each required check.
-9. **Complete:** Report objective/root cause, changes, files, validation, review outcome, remaining risks, and next action.
-
-Small, isolated, low-risk changes may bypass the full agent sequence, but cannot bypass applicable preflight and verification.
-
-## Failure Loops
-
-### Test failure
+## Required Lifecycle
 
 ```text
-tester failure report
-→ orchestrator
-→ $systematic-debugging
-→ implementer
-→ tester rerun
+Antigravity context and investigation
+        ↓
+Written specification and task plan
+        ↓
+Human plan approval
+        ↓
+Codex implementation + self-test
+        ↓
+Fresh Antigravity review against approved specification
+        ↓
+Human final diff review and merge approval
 ```
 
-Do not proceed to final review while required validation fails.
+1. **Orient and investigate.** Antigravity inspects the current Git state, applicable `AGENTS.md` files, required project documents, affected code, contracts, tests, and CI. It preserves pre-existing user changes and explicitly records scope and non-goals.
+2. **Plan.** Antigravity produces a written, testable specification: objective, affected files and systems, ordered tasks, acceptance criteria, repository-supported self-test commands, risks, rollback notes, and any parallel ownership boundaries.
+3. **Human approval gate.** Antigravity obtains human approval of the plan before any implementation task begins. Material scope, contract, or architecture changes require a revised plan and fresh human approval.
+4. **Implement and self-test.** Codex GPT-5.6 with medium reasoning effort implements only its assigned specification. Before returning, it self-tests using the planned, repository-supported checks and reports changed files, commands, exit statuses, results, deviations, and blockers.
+5. **Review and QA.** Antigravity opens a fresh review context. It compares the implementation, final diff, and self-test evidence directly against the approved specification and checks architecture, contracts, security, regressions, accessibility where applicable, data integrity, and test adequacy.
+6. **Human final gate.** After Antigravity records a passing review, the human reviews the final diff and decides whether to merge. No agent commits, pushes, or merges application changes unless separately authorized by the human.
 
-### Review failure
+## Parallel Implementation Policy
+
+Read-only investigation may run in parallel when independent. Implementation may run in parallel only when Antigravity records all of the following before dispatch:
+
+- each task's explicitly non-overlapping file scope;
+- a named Codex owner for each scope;
+- no shared API, schema, migration, generated artifact, or configuration contract is being concurrently changed; and
+- the integration and verification order.
+
+If any scope overlaps or a shared contract changes, Antigravity serializes the work or revises the approved plan. Each Codex task self-tests its own scope; integration receives the additional checks identified in the approved plan.
+
+## Review Failure Loop
+
+Review is independent of the implementation context. A failing review routes only to the owning Codex implementation task with the finding, affected acceptance criterion, and required verification evidence.
 
 ```text
-reviewer blocking finding
-→ orchestrator
-→ implementer
-→ tester
-→ reviewer
+Fresh Antigravity review fails
+        ↓
+Owning Codex task corrects and self-tests
+        ↓
+Fresh Antigravity review repeats
 ```
 
-Critical and High findings block completion. Medium findings require explicit disposition. Low findings may be documented for follow-up.
+Antigravity tracks attempts per implementation task. It may return a task for correction at most three times; if it still does not pass, Antigravity stops implementation and escalates to the human with the evidence, remaining risks, and a recommended scope or plan decision. Every corrective change requires fresh self-test evidence and another fresh Antigravity review.
 
-### Architecture concern
+## StudFlow Safety Gates
 
-Return the concern and evidence to the architect. Revise the plan before implementation continues. Do not solve an architecture disagreement through unplanned code changes.
+- The current evaluation constraints in `docs/ORCA_HANDOFF.md`, `docs/tasks.md`, and `docs/roadmap.md` remain binding.
+- Do not start Phase D until Phase C's baseline closure and formal gate are complete.
+- Do not consume Gemini quota, alter Phase B behavior, alter the production retrieval threshold, or regenerate frozen evaluation outputs unless the approved task explicitly permits it and existing evaluation rules allow it.
+- Workflow setup is documentation and agent-governance work only. It must not change application behavior and must not commit or push application changes.
 
-### Implementation blocker
+## Required Handoff Record
 
-The implementer reports the exact blocker, affected step, evidence, and authority or input needed. The orchestrator may narrow, re-plan, or request user direction; it must not silently broaden scope.
+For every implementation dispatch, Antigravity supplies: the approved specification reference, task objective, explicit file scope, acceptance criteria, self-test commands, known pre-existing changes, and attempt number. Codex returns: changed files, self-test evidence, deviations, blockers, and unresolved risks.
 
-## Parallelism
-
-Parallel reading is encouraged for independent frontend, backend, database, test/CI, and configuration investigations. The orchestrator waits for all required findings before planning.
-
-Parallel writing is prohibited in the same working tree. It is allowed only when:
-
-- tasks are independent
-- file ownership does not overlap
-- each writer has an isolated Git worktree
-- integration and verification order is defined first
-
-## Git Worktrees
-
-V1 documents worktree isolation but does not create or clean up worktrees automatically. A future isolated implementation may begin with a user-approved command such as:
-
-```bash
-git worktree add ../studflow-feature-x -b feature/x
-```
-
-Before creating one, inspect `git worktree list`, branch state, uncommitted changes, target path, and ownership. Never move existing user changes into a worktree without explicit direction.
-
-## Invocation
-
-Explicit skill invocation:
-
-```text
-$project-orchestrator fix the inconsistent landing-page spacing.
-```
-
-Natural-language invocation:
-
-```text
-Use the project orchestrator to investigate this backend/frontend bug.
-```
-
-Read-only investigation:
-
-```text
-$project-orchestrator audit the landing-page container hierarchy and report which files control horizontal width and section spacing. Do not modify anything.
-```
-
-## Verification
-
-Local verification should match CI whenever applicable.
-
-Current CI baselines:
-
-| Area | Working directory | Command |
-| --- | --- | --- |
-| Frontend lint | `frontend/` | `npm run lint` |
-| Frontend production build | `frontend/` | `npm run build` |
-| Backend compilation | `backend/` | `python -m compileall .` |
-| FastAPI import smoke test | `backend/` | `python -c "from main import app; print(app.title)"` |
-
-Additional checks are selected only after inspecting repository support. `frontend/package.json` currently has no `test` or `typecheck` script. `backend/test_phase4_rag.py` uses `unittest`; run targeted backend tests only when their dependencies and required environment are available.
-
-Before completion, confirm:
-
-- required commands ran and exited successfully
-- acceptance criteria were checked
-- blocking review findings were resolved
-- the final diff contains only intended files
-- the working-tree state, including pre-existing changes, is understood
-
-`NOT RUN` is never equivalent to `PASS`.
-
-## Historical `.agents` Records
-
-Tracked UUID-based briefings, handoffs, progress files, and one-off orchestrator records predate v1. Some are already deleted in the working tree. They remain recoverable from Git history and are not restored or deleted by this setup.
-
-The only active reusable meaning of `.agents/` going forward is `.agents/skills/`.
-
-## MCP
-
-MCP is not required for orchestration v1.
-
-Add MCP only when an external service integration has a demonstrated need. V1 does not configure `.mcp.json`, MCP servers, Codex MCP-server automation, or an Agents SDK.
+For every review, Antigravity records: the approved specification reference, reviewed diff, self-test evidence, verdict, findings by severity, acceptance-criteria status, and next owner. A passing review is necessary but does not replace the human final diff review and merge decision.

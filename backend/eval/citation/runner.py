@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
-from eval.answer.models import PipelineOutput, RunConfig, RunManifest
-from eval.answer.exceptions import InfrastructureError
+from eval.answer.models import PipelineOutput, RunConfig, RunManifest, RunStatus
+from eval.answer.exceptions import InfrastructureError, UncertifiedBaselineError
 from eval.citation.models import CitationEvaluationResult, ClaimCitationResult, CaseCitationResult, CitationCorrectnessJudgment
 from eval.citation.evaluator import evaluate_citation_correctness
 from eval.citation.metrics import calculate_citation_metrics
@@ -20,6 +20,10 @@ class C5Runner:
             raise FileNotFoundError("Manifest not found. C5 must run on a C3 directory.")
         with open(self.manifest_path, "r") as f:
             data = json.load(f)
+        if data.get("status") != RunStatus.CERTIFIED_C3_BASELINE.value:
+            raise UncertifiedBaselineError(
+                f"C5 requires a CERTIFIED_C3_BASELINE run; {self.run_dir.name} is {data.get('status')}."
+            )
         return RunConfig(**data["config"])
 
     def load_pipeline_outputs(self) -> dict[str, PipelineOutput]:
@@ -56,7 +60,8 @@ class C5Runner:
         completed_cits = self.load_completed_citations()
             
         case_results = []
-        
+        paused = False
+
         for case_id, po in pipeline_outputs.items():
             if po.infrastructure_failed:
                 continue
@@ -138,9 +143,17 @@ class C5Runner:
                         
                     self.append_citation_output(cr)
                     cit_results.append(cr)
-                    
+
                     if cr.infrastructure_failed:
-                        claim_infra_failed = True
+                        # Provider exhaustion: fail fast and leave the remaining
+                        # pairs pending. Artifact errors above do not pause.
+                        print(f"Infrastructure failed during C5 for {case_id} {claim.claim_id} {eid}: {cr.reason}")
+                        print("Run paused - resume after the provider quota resets.")
+                        paused = True
+                        break
+
+                if paused:
+                    break
 
                 if claim_infra_failed:
                     cr = ClaimCitationResult(
@@ -177,12 +190,20 @@ class C5Runner:
                 )
                 claim_results.append(cr)
                 
+            if paused:
+                break
+
             case_results.append(CaseCitationResult(
                 case_id=case_id,
                 claim_results=claim_results,
                 category=category
             ))
-            
+
+        if paused:
+            # Partial metrics are never persisted, so c5_metrics.json always
+            # reflects a complete pass.
+            return None
+
         metrics = calculate_citation_metrics(case_results)
         with open(self.run_dir / "c5_metrics.json", "w") as f:
             f.write(json.dumps(metrics.model_dump(), indent=2))

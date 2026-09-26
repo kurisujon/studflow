@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from eval.answer.models import RunConfig, RunStatus, PipelineOutput, ChatAnswerStatus, FrozenSurvivingClaim
+from eval.answer.exceptions import InfrastructureError, UncertifiedBaselineError
 from eval.citation.models import CitationEvaluationResult, CitationCorrectnessJudgment
 from eval.citation.runner import C5Runner
 
@@ -18,7 +19,7 @@ def temp_run_dir(tmp_path):
         generation_prompt_version="1", citation_evaluator_version="1", c3_evaluator_version="1"
     )
     with open(dir_path / "manifest.json", "w") as f:
-        json.dump({"run_id": "test", "config": config.model_dump(), "status": RunStatus.PARTIAL.value}, f)
+        json.dump({"run_id": "test", "config": config.model_dump(), "status": RunStatus.CERTIFIED_C3_BASELINE.value}, f)
         
     return str(dir_path)
 
@@ -101,3 +102,45 @@ def test_c5_comprehensive(temp_run_dir):
             
         assert metrics.overall.missing_citation_rate == 1 / 7  # 1 missing (c4) out of 7 non-failed claims
         assert metrics.overall.infrastructure_failure_count == 1 # c7 failed
+
+def test_c5_infrastructure_failure_pauses_without_metrics(temp_run_dir):
+    po = PipelineOutput(
+        case_id="case_claims", actual_status=ChatAnswerStatus.ANSWERED,
+        answer_markdown="ans", retrieved_eids=["e_01", "e_02"],
+        evidence_map={"e_01": "chunk1", "e_02": "chunk2"}, infrastructure_failed=False,
+        surviving_claims=[
+            FrozenSurvivingClaim(claim_id="c1", claim_text="t1", cited_evidence_ids=["e_01", "e_02"]),
+            FrozenSurvivingClaim(claim_id="c2", claim_text="t2", cited_evidence_ids=["e_01"]),
+        ]
+    )
+    with open(Path(temp_run_dir) / "pipeline_outputs.jsonl", "w") as f:
+        f.write(json.dumps(po.model_dump()) + "\n")
+
+    runner = C5Runner(temp_run_dir)
+
+    with patch("eval.citation.runner.evaluate_citation_correctness") as mock_eval:
+        mock_eval.side_effect = InfrastructureError("quota exhausted")
+
+        metrics = runner.run({"case_claims": {"category": "test"}})
+
+        assert metrics is None
+        mock_eval.assert_called_once()
+
+    assert not (Path(temp_run_dir) / "c5_metrics.json").exists()
+    saved = runner.load_completed_citations()["case_claims"]
+    assert list(saved) == ["c1"] and list(saved["c1"]) == ["e_01"]
+    assert saved["c1"]["e_01"].infrastructure_failed
+
+def test_c5_refuses_uncertified_baseline(tmp_path):
+    dir_path = tmp_path / "partial_run"
+    dir_path.mkdir()
+    config = RunConfig(
+        dataset_version="v1", corpus_version="v1", retrieval_run_id="test",
+        retrieval_top_k=5, retrieval_threshold=0.6, generation_model="gemini",
+        generation_prompt_version="1", citation_evaluator_version="1", c3_evaluator_version="1"
+    )
+    with open(dir_path / "manifest.json", "w") as f:
+        json.dump({"run_id": "partial", "config": config.model_dump(), "status": RunStatus.PARTIAL.value}, f)
+
+    with pytest.raises(UncertifiedBaselineError):
+        C5Runner(str(dir_path))

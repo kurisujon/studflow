@@ -14,7 +14,7 @@ from services.ai_chat import _render_grounded_answer, INSUFFICIENT_EVIDENCE_ANSW
 
 from eval.answer.models import (
     ExpectedFact, AnswerEvaluationResult, ExpectedStatus, ChatAnswerStatus as EvalChatAnswerStatus,
-    RunConfig, RunManifest, RunStatus, PipelineOutput
+    RunConfig, RunManifest, RunStatus, PipelineOutput, FrozenSurvivingClaim
 )
 from eval.answer.exceptions import InfrastructureError, ConfigMismatchError
 from eval.answer.exact_matcher import evaluate_exact_fact
@@ -135,8 +135,9 @@ class C3Runner:
                 FrozenSurvivingClaim(
                     claim_id=f"claim_{i:02d}", 
                     claim_text=c.claim_text,
-                    cited_evidence_ids=c.cited_evidence_ids
-                ) 
+                    # Post-B6 claims carry only SUPPORTED citations.
+                    cited_evidence_ids=[cit.evidence_id for cit in c.citations]
+                )
                 for i, c in enumerate(generated.claims, start=1)
             ]
             
@@ -296,17 +297,17 @@ class C3Runner:
                 pipeline_outputs[case_id] = p_out
                 
             p_out = pipeline_outputs[case_id]
-            if not p_out.infrastructure_failed:
-                c3_out = self.execute_c3(golden, p_out)
-                self.append_c3_output(c3_out)
-                c3_outputs[case_id] = c3_out
-                if c3_out.infrastructure_failed:
-                    print(f"Infrastructure failed during C3 for {case_id}")
-            else:
-                c3_out = self.execute_c3(golden, p_out)
-                self.append_c3_output(c3_out)
-                c3_outputs[case_id] = c3_out
-                print(f"Infrastructure failed during Pipeline for {case_id}")
+            c3_out = self.execute_c3(golden, p_out)
+            self.append_c3_output(c3_out)
+            c3_outputs[case_id] = c3_out
+
+            if p_out.infrastructure_failed or c3_out.infrastructure_failed:
+                stage = "Pipeline" if p_out.infrastructure_failed else "C3"
+                print(f"Infrastructure failed during {stage} for {case_id}: {p_out.error_message or 'judge failure'}")
+                # Fail fast: once the provider is exhausted, every remaining case
+                # would fail too. Leave them pending for the next resume.
+                print("Run paused - resume after the provider quota resets.")
+                break
 
         final_c3_outputs = self.load_c3_outputs()
         results_list = list(final_c3_outputs.values())

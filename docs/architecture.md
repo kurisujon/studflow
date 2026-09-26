@@ -55,3 +55,6 @@ The system enforces strict domain boundaries over generative outputs. It uses a 
 ### Row-Level Security (RLS)
 The database enforces Row-Level Security (RLS) on all user-scoped tables, keyed to the `clerk_user_id`. The application sets `app.current_user_id` as a local transaction variable via the `get_session` dependency.
 **CRITICAL DEPLOYMENT REQUIREMENT:** The database role used by the FastAPI application MUST NOT be a superuser and MUST NOT have the `BYPASSRLS` attribute. PostgreSQL silently bypasses all RLS policies for roles with these privileges, even if `FORCE ROW LEVEL SECURITY` is set.
+
+### Prompt Injection Mitigation
+All untrusted document inputs and user-provided text passed to the AI models are wrapped in randomized XML-like boundary tags (e.g., `<untrusted_document_content_TOKEN>`). The backend validates the inputs against a regex pattern to ensure users cannot maliciously inject these boundary tags to spoof system directives.

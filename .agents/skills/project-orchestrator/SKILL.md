@@ -5,7 +5,7 @@ description: Coordinate complex StudFlow investigation, bug fixes, features, ref
 
 # Project Orchestrator
 
-Use the main Codex session as the orchestrator. Preserve user authority, repository instructions, existing architecture, and the current working tree. Use native custom agents named `explorer`, `architect`, `implementer`, `tester`, and `reviewer`.
+In the supervised StudFlow workflow, Antigravity is the coordinator, planner, architect, task manager, reviewer, and QA authority. Codex GPT-5.6 at medium reasoning effort is the primary implementer, coder, and debugger. Preserve human authority, repository instructions, existing architecture, and the current working tree; follow `docs/codex-orchestration.md` when the task is supervised.
 
 ## Stage 1: Classify
 
@@ -90,11 +90,11 @@ Require:
 - risks, compatibility constraints, and rollback considerations
 - worktree and file-ownership requirements, if applicable
 
-Reject plans that introduce unnecessary dependencies, parallel architectures, broad rewrites, or unverified files. Do not implement until the plan is coherent.
+Reject plans that introduce unnecessary dependencies, parallel architectures, broad rewrites, or unverified files. Do not implement until the plan is coherent and the human has approved it.
 
 ## Stage 5: Implement
 
-Assign the accepted plan to `implementer`.
+Assign the human-approved plan to Codex `implementer`.
 
 Default policy:
 
@@ -103,7 +103,7 @@ one write agent
 one primary worktree
 ```
 
-Allow parallel implementation only when all conditions hold:
+Allow parallel implementation only when Antigravity has explicitly recorded that all conditions hold:
 
 - tasks are independent
 - files do not overlap
@@ -113,7 +113,7 @@ Allow parallel implementation only when all conditions hold:
 
 Never assign concurrent writes to the same file or shared contract. V1 does not automatically create worktrees; obtain user authority before creating or cleaning them.
 
-Require the implementer to report changed files, plan deviations, and blockers. Do not let the implementer self-approve completion.
+Require the implementer to self-test each task using the planned repository-supported commands and report changed files, commands, exit statuses, results, plan deviations, and blockers. Do not let the implementer self-approve completion.
 
 ## Stage 6: Test
 
@@ -146,9 +146,9 @@ If required validation fails:
 ```text
 tester
 → failure report
-→ main orchestrator
+→ Antigravity
 → $systematic-debugging
-→ implementer when a code change is required
+→ owning Codex implementer when a code change is required
 → tester rerun
 ```
 
@@ -158,7 +158,7 @@ Every corrective code change requires fresh affected validation.
 
 ## Stage 8: Request and Perform Review
 
-Use `$requesting-code-review` to package:
+Open a fresh Antigravity review context and package:
 
 - task objective
 - accepted plan
@@ -168,7 +168,7 @@ Use `$requesting-code-review` to package:
 - tests already run
 - known concerns
 
-Send that context to `reviewer`. Require review of:
+Compare that context directly against the human-approved specification. Require review of:
 
 - functional correctness
 - regressions
@@ -185,17 +185,16 @@ Require findings to be categorized as Critical, High, Medium, or Low with exact 
 
 Critical and High findings block completion. Medium findings require explicit disposition.
 
-When a blocking finding exists:
+When a blocking finding exists, route it to the owning Codex implementation task. Antigravity may permit at most three correction attempts for that task; after the third failed attempt, stop and escalate the evidence and required decision to the human.
 
 ```text
-reviewer
-→ main orchestrator
-→ implementer
-→ tester
-→ reviewer
+fresh Antigravity reviewer
+→ owning Codex implementer
+→ self-test
+→ fresh Antigravity reviewer
 ```
 
-Never bypass re-testing after a review-driven code change. Repeat review until blocking findings are resolved or the user explicitly changes scope.
+Never bypass re-testing after a review-driven code change. Repeat fresh Antigravity review until blocking findings are resolved, the three-attempt limit is reached, or the user explicitly changes scope.
 
 ## Stage 10: Verify Before Completion
 

@@ -1,8 +1,6 @@
-import json
 from pydantic import BaseModel, Field
 from eval.answer.models import ExpectedFact, FactEvaluationResult, SemanticFactJudgment
-from eval.answer.exceptions import InfrastructureError
-from services.llm_provider import _generate_structured, AIServiceError
+from eval.judge import judge_structured
 
 class RawSemanticFactEvaluation(BaseModel):
     judgment: SemanticFactJudgment = Field(
@@ -23,31 +21,15 @@ Expected Fact:
 Final Answer:
 "{answer_markdown}"
 """
-    try:
-        raw_result = _generate_structured(
-            prompt=prompt,
-            response_model=RawSemanticFactEvaluation,
-            model_name="gemini-1.5-flash"
-        )
-        passed = (raw_result.judgment == SemanticFactJudgment.PRESENT)
-        return FactEvaluationResult(
-            fact_id=expected_fact.id,
-            match_type="semantic",
-            passed=passed,
-            score=1.0 if passed else 0.0,
-            reason=raw_result.reasoning,
-            judgment=raw_result.judgment
-        )
-    except AIServiceError as e:
-        # Re-raise as infrastructure error so runner can pause/skip it
-        raise InfrastructureError(str(e))
-    except Exception as e:
-        print(f"Semantic evaluator exception: {e}")
-        return FactEvaluationResult(
-            fact_id=expected_fact.id,
-            match_type="semantic",
-            passed=False,
-            score=0.0,
-            reason=f"Evaluation error: {str(e)}",
-            judgment=SemanticFactJudgment.ABSENT
-        )
+    # Judge failures raise InfrastructureError so the case is retried rather
+    # than silently scored as ABSENT.
+    raw_result = judge_structured(prompt, RawSemanticFactEvaluation)
+    passed = (raw_result.judgment == SemanticFactJudgment.PRESENT)
+    return FactEvaluationResult(
+        fact_id=expected_fact.id,
+        match_type="semantic",
+        passed=passed,
+        score=1.0 if passed else 0.0,
+        reason=raw_result.reasoning,
+        judgment=raw_result.judgment
+    )

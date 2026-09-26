@@ -1,9 +1,9 @@
 # StudFlow Orca Engineering Handoff
 
 ## 1. Repository Snapshot
-**CURRENT HEAD:** `fe80030` (Fix C5 test assertion)
+**CURRENT HEAD:** `28df90e` (test(eval): avoid SQLAlchemy ObjectDeletedError in RLS isolation test)
 **CURRENT BRANCH:** `main`
-**WORKTREE STATUS:** Clean (with some untracked patch/test artifacts from previous agents).
+**WORKTREE STATUS:** Dirty; contains user-owned evaluation/debug artifacts and documentation edits. Preserve them.
 **UPSTREAM:** `origin/main` (Synchronized).
 
 *Note: The commit hashes differ slightly from previous Phase C reports because of a `git pull --rebase` that was executed by the user to synchronize with `origin/main`.*
@@ -48,13 +48,15 @@ The runtime path for documents:
 *   **B6:** Strict unsupported-claim filtering policy implemented.
 
 ## 7. Phase C Status
-**STATUS:** ⏸ Paused (Pending Live Quota Restock)
+**STATUS:** ✅ Complete
 *   **C1 Golden Dataset:** ✅ Complete (`c1-v1` with 24 cases).
 *   **C2 Retrieval Eval:** ✅ Complete (Frozen baseline: 1.0 metrics across the board).
-*   **C2.1 Threshold Analysis:** ✅ Complete (Derived 0.67, but *not* applied to prod per rules).
-*   **C3 Answer Eval:** ✅ Infrastructure Complete. 7/24 cases successfully generated pipeline outputs. Remaining cases blocked by 20 RPD Gemini 2.5-flash limit.
-*   **C4 Groundedness Eval:** ✅ Infrastructure Complete. Claim-level checkpointing ready.
-*   **C5 Citation Eval:** ✅ Infrastructure Complete. `MISSING` citations are deterministically resolved.
+*   **C2.1 Threshold Analysis:** ✅ Complete (Derived 0.67, retained in eval config).
+*   **C3 Answer Eval:** ✅ Complete (`c3_baseline_v2` certified at 24/24 cases, 0 infrastructure failures).
+*   **C4 Groundedness Eval:** ✅ Complete (29 claims evaluated, 93.1% strict groundedness, 0 infrastructure failures).
+*   **C5 Citation Eval:** ✅ Complete (29 citations evaluated, 93.1% strict accuracy, 0 infrastructure failures).
+*   **C6 Regression Runner:** ✅ Complete (Automated compare engine + 13 passing unit tests).
+*   **C7 CI Integration:** ✅ Complete (C6 baseline integrity gate added to `.github/workflows/pipeline.yml`).
 
 ## 8. C1–C5 Evaluation Architecture
 *   **C3:** Golden Fact ↔ Final Answer (Answer Correctness).
@@ -63,25 +65,23 @@ The runtime path for documents:
 *   Pipeline generates a `PipelineOutput` with a deterministic `content_hash`. C4 and C5 strictly consume this frozen output.
 
 ## 9. Current Live Baseline State
-**Historical run: `c3_run_01`**
-*   22 / 24 cases successfully evaluated
-*   2 provider/infrastructure failures
-*   Historical partial/contaminated run
-*   NOT certified
-*   Preserved only for diagnostics/reproducibility
-*   MUST NOT be resumed as the canonical baseline
+**Historical runs:**
+*   `c3_run_01`: 22/24 partial historical run (contaminated, preserved for history).
+*   `c3_certified_baseline`: Blocked at 7/24 due to retired model / harness bugs (see its `INVALID.md`).
 
-**Current canonical run: `c3_certified_baseline`**
-*   7 / 24 currently checkpointed
-*   17 cases pending
-*   Canonical resumable baseline
-*   Configuration locked to gemini-2.5-flash
-*   This is the ONLY C3 run that future Orca evaluation work should resume
-*   Not certified until 24/24 and zero unresolved infrastructure failures
+**Canonical certified baseline: `c3_baseline_v2`**
+*   24 / 24 completed cases.
+*   Zero infrastructure failures.
+*   Generation: `gemini-2.5-flash`
+*   Judge: `gemini-3.5-flash-lite`
+*   Status: `CERTIFIED_C3_BASELINE`
+*   C4 groundedness: `c4_metrics.json`
+*   C5 citation accuracy: `c5_metrics.json`
+*   This is the frozen Phase C control baseline for all subsequent Phase D evaluations.
 
 ## 10. Provider / Quota State
 *   **GENERATION_MODEL:** `gemini-2.5-flash`
-*   **EVALUATOR_MODELS:** `gemini-1.5-flash`
+*   **JUDGE_MODEL:** `gemini-3.5-flash-lite`
 *   **EMBEDDING_MODEL:** `gemini-embedding-2`
 *   **KEYS:** 3 keys loaded. They appear to belong to the *same* Google Cloud project, sharing a **hard 20 Requests-Per-Day limit** for the 2.5-flash free tier.
 *   **DAEMON:** The infinite retry loop (`run_c3_c4_loop.py`) has been killed.
@@ -102,10 +102,13 @@ The runtime path for documents:
 *   Do NOT automatically push every substep.
 *   Push to remote ONLY after a COMPLETE ROADMAP PHASE passes its holistic verification gate.
 
-## 13. Recommended Orca Agent Roles
-*   **Codex:** ARCHITECT / IMPLEMENTER. Strong at exact file modifications, deterministic testing, and multi-file refactors.
-*   **Gemini/Antigravity:** AI EVALUATION SPECIALIST / TRUST-BOUNDARY REVIEWER. Ideal for reviewing RAG prompts, designing evaluation semantics (like C4/C5), and assessing hallucination boundaries.
-*   **Deterministic Tooling:** CI/CD runners should handle metric aggregation and regression assertions.
+## 13. Supervised Orca Agent Roles
+*   **Antigravity:** coordinator, planner, architect, task manager, reviewer, and QA authority. It owns task decomposition, approval gates, integration order, and review verdicts.
+*   **Codex GPT-5.6 (medium):** primary implementer, coder, and debugger. Each implementation task must self-test with repository-supported checks and return the evidence to Antigravity.
+*   **Human:** approves the plan before implementation and performs the final diff review and merge after Antigravity review passes.
+*   **Deterministic Tooling:** CI/CD runners handle repeatable metric aggregation and regression assertions; their results inform, but do not replace, Antigravity QA.
+
+The complete operating procedure, including parallel file-scope rules and the three-attempt review loop, is in `docs/codex-orchestration.md`.
 
 ## 14. Recommended Worktree Strategy
 *   `feature/<task>`: General features.
@@ -123,23 +126,19 @@ The runtime path for documents:
 *   **SEVERITY MED:** Uncalibrated production threshold (currently 0.50; eval derived 0.67).
 
 ## 17. Safe Next Actions
-1. Wait for daily quota reset (Midnight PT).
-2. Run: `PYTHONPATH=backend backend/.venv312/bin/python backend/eval/run_c3.py`
-3. Wait for `CERTIFIED_C3_BASELINE`.
-4. Run C4 and C5 sequentially.
-5. Finalize Phase C.
+1. Begin Phase D chunking design (comparing semantic/markdown-aware boundaries against fixed chunking).
+2. Run candidate evaluation runs against the frozen `c3_baseline_v2` control baseline.
+3. Compare candidate metrics using `python eval/run_c6.py --baseline eval/results/c3_baseline_v2 --candidate eval/results/candidates/<run>`.
 
-## 18. Actions Explicitly Forbidden Right Now
-*   **DO NOT** modify Phase B behavior.
-*   **DO NOT** tune retrieval, chunking, or the 0.50 threshold.
-*   **DO NOT** consume Gemini quota until reset.
-*   **DO NOT** start Phase D.
+## 18. Phase D Boundaries
+*   Do NOT modify Phase B prompt contracts without comparing against frozen `c3_baseline_v2`.
+*   Do NOT update the production retrieval threshold (0.50) until chunking optimizations are completed and evaluated.
 
 ---
-**CURRENT PROJECT STATE:** Clean / Stable
-**CURRENT PHASE:** Phase C (Paused for Quota)
-**CURRENT BLOCKER:** Gemini API 20 RPD Limit
-**NEXT SAFE COMMAND:** `PYTHONPATH=backend backend/.venv312/bin/python backend/eval/run_c3.py` (Tomorrow)
+**CURRENT PROJECT STATE:** Clean / Stable; Phase C Baseline Certified and Frozen
+**CURRENT PHASE:** Phase D (Chunking Strategy & Hyperparameter Tuning)
+**CURRENT BLOCKER:** None
+**NEXT SAFE COMMAND:** Design Phase D chunking strategy and evaluate candidate runs against `c3_baseline_v2`
 **NEXT DEVELOPMENT PHASE:** Phase D
-**CAN PHASE D START:** NO
-**WHY:** Must freeze the C1-C5 live baseline metrics to establish a control group before making generative/retrieval changes in Phase D.
+**CAN PHASE D START:** YES
+**WHY:** Canonical C1-C5 live baseline (`c3_baseline_v2`) is fully certified and frozen, and C6 regression runner is operational.

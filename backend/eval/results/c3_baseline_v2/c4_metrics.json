@@ -1,0 +1,103 @@
+{
+  "overall": {
+    "strict_groundedness_rate": 0.9310344827586207,
+    "fully_grounded_answer_rate": 0.875,
+    "partial_claim_rate": 0.034482758620689655,
+    "ungrounded_claim_rate": 0.034482758620689655,
+    "contradiction_rate": 0.0,
+    "post_b6_ungrounded_leakage_rate": 0.034482758620689655,
+    "applicable_case_count": 16,
+    "evaluated_claim_count": 29,
+    "infrastructure_failure_count": 0
+  },
+  "per_category": {
+    "insufficient_evidence": {
+      "strict_groundedness_rate": 0.0,
+      "fully_grounded_answer_rate": 0.0,
+      "partial_claim_rate": 0.0,
+      "ungrounded_claim_rate": 0.0,
+      "contradiction_rate": 0.0,
+      "post_b6_ungrounded_leakage_rate": 0.0,
+      "applicable_case_count": 0,
+      "evaluated_claim_count": 0,
+      "infrastructure_failure_count": 0
+    },
+    "citation_sensitive": {
+      "strict_groundedness_rate": 1.0,
+      "fully_grounded_answer_rate": 1.0,
+      "partial_claim_rate": 0.0,
+      "ungrounded_claim_rate": 0.0,
+      "contradiction_rate": 0.0,
+      "post_b6_ungrounded_leakage_rate": 0.0,
+      "applicable_case_count": 3,
+      "evaluated_claim_count": 4,
+      "infrastructure_failure_count": 0
+    },
+    "semantic": {
+      "strict_groundedness_rate": 1.0,
+      "fully_grounded_answer_rate": 1.0,
+      "partial_claim_rate": 0.0,
+      "ungrounded_claim_rate": 0.0,
+      "contradiction_rate": 0.0,
+      "post_b6_ungrounded_leakage_rate": 0.0,
+      "applicable_case_count": 3,
+      "evaluated_claim_count": 6,
+      "infrastructure_failure_count": 0
+    },
+    "ambiguous": {
+      "strict_groundedness_rate": 1.0,
+      "fully_grounded_answer_rate": 1.0,
+      "partial_claim_rate": 0.0,
+      "ungrounded_claim_rate": 0.0,
+      "contradiction_rate": 0.0,
+      "post_b6_ungrounded_leakage_rate": 0.0,
+      "applicable_case_count": 1,
+      "evaluated_claim_count": 2,
+      "infrastructure_failure_count": 0
+    },
+    "multi_chunk": {
+      "strict_groundedness_rate": 0.8888888888888888,
+      "fully_grounded_answer_rate": 0.6666666666666666,
+      "partial_claim_rate": 0.1111111111111111,
+      "ungrounded_claim_rate": 0.0,
+      "contradiction_rate": 0.0,
+      "post_b6_ungrounded_leakage_rate": 0.0,
+      "applicable_case_count": 3,
+      "evaluated_claim_count": 9,
+      "infrastructure_failure_count": 0
+    },
+    "adversarial": {
+      "strict_groundedness_rate": 0.6666666666666666,
+      "fully_grounded_answer_rate": 0.0,
+      "partial_claim_rate": 0.0,
+      "ungrounded_claim_rate": 0.3333333333333333,
+      "contradiction_rate": 0.0,
+      "post_b6_ungrounded_leakage_rate": 0.3333333333333333,
+      "applicable_case_count": 1,
+      "evaluated_claim_count": 3,
+      "infrastructure_failure_count": 0
+    },
+    "exact_term": {
+      "strict_groundedness_rate": 1.0,
+      "fully_grounded_answer_rate": 1.0,
+      "partial_claim_rate": 0.0,
+      "ungrounded_claim_rate": 0.0,
+      "contradiction_rate": 0.0,
+      "post_b6_ungrounded_leakage_rate": 0.0,
+      "applicable_case_count": 2,
+      "evaluated_claim_count": 2,
+      "infrastructure_failure_count": 0
+    },
+    "single_chunk": {
+      "strict_groundedness_rate": 1.0,
+      "fully_grounded_answer_rate": 1.0,
+      "partial_claim_rate": 0.0,
+      "ungrounded_claim_rate": 0.0,
+      "contradiction_rate": 0.0,
+      "post_b6_ungrounded_leakage_rate": 0.0,
+      "applicable_case_count": 3,
+      "evaluated_claim_count": 3,
+      "infrastructure_failure_count": 0
+    }
+  }
+}

@@ -249,9 +249,11 @@ Goal: Stop relying on "tests pass" and start measuring actual RAG and AI quality
 - [x] C1: Golden evaluation dataset
 - [x] C2: Retrieval evaluation
 - [x] C2.1: Threshold analysis
-- [x] C3: Answer evaluation
-- [ ] C4: Groundedness evaluation
-- [ ] C5: Citation accuracy evaluation
-- [ ] C6: Regression runner
-- [ ] C7: CI integration
-
+- [x] C3: Answer evaluation infrastructure
+- [x] C3: Certified live baseline (24/24 with zero unresolved infrastructure failures)
+- [x] C4: Groundedness evaluation infrastructure
+- [x] C4: Certified live evaluation after C3 baseline closure
+- [x] C5: Citation accuracy evaluation infrastructure
+- [x] C5: Certified live evaluation after C3 baseline closure
+- [x] C6: Regression runner
+- [x] C7: CI integration

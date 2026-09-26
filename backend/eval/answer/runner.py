@@ -6,6 +6,7 @@ from pathlib import Path
 # Setup paths so we can import from backend
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "backend"))
 
+from core.config import settings
 from core.database import Session, engine
 from schemas.ai_chat import ChatAnswerStatus
 from services.ai_service import answer_conversation_question, evaluate_citations, AIServiceError
@@ -155,7 +156,7 @@ def run_answer_eval(retrieval_dir: str, output_dir: str):
         "retrieval_top_k": 5,
         "retrieval_threshold": RETRIEVAL_THRESHOLD,
         "threshold_status": "provisional",
-        "generation_model": "gemini-1.5-flash",
+        "generation_model": settings.gemini_model,
         "rate_limit_delay_seconds": EVAL_CASE_DELAY_SECONDS,
         "failed_case_count": failed_case_count,
     }

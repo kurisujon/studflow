@@ -1,0 +1,55 @@
+{
+  "suites": {
+    "c2_retrieval": {
+      "tolerance_cases": 1,
+      "rules": {
+        "hit_rate_at_k": {"direction": "higher", "denominator": "answerable_case_count"},
+        "anchor_coverage_at_k": {"direction": "higher", "denominator": "answerable_case_count"},
+        "complete_evidence_rate_at_k": {"direction": "higher", "denominator": "answerable_case_count"},
+        "mrr": {"direction": "higher", "denominator": "answerable_case_count"},
+        "precision_at_k": {"direction": "higher", "denominator": "answerable_case_count"},
+        "correct_proceed": {"direction": "higher"},
+        "false_abstention": {"direction": "lower"},
+        "missed_abstention": {"direction": "lower"},
+        "correct_abstention": {"direction": "higher"}
+      }
+    },
+    "c3_answer": {
+      "tolerance_cases": 1,
+      "rules": {
+        "exact_accuracy": {"direction": "higher", "denominator": "case_count"},
+        "semantic_accuracy": {"direction": "higher", "denominator": "case_count"},
+        "overall_accuracy": {"direction": "higher", "denominator": "case_count"},
+        "mean_fact_coverage": {"direction": "higher", "denominator": "case_count"},
+        "complete_answer_rate": {"direction": "higher", "denominator": "case_count"},
+        "partial_answer_rate": {"direction": "info"},
+        "status_accuracy": {"direction": "higher", "denominator": "case_count"},
+        "correct_abstention_rate": {"direction": "higher", "denominator": "case_count"},
+        "incorrect_answer_rate": {"direction": "no_increase", "denominator": "case_count"},
+        "contradiction_rate": {"direction": "no_increase", "denominator": "case_count"}
+      }
+    },
+    "c4_groundedness": {
+      "tolerance_cases": 1,
+      "rules": {
+        "strict_groundedness_rate": {"direction": "higher", "denominator": "evaluated_claim_count"},
+        "fully_grounded_answer_rate": {"direction": "higher", "denominator": "applicable_case_count"},
+        "partial_claim_rate": {"direction": "info"},
+        "ungrounded_claim_rate": {"direction": "lower", "denominator": "evaluated_claim_count"},
+        "contradiction_rate": {"direction": "no_increase", "denominator": "evaluated_claim_count"},
+        "post_b6_ungrounded_leakage_rate": {"direction": "lower", "denominator": "evaluated_claim_count"}
+      }
+    },
+    "c5_citation": {
+      "tolerance_cases": 1,
+      "rules": {
+        "strict_citation_accuracy": {"direction": "higher", "denominator": "evaluated_citation_count"},
+        "fully_cited_claim_rate": {"direction": "higher", "denominator": "applicable_claim_count"},
+        "missing_citation_rate": {"direction": "lower", "denominator": "applicable_claim_count"},
+        "partial_citation_rate": {"direction": "info"},
+        "incorrect_citation_rate": {"direction": "lower", "denominator": "evaluated_citation_count"},
+        "citation_precision": {"direction": "higher", "denominator": "applicable_claim_count"}
+      }
+    }
+  }
+}

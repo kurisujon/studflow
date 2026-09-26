@@ -153,6 +153,9 @@ jobs:
           DATABASE_URL: postgresql+psycopg://app_role:app_pw@localhost:5432/studflow_test
         run: PYTHONPATH=. pytest eval/ -v
 
+      - name: Verify Phase C evaluation baseline integrity (C6/C7)
+        run: python eval/run_c6.py --baseline eval/results/c3_baseline_v2 --integrity-only
+
   build-images:
     name: Build production images
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'

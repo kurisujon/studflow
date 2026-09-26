@@ -8,6 +8,7 @@ def _calc_category_metrics(cases: list[CaseGroundednessResult]) -> GroundednessC
             partial_claim_rate=0.0,
             ungrounded_claim_rate=0.0,
             contradiction_rate=0.0,
+            post_b6_ungrounded_leakage_rate=0.0,
             applicable_case_count=0,
             evaluated_claim_count=0,
             infrastructure_failure_count=0

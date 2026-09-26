@@ -1,7 +1,6 @@
 from pydantic import BaseModel, Field
 from eval.groundedness.models import ClaimGroundednessResult, GroundednessJudgment
-from eval.answer.exceptions import InfrastructureError
-from services.llm_provider import _generate_structured, AIServiceError
+from eval.judge import judge_structured
 
 class RawClaimGroundedness(BaseModel):
     judgment: GroundednessJudgment = Field(
@@ -27,29 +26,12 @@ Evaluate the entire claim. Use these strict definitions:
 - UNGROUNDED: retrieved context does not establish the claim.
 - CONTRADICTED: retrieved context provides evidence inconsistent with the claim.
 """
-    try:
-        raw_result = _generate_structured(
-            prompt=prompt,
-            response_model=RawClaimGroundedness,
-            model_name="gemini-1.5-flash"
-        )
-        return ClaimGroundednessResult(
-            case_id=case_id,
-            claim_id=claim_id,
-            claim_text=claim_text,
-            judgment=raw_result.judgment,
-            reason=raw_result.reasoning,
-            infrastructure_failed=False
-        )
-    except AIServiceError as e:
-        raise InfrastructureError(str(e))
-    except Exception as e:
-        print(f"Groundedness evaluator exception: {e}")
-        return ClaimGroundednessResult(
-            case_id=case_id,
-            claim_id=claim_id,
-            claim_text=claim_text,
-            judgment=GroundednessJudgment.UNGROUNDED,
-            reason=f"Evaluation error: {str(e)}",
-            infrastructure_failed=True
-        )
+    raw_result = judge_structured(prompt, RawClaimGroundedness)
+    return ClaimGroundednessResult(
+        case_id=case_id,
+        claim_id=claim_id,
+        claim_text=claim_text,
+        judgment=raw_result.judgment,
+        reason=raw_result.reasoning,
+        infrastructure_failed=False
+    )

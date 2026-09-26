@@ -35,4 +35,7 @@ Thumbs.db
 backend/.venv_test/
 
 # Local evaluation checkpoints/results
-backend/eval/results/
+backend/eval/results/*
+!backend/eval/results/c3_baseline_v2/
+!backend/eval/results/live_72b513d6/
+backend/eval/results/live_72b513d6/c3_run_01/

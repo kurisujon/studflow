@@ -81,9 +81,13 @@ def _generate_structured(
     *,
     prompt: str,
     response_schema: type,
+    model_override: str | None = None,
 ):
     """Generate structured JSON content with automatic retry, key rotation, and
     model fallback.  Returns the raw SDK response on success.
+
+    ``model_override`` pins a single model and disables fallback; production
+    callers leave it unset and use the configured model chain.
 
     Raises ``AIServiceError`` on exhaustion of all retries and models.
     """
@@ -91,7 +95,7 @@ def _generate_structured(
 
     # Initialize with the next key in the pool
     current_key = _get_api_key()
-    models = _candidate_models()
+    models = [model_override] if model_override else _candidate_models()
     total_models = len(models)
 
     for model_index, model_name in enumerate(models):

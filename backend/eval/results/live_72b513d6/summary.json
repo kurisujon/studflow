@@ -1,0 +1,22 @@
+{
+  "run_id": "live_72b513d6",
+  "timestamp": "2026-08-19T16:09:45.523169Z",
+  "dataset_version": "c1-v1",
+  "corpus_version": "c1-v1",
+  "embedding_model": "gemini-embedding-2",
+  "retrieval_top_k": 5,
+  "retrieval_threshold": 0.5,
+  "answerable_metrics": {
+    "hit_rate_at_k": 1.0,
+    "anchor_coverage_at_k": 1.0,
+    "complete_evidence_rate_at_k": 1.0,
+    "mrr": 1.0,
+    "precision_at_k": 1.0
+  },
+  "negative_confusion_matrix": {
+    "correct_proceed": 15,
+    "false_abstention": 0,
+    "missed_abstention": 9,
+    "correct_abstention": 0
+  }
+}

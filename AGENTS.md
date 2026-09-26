@@ -25,6 +25,16 @@ Before writing any code or proposing any architectural changes, you MUST:
 ## System Fidelity
 Never introduce new dependencies, libraries, or architectural layers without explicit approval from the USER. Protect the monolith and respect the defined technology stack.
 
+## Supervised Antigravity + Codex Workflow
+
+- Antigravity is the coordinator, planner, architect, task manager, reviewer, and QA authority. Codex GPT-5.6 at medium reasoning effort is the primary implementer, coder, and debugger.
+- Antigravity must obtain human approval of the written plan before dispatching implementation work. A separate human final diff review and merge approval is required after review passes.
+- An implementation task may run in parallel only when Antigravity has recorded explicitly non-overlapping file scopes. Each Codex implementation task must self-test its own changes with repository-supported checks before returning for review.
+- Review must use a fresh Antigravity context and compare the final implementation and self-test evidence against the approved specification. A review failure returns to the owning Codex task; Antigravity may allow at most three implementation attempts for that task.
+- Do not start Phase D until Phase C is formally closed under the repository's existing evaluation gate. Do not commit or push application changes as part of workflow setup.
+
+The operating procedure is documented in `docs/codex-orchestration.md`.
+
 # Agent Instructions
 
 Before making architectural or product changes, review these documents in order:
@@ -41,3 +51,9 @@ Constraints:
 - Do not move `docs/` inside frontend or backend.
 - Do not change business logic unless explicitly requested.
 
+## Current System State
+- **Active Phase**: Phase D (Chunking Strategy & Hyperparameter Tuning)
+- **Status**: Phase C is 100% complete and certified. Canonical baselines (`c3_baseline_v2` with C3, C4, C5 evaluations) are frozen and verified with zero infrastructure failures. C6 regression runner and C7 CI integrity gate are in place.
+- **Recent Landings**: Phase C Closure and Certified Baseline Freeze on September 26.
+- **Next Steps**: Phase D chunking experiments (e.g. semantic/markdown-aware boundaries vs fixed size) and hyperparameter evaluations using the C6 regression gate against frozen `c3_baseline_v2`.
+- **Build Status**: Clean. (Verified by CI baseline and contract suites).

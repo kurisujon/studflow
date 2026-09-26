@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from eval.answer.models import RunConfig, RunStatus, PipelineOutput, ChatAnswerStatus, FrozenSurvivingClaim
+from eval.answer.exceptions import InfrastructureError, UncertifiedBaselineError
 from eval.groundedness.models import ClaimGroundednessResult, GroundednessJudgment
 from eval.groundedness.runner import C4Runner
 
@@ -20,7 +21,7 @@ def temp_run_dir(tmp_path, run_config):
     dir_path = tmp_path / "c3_run"
     dir_path.mkdir()
     with open(dir_path / "manifest.json", "w") as f:
-        json.dump({"run_id": "test", "config": run_config.model_dump(), "status": RunStatus.PARTIAL.value}, f)
+        json.dump({"run_id": "test", "config": run_config.model_dump(), "status": RunStatus.CERTIFIED_C3_BASELINE.value}, f)
     return str(dir_path)
 
 def test_c4_claim_level_resume(temp_run_dir):
@@ -80,3 +81,38 @@ def test_c4_abstention_case(temp_run_dir):
         mock_eval.assert_not_called()
         assert metrics.overall.applicable_case_count == 0
         assert metrics.overall.evaluated_claim_count == 0
+
+def test_c4_infrastructure_failure_pauses_without_metrics(temp_run_dir):
+    po = PipelineOutput(
+        case_id="case_1", actual_status=ChatAnswerStatus.ANSWERED,
+        answer_markdown="ans", retrieved_eids=["e_01"], retrieved_context="ctx", infrastructure_failed=False,
+        surviving_claims=[
+            FrozenSurvivingClaim(claim_id="c1", claim_text="t1"),
+            FrozenSurvivingClaim(claim_id="c2", claim_text="t2")
+        ]
+    )
+    with open(Path(temp_run_dir) / "pipeline_outputs.jsonl", "w") as f:
+        f.write(json.dumps(po.model_dump()) + "\n")
+
+    runner = C4Runner(temp_run_dir)
+
+    with patch("eval.groundedness.runner.evaluate_claim_groundedness") as mock_eval:
+        mock_eval.side_effect = InfrastructureError("quota exhausted")
+
+        metrics = runner.run({"case_1": {"category": "test"}})
+
+        assert metrics is None
+        mock_eval.assert_called_once()
+
+    assert not (Path(temp_run_dir) / "c4_metrics.json").exists()
+    rows = runner.load_completed_claims()["case_1"]
+    assert list(rows) == ["c1"] and rows["c1"].infrastructure_failed
+
+def test_c4_refuses_uncertified_baseline(tmp_path, run_config):
+    dir_path = tmp_path / "partial_run"
+    dir_path.mkdir()
+    with open(dir_path / "manifest.json", "w") as f:
+        json.dump({"run_id": "partial", "config": run_config.model_dump(), "status": RunStatus.INFRASTRUCTURE_BLOCKED.value}, f)
+
+    with pytest.raises(UncertifiedBaselineError):
+        C4Runner(str(dir_path))
