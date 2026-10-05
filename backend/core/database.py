@@ -12,6 +12,7 @@ engine = create_engine(
     pool_pre_ping=True,
     pool_size=10,
     max_overflow=20,
+    connect_args={"prepare_threshold": None},
 )
 
 def get_session(current_user: CurrentUser = Depends(get_current_user)) -> Generator[Session, None, None]:
