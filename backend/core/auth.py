@@ -3,6 +3,7 @@ import binascii
 import json
 import logging
 from typing import Any
+from functools import lru_cache
 from urllib.request import urlopen
 from pydantic import BaseModel
 from fastapi import Depends, HTTPException, status
@@ -71,6 +72,7 @@ def get_clerk_jwks_url() -> str | None:
     return None
 
 
+@lru_cache(maxsize=1)
 def get_clerk_jwks() -> dict[str, Any]:
     jwks_url = get_clerk_jwks_url()
     if not jwks_url:
