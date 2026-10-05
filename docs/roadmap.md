@@ -1026,3 +1026,22 @@ When a future agent completes a meaningful feature, they should update this file
 
 **What to do next:**
 - Phase D (Chunking Strategy & Hyperparameter Tuning): Begin systematic chunking experiments (e.g. semantic/markdown boundary chunking vs fixed-size chunking) and threshold tuning (evaluating candidate runs against frozen `c3_baseline_v2` using the C6 regression gate).
+
+---
+
+### Update: 2026-10-05 — Production Stabilization (Phase D)
+
+**What Changed:**
+- Added `lru_cache` to Clerk JWKS fetch in `backend/core/auth.py` to prevent rate limit 500s during polling.
+- Renamed evaluation test scripts (`backend/eval/retrieval/eval_loop.py`, `backend/eval/retrieval/eval_one.py`) to prevent pytest collection errors that broke CI/CD.
+- Disabled psycopg3 prepared statements in `backend/core/database.py` (`connect_args={"prepare_threshold": None}`) for PgBouncer compatibility to fix intermittent 500s on the status polling route.
+- Validated all backend python file changes via `py_compile`.
+
+**Contracts Changed:**
+- None.
+
+**Docs Stale:**
+- No. `docs/tasks.md` was synchronized with the new Phase D section and production stabilization checklist.
+
+**What to do next:**
+- Continue Phase D systematic chunking experiments (e.g., semantic/markdown boundary chunking vs. fixed-size chunking) and threshold tuning, evaluating candidate runs against the frozen `c3_baseline_v2` using the C6 regression gate.

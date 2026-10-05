@@ -242,7 +242,7 @@ Goal: Scale document processing to support 100+ page documents with high precisi
 - [x] Optimize summary, flashcard, and quiz generation prompts to utilize top semantic vector clusters
 - [x] Run backend verification tests (`unittest` / `py_compile`) validating resumability, vector storage, RAG retrieval, and quality control orchestration
 
-## Phase C: Evaluation Foundation (Current Priority)
+## Phase C: Evaluation Foundation (Completed)
 
 Goal: Stop relying on "tests pass" and start measuring actual RAG and AI quality to prepare for Phase D chunking changes.
 
@@ -257,3 +257,12 @@ Goal: Stop relying on "tests pass" and start measuring actual RAG and AI quality
 - [x] C5: Certified live evaluation after C3 baseline closure
 - [x] C6: Regression runner
 - [x] C7: CI integration
+
+## Phase D: Chunking Strategy & Hyperparameter Tuning (Current Priority)
+
+Goal: Begin systematic chunking experiments and threshold tuning evaluating candidate runs against frozen baseline.
+
+### Production Stabilization
+- [x] Add `lru_cache` to Clerk JWKS fetch to prevent rate limit 500s
+- [x] Rename eval scripts to prevent pytest collection errors that broke CI/CD
+- [x] Disable psycopg3 prepared statements for PgBouncer compatibility to fix intermittent 500s on the status polling route
