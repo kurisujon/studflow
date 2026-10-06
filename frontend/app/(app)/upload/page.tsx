@@ -1,34 +1,49 @@
 "use client";
 
-import { useEffect, useEffectEvent, useRef, useState, useTransition } from "react";
+import { useState, useRef, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
-
-import { DocumentProcessingStatus } from "@/components/document-processing-status";
-import { useDocumentStatus } from "@/hooks/use-document-status";
-import { API_BASE_URL, buildAPIError } from "@/lib/api";
+import { useEffectEvent } from "react";
 import { useAuth } from "@clerk/nextjs";
 
-type UploadResponse = {
-  document_id: string;
-  status: string;
-  file_url: string;
-};
+import { API_BASE_URL, buildAPIError } from "@/lib/api";
+import { useDocumentStatus } from "@/hooks/use-document-status";
+import { DocumentProcessingStatus } from "@/components/document-processing-status";
+import { UploadIcon, FileTextIcon, XIcon, AlertCircleIcon, Loader2Icon } from "@/components/home/icon-registry";
 
-function isUploadResponse(payload: UploadResponse | { detail: string }): payload is UploadResponse {
-  return "document_id" in payload;
+type UploadResponse = { document_id: string };
+
+function isUploadResponse(payload: unknown): payload is UploadResponse {
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    "document_id" in payload &&
+    typeof (payload as UploadResponse).document_id === "string"
+  );
+}
+
+function formatBytes(bytes: number, decimals = 2) {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 }
 
 export default function UploadPage() {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
-  const [isUploading, setIsUploading] = useState(false);
+  const { getToken } = useAuth();
   const [file, setFile] = useState<File | null>(null);
-  const [documentId, setDocumentId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  const [documentId, setDocumentId] = useState<string | null>(null);
+  const [pollingEnabled, setPollingEnabled] = useState(false);
   const [retryQueued, setRetryQueued] = useState(false);
   const hasRedirectedRef = useRef(false);
-  const [pollingEnabled, setPollingEnabled] = useState(true);
-  const { getToken } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const {
     data: statusData,
     error: statusError,
@@ -113,7 +128,7 @@ export default function UploadPage() {
     event.preventDefault();
 
     if (!file) {
-      setError("Choose a PDF or DOCX file first.");
+      setError("Please select a file to upload.");
       return;
     }
 
@@ -158,22 +173,22 @@ export default function UploadPage() {
     }
   }
 
+  const handleClearFile = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setFile(null);
+    setError(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   if (documentId) {
     const isAwaitingRetryStatus =
       retryQueued && statusData?.status === "FAILED";
 
     return (
-      <section
-        style={{
-          minHeight: "calc(100dvh - var(--nav-height))",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "2rem 1.5rem",
-          background:
-            "radial-gradient(circle at top left, var(--theme-shadow), transparent 24%), linear-gradient(180deg, var(--background), color-mix(in srgb, var(--background) 82%, var(--theme-soft)))",
-        }}
-      >
+      <main className="flex min-h-[calc(100dvh-var(--nav-height))] flex-col items-center justify-center p-6 bg-[var(--background)]">
         <DocumentProcessingStatus
           status={statusData}
           error={error ?? statusError}
@@ -187,147 +202,113 @@ export default function UploadPage() {
             setPollingEnabled(true);
           }}
         />
-      </section>
+      </main>
     );
   }
 
   return (
-    <section
-      style={{
-        minHeight: "calc(100dvh - var(--nav-height))",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "2rem 1.5rem",
-        background:
-          "radial-gradient(circle at top left, var(--theme-shadow), transparent 24%), linear-gradient(180deg, var(--background), color-mix(in srgb, var(--background) 82%, var(--theme-soft)))",
-      }}
-    >
-      <form
-        onSubmit={handleSubmit}
-        style={{
-          width: "100%",
-          maxWidth: "640px",
-          border: "1px solid var(--theme-border)",
-          borderRadius: "24px",
-          padding: "2rem",
-          background: "color-mix(in srgb, var(--card) 92%, var(--theme-soft))",
-          boxShadow: "0 22px 64px var(--theme-shadow)",
-        }}
-      >
-        <p
-          style={{
-            fontSize: "0.75rem",
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
-            color: "var(--theme-primary)",
-            marginBottom: "0.75rem",
-          }}
-        >
-          Upload
-        </p>
-
-        <h1
-          style={{
-            marginBottom: "0.75rem",
-          }}
-        >
-          Start a new study workflow.
-        </h1>
-
-        <p
-          style={{
-            marginBottom: "1.5rem",
-          }}
-        >
-          Upload one PDF or DOCX. Studflow will process it asynchronously.
-        </p>
-
-        <label
-          htmlFor="document-upload"
-          style={{
-            display: "block",
-            padding: "1.5rem",
-            borderRadius: "20px",
-            border: "1px dashed var(--theme-border)",
-            backgroundColor: "var(--card)",
-            marginBottom: "1rem",
-          }}
-        >
-          <span
-            style={{
-              display: "block",
-              fontSize: "0.92rem",
-              color: "var(--distill-text-primary)",
-              marginBottom: "0.5rem",
-            }}
-          >
-            {file ? file.name : "Choose a PDF or DOCX file"}
-          </span>
-          <span
-            style={{
-              fontSize: "0.86rem",
-              color: "var(--distill-text-secondary)",
-            }}
-          >
-            PDF and DOCX supported.
-          </span>
-        </label>
-
-        <input
-          id="document-upload"
-          type="file"
-          accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-          onChange={(event) => {
-            setFile(event.target.files?.[0] ?? null);
-          }}
-          style={{
-            marginBottom: "1.25rem",
-            width: "100%",
-          }}
-        />
-
-        {error ? (
-          <p
-            style={{
-              marginBottom: "1rem",
-              color: "#b42318",
-              fontSize: "0.92rem",
-            }}
-          >
-            {error}
+    <main className="flex min-h-[calc(100dvh-var(--nav-height))] flex-col items-center justify-center p-6 bg-[var(--background)]">
+      <div className="w-full max-w-[640px]">
+        {/* Header Section */}
+        <div className="mb-8 text-center sm:text-left">
+          <h1 className="text-3xl font-bold tracking-tight text-[var(--foreground)] sm:text-4xl">
+            Add study material
+          </h1>
+          <p className="mt-2 text-base text-[var(--muted-foreground)]">
+            Upload your lecture notes, syllabus, or reading assignment. Studflow will automatically generate flashcards and a quiz for you.
           </p>
-        ) : null}
+        </div>
 
-        <button
-          type="submit"
-          className="btn-primary"
-          disabled={isPending || isUploading}
-          style={{
-            minHeight: "42px",
-            paddingInline: "18px",
-            borderRadius: "14px",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "0.6rem",
-          }}
+        {/* Upload Form */}
+        <form
+          onSubmit={handleSubmit}
+          className="rounded-[24px] border border-[var(--border)] bg-[var(--card)] p-6 shadow-sm sm:p-8 flex flex-col gap-6"
         >
-          {isUploading || isPending ? (
-            <span
-              style={{
-                width: "14px",
-                height: "14px",
-                borderRadius: "999px",
-                border: "2px solid rgba(255,255,255,0.35)",
-                borderTopColor: "#ffffff",
-                display: "inline-block",
-                animation: "distillSpin 0.8s linear infinite",
-              }}
-            />
+          {/* File Selection Surface */}
+          <div className="flex flex-col gap-4">
+            {!file ? (
+              <label
+                htmlFor="document-upload"
+                className="group relative flex cursor-pointer flex-col items-center justify-center gap-4 rounded-xl border border-[var(--border)] bg-[var(--background)] px-6 py-12 transition-colors hover:border-[var(--theme-primary)] hover:bg-[color-mix(in_srgb,var(--theme-primary)_2%,transparent)] focus-within:ring-2 focus-within:ring-[var(--theme-primary)] focus-within:ring-offset-2 focus-within:ring-offset-[var(--card)]"
+              >
+                <div className="grid size-14 place-items-center rounded-2xl bg-[var(--theme-soft)] text-[var(--theme-primary)] group-hover:scale-105 transition-transform">
+                  <UploadIcon aria-hidden="true" className="size-6" />
+                </div>
+                <div className="text-center">
+                  <span className="block text-base font-semibold text-[var(--foreground)] group-hover:text-[var(--theme-primary)] transition-colors">
+                    Select a document to upload
+                  </span>
+                  <span className="mt-1 block text-sm text-[var(--muted-foreground)]">
+                    Supported formats: PDF and DOCX
+                  </span>
+                </div>
+                <input
+                  id="document-upload"
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  onChange={(event) => {
+                    setFile(event.target.files?.[0] ?? null);
+                    setError(null);
+                  }}
+                  className="sr-only"
+                />
+              </label>
+            ) : (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 rounded-xl border border-[var(--border)] bg-[var(--background)] p-4">
+                <div className="flex flex-1 items-center gap-3 overflow-hidden">
+                  <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-[var(--theme-soft)] text-[var(--theme-primary)]">
+                    <FileTextIcon aria-hidden="true" className="size-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-[var(--foreground)]">
+                      {file.name}
+                    </p>
+                    <p className="mt-0.5 text-xs text-[var(--muted-foreground)]">
+                      {formatBytes(file.size)} &bull; {file.type.includes('pdf') ? 'PDF Document' : 'Word Document'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex shrink-0 gap-2">
+                  <button
+                    type="button"
+                    onClick={handleClearFile}
+                    className="inline-flex h-9 items-center justify-center rounded-lg bg-[var(--muted)] px-3 text-sm font-semibold text-[var(--foreground)] transition-colors hover:bg-[var(--border)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)]"
+                    disabled={isUploading || isPending}
+                    aria-label="Remove file"
+                  >
+                    <XIcon aria-hidden="true" className="size-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Validation Feedback */}
+          {error ? (
+            <div className="flex items-start gap-3 rounded-xl bg-red-500/10 px-4 py-3 text-red-700 dark:text-red-400">
+              <AlertCircleIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+              <p className="text-sm font-medium">{error}</p>
+            </div>
           ) : null}
-          {isUploading || isPending ? "Uploading..." : "Upload and Process"}
-        </button>
-      </form>
-    </section>
+
+          {/* Primary Action */}
+          <button
+            type="submit"
+            disabled={!file || isUploading || isPending}
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-[var(--theme-primary)] px-6 text-base font-semibold text-white shadow-sm transition hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--card)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:brightness-100"
+          >
+            {isUploading || isPending ? (
+              <>
+                <Loader2Icon aria-hidden="true" className="size-5 animate-spin" />
+                Uploading...
+              </>
+            ) : (
+              "Upload and Process"
+            )}
+          </button>
+        </form>
+      </div>
+    </main>
   );
 }

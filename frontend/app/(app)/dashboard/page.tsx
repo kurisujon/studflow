@@ -1,4 +1,4 @@
-import { DashboardOverview } from "@/components/dashboard/DashboardOverview";
+import { DashboardOverview } from "@/components/dashboard/overview/DashboardOverview";
 import { fetchDocuments, fetchUserQueue, fetchUserStats } from "@/lib/server-api";
 
 export default async function DashboardPage() {

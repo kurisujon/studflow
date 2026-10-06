@@ -319,10 +319,9 @@ export function InteractiveSummaryReader({
   }, [drawerOpen, noteComposerTextareaId, pendingSelection]);
 
   if (!summary || summary.detailed_sections.length === 0) {
-    return <p>No summary available yet.</p>;
+    return <p className="text-muted-foreground p-8">No summary available yet.</p>;
   }
 
-  const activeSummary = summary;
   const sections = summary.detailed_sections;
   const activeSection = sections[activeIndex];
   const overviewBlockId = "overview";
@@ -351,8 +350,9 @@ export function InteractiveSummaryReader({
   }
 
   function getPlainTextForBlock(blockId: string) {
+    if (!summary) return null;
     if (blockId === overviewBlockId) {
-      return activeSummary.overall_overview;
+      return summary.overall_overview;
     }
 
     if (blockId === titleBlockId) {
@@ -362,13 +362,13 @@ export function InteractiveSummaryReader({
     const pointMatch = blockId.match(/^topic-(\d+)-keypoint-(\d+)$/);
     if (pointMatch) {
       const [, topicIndex, pointIndex] = pointMatch;
-      return sections[Number(topicIndex)]?.key_points[Number(pointIndex)] ?? null;
+      return summary.detailed_sections[Number(topicIndex)]?.key_points[Number(pointIndex)] ?? null;
     }
 
     const termMatch = blockId.match(/^topic-(\d+)-term-(\d+)$/);
     if (termMatch) {
       const [, topicIndex, termIndex] = termMatch;
-      const term = sections[Number(topicIndex)]?.important_terms_and_definitions[Number(termIndex)];
+      const term = summary.detailed_sections[Number(topicIndex)]?.important_terms_and_definitions[Number(termIndex)];
       if (!term) return null;
       const formatted = formatTerm(term);
       return formatted.definition ? `${formatted.label}: ${formatted.definition}` : formatted.label;
@@ -703,6 +703,7 @@ export function InteractiveSummaryReader({
         pulse={pulse}
         onSelection={handleTextSelection}
         onNoteClick={handleNoteMarkerClick}
+        className="leading-relaxed text-muted-foreground my-2"
       />
     );
   }
@@ -725,6 +726,7 @@ export function InteractiveSummaryReader({
         termLabelEnd={formatted.label.length}
         onSelection={handleTextSelection}
         onNoteClick={handleNoteMarkerClick}
+        className="leading-relaxed text-muted-foreground my-2"
       />
     );
   }
@@ -777,8 +779,8 @@ export function InteractiveSummaryReader({
   }
 
   return (
-    <section style={{ width: "100%", display: "block" }}>
-      {/* Floating Notes Button — fixed top-right */}
+    <section className="w-full relative flex justify-center pb-24">
+      {/* Floating Notes Button */}
       <FloatingNotesButton
         count={notes.length}
         behindDrawer={drawerOpen}
@@ -789,60 +791,32 @@ export function InteractiveSummaryReader({
 
       <div
         ref={rootRef}
-        className="study-reader-shell"
-        style={{
-          cursor: "text",
-          position: "relative",
-        }}
+        className="w-full max-w-3xl px-6 sm:px-8 md:px-12 pt-12 lg:pt-16"
+        style={{ cursor: "text" }}
       >
-        <div className="study-reader-stack" style={{ marginBottom: "1.5rem" }}>
-          <div className="study-support-surface">
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0.9rem",
-                flexWrap: "wrap",
-                marginBottom: "0.95rem",
-              }}
-            >
-              <p className="study-meta-label">Summary</p>
-            </div>
+        {annotationError && (
+          <div className="mb-8 p-4 rounded-xl bg-red-50 text-red-700 text-sm border border-red-200">
+            {annotationError}
+          </div>
+        )}
 
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "1rem",
-                flexWrap: "wrap",
-              }}
-            >
-              <p className="study-meta-label" style={{ minWidth: "fit-content" }}>
+        <article className="prose prose-slate dark:prose-invert max-w-none">
+          <div className="mb-14 flex flex-col md:flex-row md:items-center gap-6 justify-between">
+            <h1 className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight m-0">Document Summary</h1>
+            
+            <div className="flex items-center gap-4 w-full md:w-auto md:min-w-[240px]">
+              <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">
                 {activeIndex + 1} / {sections.length}
-              </p>
-              {/* Segmented progress bar — one dash per section */}
-              <div
-                style={{
-                  flex: 1,
-                  minWidth: "180px",
-                  display: "flex",
-                  gap: "4px",
-                  alignItems: "center",
-                }}
-              >
+              </span>
+              <div className="flex-1 flex gap-1 items-center h-[24px]">
                 {sections.map((_, i) => (
                   <button
                     key={i}
                     type="button"
                     aria-label={`Go to topic ${i + 1}`}
                     onClick={() => setActiveIndex(i)}
+                    className="flex-1 h-1.5 rounded-full border-none cursor-pointer p-0 transition-all duration-250 ease-out"
                     style={{
-                      flex: 1,
-                      height: "5px",
-                      borderRadius: "999px",
-                      border: "none",
-                      cursor: "pointer",
-                      padding: 0,
                       background:
                         i < activeIndex
                           ? "var(--theme-primary)"
@@ -851,7 +825,6 @@ export function InteractiveSummaryReader({
                           : "color-mix(in srgb, var(--theme-soft) 72%, var(--border))",
                       opacity: i === activeIndex ? 1 : i < activeIndex ? 0.85 : 0.45,
                       transform: i === activeIndex ? "scaleY(1.5)" : "scaleY(1)",
-                      transition: "background 250ms ease, opacity 250ms ease, transform 200ms ease",
                     }}
                   />
                 ))}
@@ -859,167 +832,85 @@ export function InteractiveSummaryReader({
             </div>
           </div>
 
-          {annotationError ? (
-            <p
-              style={{
-                color: "#b42318",
-                fontSize: "0.88rem",
-                maxWidth: "820px",
-                marginInline: "auto",
-              }}
-            >
-              {annotationError}
-            </p>
-          ) : null}
-
-          <div className="study-support-surface">
-            <p className="study-meta-label" style={{ marginBottom: "0.55rem" }}>
-              Overall Overview
-            </p>
-            <div className="study-reader-prose">
-              <AnnotatableTextBlock
-                as="p"
-                blockId={overviewBlockId}
-                text={summary.overall_overview}
-                annotations={topicAnnotations.filter(
-                  (annotation) => annotation.blockId === overviewBlockId,
-                )}
-                pendingSelection={pendingSelectionForBlock(overviewBlockId)}
-                onSelection={handleTextSelection}
-                onNoteClick={handleNoteMarkerClick}
-                style={{
-                  fontSize: "1.02rem",
-                  lineHeight: 1.82,
-                  color: "var(--distill-text-secondary)",
-                }}
-              />
-            </div>
-          </div>
-        </div>
-
-        <article className="study-reading-surface">
-          <div className="study-reader-prose">
-            <p className="study-meta-label" style={{ marginBottom: "0.7rem" }}>
-              Detailed Topic
-            </p>
+          <div className="mb-14 text-lg text-muted-foreground leading-relaxed">
             <AnnotatableTextBlock
-              as="h2"
-              blockId={titleBlockId}
-              text={activeSection.topic_title}
-              annotations={topicAnnotations.filter(
-                (annotation) => annotation.blockId === titleBlockId,
-              )}
-              pendingSelection={pendingSelectionForBlock(titleBlockId)}
+              as="p"
+              blockId={overviewBlockId}
+              text={summary.overall_overview}
+              annotations={topicAnnotations.filter((a) => a.blockId === overviewBlockId)}
+              pendingSelection={pendingSelectionForBlock(overviewBlockId)}
               onSelection={handleTextSelection}
               onNoteClick={handleNoteMarkerClick}
-              style={{
-                fontSize: "clamp(1.9rem, 4vw, 2.7rem)",
-                lineHeight: 1.16,
-                fontWeight: 700,
-                color: "var(--foreground)",
-                marginBottom: "1.45rem",
-              }}
             />
+          </div>
 
-            <div style={{ display: "grid", gap: "1.75rem" }}>
-              <div>
-                <p className="study-meta-label" style={{ marginBottom: "0.85rem" }}>
-                  Key Points
-                </p>
-                <AnimatePresence mode="wait">
-                  <motion.ul
-                    key={`topic-points-${activeIndex}`}
-                    initial={{ opacity: 0, x: 10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -10 }}
-                    transition={{ duration: 0.18, ease: "easeOut" }}
-                    className="study-reading-copy"
-                    style={{
-                      display: "grid",
-                      gap: "0.95rem",
-                      paddingLeft: "1.2rem",
-                    }}
-                  >
-                    {activeSection.key_points.map(renderPoint)}
-                  </motion.ul>
-                </AnimatePresence>
+          <div className="w-full h-px bg-border/60 my-12" />
+
+          <div className="space-y-16">
+            <section key={activeIndex} className="scroll-mt-24">
+              <div className="mb-6">
+                <AnnotatableTextBlock
+                  as="h2"
+                  blockId={titleBlockId}
+                  text={activeSection.topic_title}
+                  annotations={topicAnnotations.filter((a) => a.blockId === titleBlockId)}
+                  pendingSelection={pendingSelectionForBlock(titleBlockId)}
+                  onSelection={handleTextSelection}
+                  onNoteClick={handleNoteMarkerClick}
+                  className="text-2xl sm:text-3xl font-bold text-foreground mb-6 tracking-tight"
+                />
               </div>
 
-              {activeSection.important_terms_and_definitions.length > 0 ? (
-                <div
-                  className="study-support-surface"
-                  style={{
-                    padding: "1.1rem 1.2rem",
-                  }}
-                >
-                  <p className="study-meta-label" style={{ marginBottom: "0.85rem" }}>
-                    Important Terms and Definitions
-                  </p>
-                  <AnimatePresence mode="wait">
-                    <motion.ul
-                      key={`topic-terms-${activeIndex}`}
-                      initial={{ opacity: 0, x: 10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -10 }}
-                      transition={{ duration: 0.18, ease: "easeOut" }}
-                      className="study-reading-copy"
-                      style={{
-                        display: "grid",
-                        gap: "0.8rem",
-                        paddingLeft: 0,
-                        listStyle: "none",
-                      }}
-                    >
-                      {activeSection.important_terms_and_definitions.map(renderTerm)}
-                    </motion.ul>
-                  </AnimatePresence>
+              <div className="space-y-8">
+                <div>
+                  <h3 className="text-xs font-bold text-theme-primary uppercase tracking-wider mb-4">Key Points</h3>
+                  <ul className="space-y-3 list-disc pl-5 m-0">
+                    {activeSection.key_points.map((point, pointIndex) =>
+                      renderPoint(point, pointIndex)
+                    )}
+                  </ul>
                 </div>
-              ) : null}
-            </div>
-          </div>
-        </article>
 
-        <div
-          style={{
-            display: "flex",
-            gap: "0.75rem",
-            margin: "1rem auto 0",
-            justifyContent: "space-between",
-            alignItems: "center",
-            flexWrap: "wrap",
-          }}
-        >
-          <div style={{ display: "flex", flex: 1, justifyContent: "flex-start" }}>
+                {activeSection.important_terms_and_definitions.length > 0 && (
+                  <div>
+                    <h3 className="text-xs font-bold text-theme-primary uppercase tracking-wider mb-4 mt-8">Terms & Definitions</h3>
+                    <ul className="space-y-3 list-none pl-0 m-0">
+                      {activeSection.important_terms_and_definitions.map((term, termIndex) =>
+                        renderTerm(term, termIndex)
+                      )}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </section>
+          </div>
+          
+          <div className="flex flex-wrap gap-4 items-center justify-between mt-12 pt-8">
             <Button
               variant="outline"
               disabled={activeIndex === 0}
               onClick={() => setActiveIndex((current) => current - 1)}
-              style={{ minHeight: "42px", minWidth: "148px", paddingInline: "18px", borderRadius: "999px" }}
+              className="min-h-[42px] min-w-[148px] px-6 rounded-full"
             >
               Previous Topic
             </Button>
-          </div>
-          <div style={{ display: "flex", flex: 1, justifyContent: "flex-end" }}>
             <Button
               disabled={activeIndex === sections.length - 1}
               onClick={() => setActiveIndex((current) => current + 1)}
-              style={{
-                minHeight: "42px",
-                minWidth: "128px",
-                paddingInline: "18px",
-                borderRadius: "999px",
-                color: "var(--theme-on-primary)",
-              }}
+              className="min-h-[42px] min-w-[128px] px-6 rounded-full"
             >
               Next Topic
             </Button>
           </div>
+        </article>
+
+        <div className="mt-20 pt-10 border-t border-border/40">
+          <RelatedLearningVideos documentId={documentId} />
         </div>
 
-        <RelatedLearningVideos documentId={documentId} />
-
+        {/* Selection Popover */}
         <AnimatePresence>
-          {pendingSelection ? (
+          {pendingSelection && (
             <motion.div
               ref={selectionPopoverRef}
               data-highlight-popover="true"
@@ -1027,34 +918,16 @@ export function InteractiveSummaryReader({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.96 }}
               transition={{ duration: 0.16, ease: "easeOut" }}
-              onPointerDown={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-              }}
-              onMouseDown={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-              }}
-              onClick={(event) => {
-                event.stopPropagation();
-              }}
-              className="study-selection-popover"
+              onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+              onClick={(e) => e.stopPropagation()}
+              className="fixed flex items-center gap-2 p-2 rounded-2xl bg-[#1c1917] shadow-2xl z-[110]"
               style={{
-                position: "fixed",
                 top: pendingSelection.y,
-                left:
-                  typeof window !== "undefined"
-                    ? Math.min(Math.max(pendingSelection.x, 220), window.innerWidth - 220)
-                    : pendingSelection.x,
+                left: typeof window !== "undefined"
+                  ? Math.min(Math.max(pendingSelection.x, 220), window.innerWidth - 220)
+                  : pendingSelection.x,
                 transform: "translateX(-50%)",
-                zIndex: 110,
-                display: "flex",
-                alignItems: "center",
-                gap: "0.45rem",
-                padding: "0.55rem 0.65rem",
-                borderRadius: "16px",
-                backgroundColor: "rgba(28,25,23,0.96)",
-                boxShadow: "0 16px 34px rgba(17,17,16,0.24)",
               }}
             >
               {HIGHLIGHT_COLORS.map((color) => (
@@ -1062,90 +935,45 @@ export function InteractiveSummaryReader({
                   key={color}
                   type="button"
                   onClick={() => saveHighlight(color)}
-                  aria-label={`Highlight selection in ${color}`}
+                  aria-label={`Highlight in ${color}`}
+                  className="w-[18px] h-[18px] rounded-full cursor-pointer"
                   style={{
-                    width: "18px",
-                    height: "18px",
-                    borderRadius: "999px",
-                    border:
-                      activeHighlightColor === color
-                        ? "2px solid rgba(255,255,255,0.95)"
-                        : "1px solid rgba(255,255,255,0.45)",
-                    backgroundColor:
-                      color === "blue"
-                        ? "#60a5fa"
-                        : color === "yellow"
-                          ? "#facc15"
-                          : color === "green"
-                            ? "#34d399"
-                            : color === "pink"
-                              ? "#fb7185"
-                              : "#c084fc",
-                    cursor: "pointer",
+                    border: activeHighlightColor === color ? "2px solid rgba(255,255,255,0.95)" : "1px solid rgba(255,255,255,0.45)",
+                    backgroundColor: color === "blue" ? "#60a5fa" : color === "yellow" ? "#facc15" : color === "green" ? "#34d399" : color === "pink" ? "#fb7185" : "#c084fc",
                   }}
                 />
               ))}
-              <div style={{ position: "relative" }}>
+              <div className="relative">
                 <Button
                   variant="secondary"
                   size="sm"
-                  onClick={() => setUnderlineColorMode((current) => !current)}
-                  aria-keyshortcuts="Alt+U"
-                  style={{ minHeight: "36px", paddingInline: "14px", borderRadius: "12px" }}
+                  onClick={() => setUnderlineColorMode((c) => !c)}
+                  className="min-h-[36px] px-3.5 rounded-xl h-auto"
                 >
                   Underline
                 </Button>
-                {underlineColorMode ? (
-                  <div
-                    style={{
-                      position: "absolute",
-                      bottom: "calc(100% + 8px)",
-                      left: "50%",
-                      transform: "translateX(-50%)",
-                      display: "flex",
-                      gap: "0.4rem",
-                      padding: "0.45rem 0.5rem",
-                      borderRadius: "14px",
-                      backgroundColor: "rgba(28,25,23,0.96)",
-                      boxShadow: "0 14px 32px rgba(17,17,16,0.24)",
-                    }}
-                  >
+                {underlineColorMode && (
+                  <div className="absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 flex gap-1.5 p-2 rounded-2xl bg-[#1c1917] shadow-xl">
                     {[...HIGHLIGHT_COLORS, "neutral" as const].map((color) => (
                       <button
                         key={`u-${color}`}
                         type="button"
                         onClick={() => saveUnderline(color)}
-                        aria-label={`Underline selection in ${color}`}
+                        aria-label={`Underline in ${color}`}
+                        className="w-[18px] h-[18px] rounded-full border border-white/40 cursor-pointer"
                         style={{
-                          width: "18px",
-                          height: "18px",
-                          borderRadius: "999px",
-                          border: "1px solid rgba(255,255,255,0.45)",
-                          backgroundColor:
-                            color === "blue"
-                              ? "#60a5fa"
-                              : color === "yellow"
-                                ? "#facc15"
-                                : color === "green"
-                                  ? "#34d399"
-                                  : color === "pink"
-                                    ? "#fb7185"
-                                    : color === "purple"
-                                      ? "#c084fc"
-                                      : "#525252",
-                          cursor: "pointer",
+                          backgroundColor: color === "blue" ? "#60a5fa" : color === "yellow" ? "#facc15" : color === "green" ? "#34d399" : color === "pink" ? "#fb7185" : color === "purple" ? "#c084fc" : "#525252",
                         }}
                       />
                     ))}
                   </div>
-                ) : null}
+                )}
               </div>
               <Button
                 variant="secondary"
                 size="sm"
                 onClick={openNotesFromPendingSelection}
-                aria-label="Add selected text to a note"
-                style={{ minHeight: "36px", paddingInline: "14px", borderRadius: "12px" }}
+                className="min-h-[36px] px-3.5 rounded-xl h-auto"
               >
                 Add to Note
               </Button>
@@ -1153,8 +981,7 @@ export function InteractiveSummaryReader({
                 variant="secondary"
                 size="sm"
                 onClick={() => openAIFromPendingSelection("ask-ai")}
-                aria-label="Ask AI about the selected text"
-                style={{ minHeight: "36px", paddingInline: "14px", borderRadius: "12px" }}
+                className="min-h-[36px] px-3.5 rounded-xl h-auto"
               >
                 Ask AI
               </Button>
@@ -1162,19 +989,12 @@ export function InteractiveSummaryReader({
                 variant="ghost"
                 size="sm"
                 onClick={clearPendingSelection}
-                style={{
-                  minHeight: "36px",
-                  paddingInline: "14px",
-                  borderRadius: "12px",
-                  border: "1px solid rgba(255,255,255,0.15)",
-                  backgroundColor: "transparent",
-                  color: "#e5e7eb",
-                }}
+                className="min-h-[36px] px-3.5 rounded-xl border border-white/15 bg-transparent text-gray-200 hover:bg-white/10 hover:text-white h-auto"
               >
                 Cancel
               </Button>
             </motion.div>
-          ) : null}
+          )}
         </AnimatePresence>
       </div>
 

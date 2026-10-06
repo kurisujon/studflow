@@ -2,10 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-
 import { useAuth } from "@clerk/nextjs";
-
 import { API_BASE_URL, buildAPIError } from "@/lib/api";
+import { Loader2Icon, AlertCircleIcon } from "@/components/home/icon-registry";
 
 type RetryDocumentButtonProps = {
   documentId: string;
@@ -62,43 +61,30 @@ export function RetryDocumentButton({
   }
 
   return (
-    <div style={{ display: "grid", gap: "0.65rem" }}>
+    <div className="flex flex-col gap-3">
       <button
         type="button"
-        className="btn-primary"
         disabled={isPending}
         onClick={() => void handleRetry()}
-        style={{
-          minHeight: "42px",
-          paddingInline: "18px",
-          borderRadius: "12px",
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: "0.6rem",
-        }}
+        className="inline-flex w-full h-11 items-center justify-center gap-2 rounded-xl bg-[var(--theme-primary)] px-6 text-sm font-semibold text-white shadow-sm transition hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--card)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:brightness-100"
       >
         {isPending ? (
-          <span
-            aria-hidden="true"
-            style={{
-              width: "14px",
-              height: "14px",
-              borderRadius: "999px",
-              border: "2px solid rgba(255,255,255,0.35)",
-              borderTopColor: "#ffffff",
-              display: "inline-block",
-              animation: "distillSpin 0.8s linear infinite",
-            }}
-          />
-        ) : null}
-        {isPending ? "Retrying..." : "Retry processing"}
+          <>
+            <Loader2Icon aria-hidden="true" className="size-4 animate-spin" />
+            Retrying...
+          </>
+        ) : (
+          "Retry processing"
+        )}
       </button>
 
       {error ? (
-        <p role="alert" style={{ color: "#b42318", fontSize: "0.86rem" }}>
-          {error}
-        </p>
+        <div className="flex items-start gap-2 rounded-lg bg-red-500/10 p-3 text-red-700 dark:text-red-400">
+          <AlertCircleIcon aria-hidden="true" className="size-4 shrink-0 mt-0.5" />
+          <p role="alert" className="text-xs font-medium">
+            {error}
+          </p>
+        </div>
       ) : null}
     </div>
   );

@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 
 import type { DocumentStatusResponse } from "@/hooks/use-document-status";
 import { RetryDocumentButton } from "@/components/retry-document-button";
+import { AlertCircleIcon, Loader2Icon, CheckCircle2Icon } from "@/components/home/icon-registry";
 
 const STAGE_COPY: Record<DocumentStatusResponse["processing_stage"], string> = {
   QUEUED: "Queueing your study workflow...",
@@ -34,6 +35,7 @@ export function DocumentProcessingStatus({
   onRetrySuccess?: () => void;
 }) {
   const isFailed = status?.status === "FAILED" && !retryQueued;
+  const isCompleted = status?.status === "COMPLETED";
   const message = retryQueued
     ? "Retry queued."
     : status
@@ -45,28 +47,13 @@ export function DocumentProcessingStatus({
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: "easeOut" }}
-      style={{
-        width: "100%",
-        maxWidth: "720px",
-        marginInline: "auto",
-        padding: "2rem",
-        border: "1px solid var(--distill-border)",
-        borderRadius: "24px",
-        background:
-          "linear-gradient(135deg, rgba(255,255,255,0.88), rgba(249,249,248,0.96))",
-        boxShadow: "0 20px 60px rgba(17,17,16,0.06)",
-        backdropFilter: "blur(12px)",
-      }}
+      className="w-full max-w-[720px] mx-auto overflow-hidden rounded-[24px] border border-[var(--border)] bg-[var(--card)] shadow-md"
     >
+      {/* Progress Bar / Indicator Line */}
       {isFailed ? (
-        <div
-          style={{
-            height: "3px",
-            borderRadius: "999px",
-            background: "#b42318",
-            marginBottom: "1.5rem",
-          }}
-        />
+        <div className="h-1.5 w-full bg-red-500" />
+      ) : isCompleted ? (
+        <div className="h-1.5 w-full bg-emerald-500" />
       ) : (
         <motion.div
           initial={{ scaleX: 0.1 }}
@@ -76,129 +63,88 @@ export function DocumentProcessingStatus({
             repeat: Number.POSITIVE_INFINITY,
             ease: "easeInOut",
           }}
-          style={{
-            height: "3px",
-            transformOrigin: "left center",
-            borderRadius: "999px",
-            background:
-              "linear-gradient(90deg, var(--distill-text-primary), var(--distill-text-muted))",
-            marginBottom: "1.5rem",
-          }}
+          className="h-1.5 w-full origin-left bg-gradient-to-r from-[var(--theme-primary)] to-[var(--theme-soft)]"
         />
       )}
 
-      <p
-        style={{
-          fontSize: "0.75rem",
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
-          color: "var(--distill-text-muted)",
-          marginBottom: "0.75rem",
-        }}
-      >
-        {isFailed ? "Processing stopped" : "AI Processing"}
-      </p>
-
-      <h2
-        style={{
-          fontSize: "clamp(1.75rem, 3vw, 2.4rem)",
-          marginBottom: "0.875rem",
-        }}
-      >
-        {message}
-      </h2>
-
-      <p
-        style={{
-          fontSize: "1rem",
-          color: "var(--distill-text-secondary)",
-          marginBottom: "1.75rem",
-        }}
-      >
-        {isFailed
-          ? "Your file is still saved. Retry processing to resume from its existing checkpoints."
-          : retryQueued
-            ? "Studflow will resume this saved file from its existing checkpoints."
-            : "Studflow is turning the uploaded material into a summary, flashcards, and a quiz."}
-      </p>
-
-      {error ? (
-        <p
-          role="alert"
-          style={{
-            marginBottom: "1rem",
-            color: "#b42318",
-            fontSize: "0.92rem",
-          }}
-        >
-          {error}
-        </p>
-      ) : null}
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-          gap: "0.75rem",
-        }}
-      >
-        {[
-          {
-            label: "Status",
-            value: status?.status ?? "PENDING",
-          },
-          {
-            label: "Stage",
-            value: status?.processing_stage ?? "QUEUED",
-          },
-          {
-            label: "Flashcards",
-            value: status ? String(status.flashcard_count) : "0",
-          },
-        ].map((item) => (
-          <motion.div
-            key={item.label}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35 }}
-            style={{
-              padding: "1rem 1rem 0.9rem",
-              borderRadius: "18px",
-              backgroundColor: "rgba(255,255,255,0.72)",
-              border: "1px solid var(--distill-border)",
-            }}
-          >
-            <p
-              style={{
-                fontSize: "0.72rem",
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                color: "var(--distill-text-muted)",
-                marginBottom: "0.45rem",
-              }}
-            >
-              {item.label}
+      <div className="p-6 sm:p-8">
+        <div className="mb-8">
+          <div className="flex items-center gap-2 mb-2">
+            {isFailed ? (
+              <AlertCircleIcon className="size-5 text-red-500" aria-hidden="true" /> 
+            ) : isCompleted ? (
+              <CheckCircle2Icon className="size-5 text-emerald-500" aria-hidden="true" />
+            ) : (
+              <Loader2Icon className="size-5 animate-spin text-[var(--theme-primary)]" aria-hidden="true" /> 
+            )}
+            <p className="text-xs font-bold uppercase tracking-widest text-[var(--muted-foreground)]">
+              {isFailed ? "Processing stopped" : isCompleted ? "Complete" : "AI Processing"}
             </p>
-            <p
-              style={{
-                fontSize: "0.98rem",
-                color: "var(--distill-text-primary)",
-              }}
-            >
-              {item.value}
-            </p>
-          </motion.div>
-        ))}
-      </div>
+          </div>
 
-      {isFailed && retryDocumentId ? (
-        <div style={{ marginTop: "1.25rem" }}>
-          <RetryDocumentButton
-            documentId={retryDocumentId}
-            onSuccess={onRetrySuccess}
-          />
+          <h2 className="text-2xl font-bold tracking-tight text-[var(--foreground)] sm:text-3xl">
+            {message}
+          </h2>
+
+          <p className="mt-3 text-base text-[var(--muted-foreground)]">
+            {isFailed
+              ? "Your file is still saved. Retry processing to resume from its existing checkpoints."
+              : retryQueued
+                ? "Studflow will resume this saved file from its existing checkpoints."
+                : isCompleted
+                  ? "Redirecting you to the study workspace..."
+                  : "Studflow is turning the uploaded material into a summary, flashcards, and a quiz."}
+          </p>
         </div>
-      ) : null}
+
+        {error ? (
+          <div className="mb-8 flex items-start gap-3 rounded-xl bg-red-500/10 px-4 py-3 text-red-700 dark:text-red-400">
+            <AlertCircleIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+            <p className="text-sm font-medium">{error}</p>
+          </div>
+        ) : null}
+
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {[
+            {
+              label: "Status",
+              value: status?.status ?? "PENDING",
+            },
+            {
+              label: "Stage",
+              value: status?.processing_stage ?? "QUEUED",
+            },
+            {
+              label: "Flashcards",
+              value: status ? String(status.flashcard_count) : "0",
+            },
+          ].map((item, index) => (
+            <motion.div
+              key={item.label}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, delay: index * 0.1 }}
+              className="flex flex-col gap-1 rounded-xl border border-[var(--border)] bg-[var(--background)] p-4"
+            >
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted-foreground)]">
+                {item.label}
+              </p>
+              <p className="truncate text-sm font-semibold text-[var(--foreground)]">
+                {item.value}
+              </p>
+            </motion.div>
+          ))}
+        </div>
+
+        {isFailed && retryDocumentId ? (
+          <div className="mt-8 border-t border-[var(--border)] pt-6">
+            <RetryDocumentButton
+              documentId={retryDocumentId}
+              onSuccess={onRetrySuccess}
+            />
+          </div>
+        ) : null}
+      </div>
     </motion.section>
   );
 }

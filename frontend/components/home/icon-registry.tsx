@@ -28,3 +28,13 @@ export const HighlighterIcon = icons.Highlighter;
 export const FolderPlusIcon = icons.FolderPlus;
 export const ChevronLeftIcon = icons.ChevronLeft;
 
+export const ArrowRightIcon = icons.ArrowRight;
+export const BookOpenIcon = icons.BookOpen;
+export const RotateCcwIcon = icons.RotateCcw;
+export const TargetIcon = icons.Target;
+export const CheckCircle2Icon = icons.CheckCircle2;
+export const TrophyIcon = icons.Trophy;
+export const FlameIcon = icons.Flame;
+export const Loader2Icon = icons.Loader2;
+export const XIcon = icons.X;
+export const AlertCircleIcon = icons.AlertCircle;
