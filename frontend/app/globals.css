@@ -785,13 +785,21 @@ a.ai-chat-source-card:hover { border-color: var(--theme-primary); }
   --muted-foreground: #94A3B8;
   --border: #1E293B;
   --input: #1E293B;
-  --primary: #3B82F6;
-  --primary-foreground: #ffffff;
+  --primary: var(--theme-primary);
+  --primary-foreground: var(--theme-on-primary);
   --secondary: #14B8A6;
   --secondary-foreground: #ffffff;
   --accent: #8B5CF6;
   --accent-foreground: #ffffff;
   --success: #22C55E;
+  
+  --theme-primary: #6366f1;
+  --theme-primary-hover: #818cf8;
+  --theme-soft: color-mix(in srgb, var(--theme-primary) 18%, #1a1816);
+  --theme-border: color-mix(in srgb, var(--theme-primary) 34%, #332f2b);
+  --theme-shadow: color-mix(in srgb, var(--theme-primary) 22%, transparent);
+  --theme-on-primary: #ffffff;
+
   --distill-bg: var(--background);
   --distill-surface: var(--card);
   --distill-border: var(--border);
