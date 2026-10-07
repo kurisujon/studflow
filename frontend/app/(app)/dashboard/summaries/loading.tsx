@@ -1,3 +1,4 @@
+import { Skeleton } from "@/components/ui/skeleton";
 import { DashboardFeatureShell } from "@/components/dashboard/DashboardFeatureShell";
 
 export default function SummariesLoading() {
@@ -8,12 +9,12 @@ export default function SummariesLoading() {
       title="Summary library"
       description="Browse structured AI-generated overviews and return to the complete reader when you are ready to study."
     >
-      <div aria-hidden="true" className="animate-pulse motion-reduce:animate-none">
+      <div aria-hidden="true" className="">
         <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="h-10 w-full max-w-md rounded-xl bg-muted" />
+          <Skeleton className="h-10 w-full max-w-md rounded-xl" />
           <div className="flex gap-4">
-            <div className="h-10 w-32 rounded-lg bg-muted" />
-            <div className="h-10 w-32 rounded-lg bg-muted" />
+            <Skeleton className="h-10 w-32 rounded-lg" />
+            <Skeleton className="h-10 w-32 rounded-lg" />
           </div>
         </div>
         <div className="mt-8 space-y-6">

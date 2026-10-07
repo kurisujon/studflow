@@ -1,3 +1,4 @@
+import { Skeleton } from "@/components/ui/skeleton";
 export default function SettingsLoading() {
   return (
     <section
@@ -16,21 +17,21 @@ export default function SettingsLoading() {
           Customize your spaced repetition algorithm and daily study goals.
         </p>
 
-        <div aria-hidden="true" className="space-y-8 mt-8 animate-pulse motion-reduce:animate-none">
+        <div aria-hidden="true" className="space-y-8 mt-8">
           <div className="space-y-4">
-            <div className="h-6 w-32 rounded bg-muted" />
-            <div className="h-20 w-full rounded-xl bg-muted" />
+            <Skeleton className="h-6 w-32 rounded" />
+            <Skeleton className="h-20 w-full rounded-xl" />
           </div>
           <div className="space-y-4">
-            <div className="h-6 w-48 rounded bg-muted" />
-            <div className="h-20 w-full rounded-xl bg-muted" />
+            <Skeleton className="h-6 w-48 rounded" />
+            <Skeleton className="h-20 w-full rounded-xl" />
           </div>
           <div className="space-y-4">
-            <div className="h-6 w-40 rounded bg-muted" />
-            <div className="h-20 w-full rounded-xl bg-muted" />
+            <Skeleton className="h-6 w-40 rounded" />
+            <Skeleton className="h-20 w-full rounded-xl" />
           </div>
           <div className="flex justify-end pt-4">
-            <div className="h-11 w-32 rounded-xl bg-muted" />
+            <Skeleton className="h-11 w-32 rounded-xl" />
           </div>
         </div>
         <span className="sr-only">Loading study preferences...</span>
