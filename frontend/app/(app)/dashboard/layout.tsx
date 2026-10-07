@@ -86,23 +86,26 @@ export default function DashboardLayout({
                 href={link.href}
                 title={collapsed ? link.label : undefined}
                 className={`
-                  group flex items-center overflow-hidden whitespace-nowrap rounded-xl transition-colors duration-200 ease-out outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--card)]
+                  group relative flex items-center overflow-hidden whitespace-nowrap rounded-xl transition-colors duration-200 ease-out outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card
                   max-md:flex-col max-md:justify-center max-md:gap-1 max-md:px-2 max-md:py-2 max-md:flex-1 max-md:text-[0.7rem]
                   md:justify-start md:gap-3 md:p-3 md:text-[0.92rem]
                   ${
                     isActive
-                      ? "bg-[color-mix(in_srgb,var(--theme-primary)_8%,transparent)] font-semibold text-[var(--theme-primary)] dark:bg-[color-mix(in_srgb,var(--theme-primary)_15%,transparent)]"
-                      : "font-medium text-[var(--distill-text-secondary)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
+                      ? "bg-muted font-semibold text-foreground"
+                      : "font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                   }
                 `}
               >
+                {isActive && (
+                  <div className="absolute left-0 top-1/2 h-1/2 w-1 -translate-y-1/2 rounded-r-md bg-[var(--theme-primary)] max-md:hidden" />
+                )}
                 <Icon
                   size={18}
                   strokeWidth={isActive ? 2.2 : 1.8}
                   className={`shrink-0 transition-colors duration-200 ${
                     isActive
                       ? "text-[var(--theme-primary)]"
-                      : "text-[var(--distill-text-muted)] group-hover:text-[var(--foreground)]"
+                      : "text-muted-foreground group-hover:text-foreground"
                   }`}
                 />
                 <span
@@ -130,11 +133,11 @@ export default function DashboardLayout({
         aria-expanded={!collapsed}
         title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         className={`
-          max-md:hidden fixed z-[110] size-8 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]
+          max-md:hidden fixed z-[110] size-8 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background
           ${
             collapsed
-              ? "border border-[var(--border)] bg-[var(--card)] text-[var(--distill-text-secondary)] shadow-sm hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
-              : "bg-transparent text-[var(--distill-text-muted)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
+              ? "border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground"
+              : "bg-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
           }
         `}
         style={{
