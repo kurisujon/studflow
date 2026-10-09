@@ -21,9 +21,9 @@ export function StatsGrid({ stats }: { stats: UserStats }) {
   ];
 
   return (
-    <section aria-label="Your statistics" className="flex flex-wrap items-center gap-6 sm:gap-10">
-      {metrics.map((metric) => (
-        <div key={metric.label} className="flex flex-col">
+    <section aria-label="Your statistics" className="grid grid-cols-2 gap-6 sm:grid-cols-4 sm:gap-8">
+      {metrics.map((metric, idx) => (
+        <div key={metric.label} className={`flex flex-col ${idx !== 0 ? "sm:border-l sm:border-[var(--border)] sm:pl-8" : ""}`}>
           <p className="text-[11px] font-bold text-[var(--muted-foreground)] uppercase tracking-wider">
             {metric.label}
           </p>

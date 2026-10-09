@@ -3,24 +3,26 @@ import { Loader2Icon as Loader2 } from "@/components/home/icon-registry";
 
 export default function DashboardLoading() {
   return (
-    <div aria-hidden="true" className="flex flex-col gap-10 pb-12">
+    <div aria-hidden="true" className="flex flex-col gap-10 px-4 pb-12 pt-6 sm:px-6 lg:px-8 lg:pt-8">
       {/* Top section: Header + Stats Grid */}
-      <div className="flex flex-col gap-8 border-b border-[var(--border)] pb-8">
-        <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-6">
-          <div className="space-y-3 w-full max-w-2xl">
+      <div className="flex flex-col gap-6 rounded-[24px] border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm sm:p-7">
+        <div className="flex flex-col items-start justify-between gap-5 md:flex-row md:items-center md:gap-8">
+          <div className="w-full min-w-0 max-w-2xl space-y-3">
             <Skeleton className="h-8 w-3/4 max-w-[400px] rounded" />
             <Skeleton className="h-5 w-full max-w-[500px] rounded" />
           </div>
-          <div className="flex shrink-0 items-center gap-3 w-full md:w-auto">
+          <div className="flex shrink-0 flex-wrap items-center gap-3">
             <Skeleton className="h-10 w-24 rounded-lg" />
             <Skeleton className="h-10 w-32 rounded-lg" />
           </div>
         </div>
+        
+        <div aria-hidden="true" className="h-px w-full bg-[var(--border)]" />
 
         {/* Typographic Stats */}
-        <section className="flex flex-wrap items-center gap-6 sm:gap-10">
+        <section className="grid grid-cols-2 gap-6 sm:grid-cols-4 sm:gap-8">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="flex flex-col gap-2">
+            <div key={i} className={`flex flex-col gap-2 ${i !== 1 ? "sm:border-l sm:border-[var(--border)] sm:pl-8" : ""}`}>
               <Skeleton className="h-3 w-20 rounded" />
               <Skeleton className="h-8 w-16 rounded" />
             </div>
@@ -46,7 +48,7 @@ export default function DashboardLoading() {
 
       {/* Recent Materials */}
       <section className="flex flex-col gap-4 pt-4">
-        <Skeleton className="h-5 w-32 rounded ml-2" />
+        <Skeleton className="h-5 w-32 rounded mx-3 sm:mx-4" />
         <div className="flex flex-col gap-2">
           {[1, 2, 3].map((i) => (
             <Skeleton key={i} className="h-20 w-full rounded-xl" />

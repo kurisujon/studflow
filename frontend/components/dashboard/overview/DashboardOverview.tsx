@@ -26,11 +26,16 @@ export function DashboardOverview({
   const recentDocuments = documents.slice(1, 4);
 
   return (
-    <div className="flex flex-col gap-10 pb-12">
-      <div className="flex flex-col gap-8 border-b border-[var(--border)] pb-8">
+    <div className="flex flex-col gap-10 px-4 pb-12 pt-6 sm:px-6 lg:px-8 lg:pt-8">
+      {/* Overview Container */}
+      <section
+        aria-label="Study overview"
+        className="flex flex-col gap-6 rounded-[24px] border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm sm:p-7"
+      >
         <DashboardHeader primaryAction={primaryAction} />
+        <div aria-hidden="true" className="h-px w-full bg-[var(--border)]" />
         <StatsGrid stats={stats} />
-      </div>
+      </section>
 
       {/* Main Grid Layout */}
       <div className="grid gap-6 lg:grid-cols-3">
@@ -91,7 +96,7 @@ export function DashboardOverview({
 
       {recentDocuments.length > 0 && (
         <section aria-labelledby="recent-heading" className="flex flex-col gap-4 pt-4">
-          <div className="flex items-center justify-between gap-4 px-2">
+          <div className="flex items-center justify-between gap-4 px-3 sm:px-4">
             <h2 id="recent-heading" className="text-sm font-bold uppercase tracking-wider text-[var(--muted-foreground)]">
               Recent Materials
             </h2>
