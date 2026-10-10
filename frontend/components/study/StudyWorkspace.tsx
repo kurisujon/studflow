@@ -132,11 +132,11 @@ export function StudyWorkspace({
       {/* MATERIAL CONTEXT + STUDY TOOLS */}
       <aside
         aria-label="Study material and tools"
-        className="flex w-full shrink-0 flex-col gap-4 lg:sticky lg:top-6 lg:w-64 xl:w-72"
+        className="flex w-full shrink-0 flex-col gap-6 lg:sticky lg:top-6 lg:w-64 xl:w-72 lg:gap-8"
       >
         <Link
           href="/dashboard"
-          className="inline-flex w-fit items-center rounded-md text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="inline-flex w-fit items-center rounded-md text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)]"
         >
           <ChevronLeftIcon aria-hidden="true" className="mr-1 size-4" />
           Back to Dashboard
@@ -145,13 +145,13 @@ export function StudyWorkspace({
         {/* Active source */}
         <section
           aria-labelledby="study-material-heading"
-          className="rounded-xl border border-border bg-card p-4 shadow-sm lg:p-5"
+          className="flex flex-col gap-3 px-1"
         >
-          <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             Studying
           </p>
           <div className="flex items-start gap-3">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-accent text-primary">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[var(--theme-soft)] text-[var(--theme-primary)]">
               <FileTextIcon aria-hidden="true" className="size-5" />
             </div>
             <div className="min-w-0">
@@ -166,20 +166,20 @@ export function StudyWorkspace({
             </div>
           </div>
 
-          <div className="mt-4 border-t border-border pt-3" role="status">
+          <div className="mt-1" role="status">
             {isCompleted ? (
-              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-foreground">
-                <CheckCircle2Icon aria-hidden="true" className="size-3.5 text-primary" />
+              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                <CheckCircle2Icon aria-hidden="true" className="size-3.5" />
                 Ready to study
               </span>
             ) : isFailed ? (
-              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-destructive">
+              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-red-600 dark:text-red-400">
                 <AlertCircleIcon aria-hidden="true" className="size-3.5" />
                 Processing failed
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                <Loader2Icon aria-hidden="true" className="size-3.5 animate-spin text-primary" />
+              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+                <Loader2Icon aria-hidden="true" className="size-3.5 animate-spin" />
                 Processing
               </span>
             )}
@@ -189,44 +189,46 @@ export function StudyWorkspace({
         {/* Study tools */}
         <nav
           aria-label="Study tools"
-          className="flex gap-1 overflow-x-auto rounded-xl border border-border bg-card p-1.5 shadow-sm lg:flex-col lg:p-2"
+          className="flex gap-1 overflow-x-auto lg:flex-col"
         >
           {TOOL_GROUPS.map((group) => (
-            <div key={group.label} className="contents lg:block">
-              <p className="hidden px-2 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground lg:block">
+            <div key={group.label} className="contents lg:block lg:mb-6 lg:last:mb-0">
+              <p className="hidden px-2 pb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground lg:block">
                 {group.label}
               </p>
-              {group.tools.map((tool) => {
-                const Icon = tool.icon;
-                const isActive = currentTab === tool.key;
-                const count = counts[tool.key];
-                return (
-                  <button
-                    key={tool.key}
-                    type="button"
-                    onClick={() => navigateToTab(tool.key)}
-                    aria-current={isActive ? "page" : undefined}
-                    aria-keyshortcuts={tool.shortcut}
-                    className={`flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:w-full lg:gap-3 lg:py-2.5 ${
-                      isActive
-                        ? "bg-accent text-primary"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    }`}
-                  >
-                    <Icon aria-hidden="true" className="size-4" />
-                    {tool.label}
-                    {count !== undefined ? (
-                      <span
-                        className={`ml-1 rounded-full px-1.5 text-xs font-normal tabular-nums lg:ml-auto ${
-                          isActive ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-                        }`}
-                      >
-                        {count}
-                      </span>
-                    ) : null}
-                  </button>
-                );
-              })}
+              <div className="flex gap-1 lg:flex-col">
+                {group.tools.map((tool) => {
+                  const Icon = tool.icon;
+                  const isActive = currentTab === tool.key;
+                  const count = counts[tool.key];
+                  return (
+                    <button
+                      key={tool.key}
+                      type="button"
+                      onClick={() => navigateToTab(tool.key)}
+                      aria-current={isActive ? "page" : undefined}
+                      aria-keyshortcuts={tool.shortcut}
+                      className={`flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)] lg:w-full lg:gap-3 lg:py-2.5 ${
+                        isActive
+                          ? "bg-[var(--theme-soft)] text-[var(--theme-primary)]"
+                          : "text-muted-foreground hover:bg-[var(--theme-soft)]/50 hover:text-foreground"
+                      }`}
+                    >
+                      <Icon aria-hidden="true" className="size-4" />
+                      {tool.label}
+                      {count !== undefined ? (
+                        <span
+                          className={`ml-1 rounded-full px-1.5 text-xs font-medium tabular-nums lg:ml-auto ${
+                            isActive ? "bg-[var(--theme-primary)]/10 text-[var(--theme-primary)]" : "bg-muted text-muted-foreground"
+                          }`}
+                        >
+                          {count}
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           ))}
         </nav>
@@ -242,10 +244,10 @@ export function StudyWorkspace({
       {/* MAIN WORKSPACE */}
       <section
         aria-labelledby="study-workspace-heading"
-        className="flex min-h-[480px] w-full min-w-0 flex-1 flex-col rounded-xl border border-border bg-card shadow-sm lg:rounded-2xl"
+        className="flex min-h-[480px] w-full min-w-0 flex-1 flex-col rounded-xl border border-[var(--theme-border)] bg-[var(--card)] lg:rounded-2xl"
       >
-        <header className="flex items-center gap-2 rounded-t-xl border-b border-border px-4 py-3 lg:rounded-t-2xl lg:px-6 lg:py-4">
-          <ActiveIcon aria-hidden="true" className="size-4 text-primary lg:size-5" />
+        <header className="flex items-center gap-2 rounded-t-xl border-b border-[var(--theme-border)] px-4 py-3 lg:rounded-t-2xl lg:px-6 lg:py-4">
+          <ActiveIcon aria-hidden="true" className="size-4 text-[var(--theme-primary)] lg:size-5" />
           <h2 id="study-workspace-heading" className="text-base font-semibold text-foreground lg:text-lg">
             {activeTool.title}
           </h2>
@@ -254,7 +256,7 @@ export function StudyWorkspace({
         <div className="flex flex-1 flex-col">
           {isProcessing ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center" role="status">
-              <Loader2Icon aria-hidden="true" className="size-8 animate-spin text-primary" />
+              <Loader2Icon aria-hidden="true" className="size-8 animate-spin text-[var(--theme-primary)]" />
               <div>
                 <p className="text-base font-semibold text-foreground">This material is still being processed</p>
                 <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
