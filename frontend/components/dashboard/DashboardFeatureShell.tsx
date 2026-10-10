@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode, SVGProps } from "react";
 
-type FeatureTone = "documents" | "summaries" | "quizzes" | "flashcards";
+type FeatureTone = "documents" | "summaries" | "quizzes" | "flashcards" | "settings";
 
 type DashboardFeatureShellProps = {
   tone: FeatureTone;
@@ -40,6 +40,11 @@ const toneClasses: Record<
     badge:
       "border-violet-500/20 bg-violet-500/10 text-violet-800 dark:text-violet-300",
   },
+  settings: {
+    icon: "bg-zinc-500/10 text-zinc-600 dark:text-zinc-300",
+    glow: "from-zinc-500/10 via-stone-500/5",
+    badge: "border-zinc-500/20 bg-zinc-500/10 text-zinc-700 dark:text-zinc-300",
+  },
 };
 
 function FeatureIcon({
@@ -68,6 +73,10 @@ function FeatureIcon({
       "m2 12 10 5 10-5-10-5-10 5z",
       "m2 17 10 5 10-5",
       "m2 7 10-5 10 5",
+    ],
+    settings: [
+      "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6",
+      "M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1"
     ],
   };
 
@@ -106,7 +115,7 @@ export function DashboardFeatureShell({
         className={`pointer-events-none absolute inset-x-0 top-0 h-80 bg-gradient-to-br ${palette.glow} to-transparent`}
       />
       <div className="relative mx-auto w-full max-w-[1440px] space-y-7 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-        <header className="relative overflow-hidden rounded-[28px] border border-[var(--theme-border)] bg-[var(--card)] p-5 shadow-[0_18px_50px_var(--theme-shadow)] sm:p-7">
+        <header className="relative overflow-hidden rounded-xl border border-[var(--theme-border)] bg-[var(--card)] p-5 shadow-sm sm:p-7">
           <div className="relative flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
             <div className="flex min-w-0 items-start gap-4">
               <span

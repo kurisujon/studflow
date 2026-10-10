@@ -30,14 +30,13 @@ export function SettingsForm({ preferences }: { preferences: UserPreferences }) 
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
-      {/* Daily Goal */}
-      <div style={{ padding: "1.5rem", borderRadius: "16px", backgroundColor: "var(--card)", border: "1px solid var(--theme-border)" }}>
-        <h3 style={{ fontSize: "1.1rem", fontWeight: 600, marginBottom: "0.5rem" }}>Daily Review Goal</h3>
-        <p style={{ fontSize: "0.9rem", color: "var(--distill-text-secondary)", marginBottom: "1.5rem" }}>
+    <div className="flex max-w-2xl flex-col gap-6">
+      <div className="rounded-xl border border-[var(--theme-border)] bg-[var(--card)] p-5 sm:p-6">
+        <h3 className="text-base font-bold text-[var(--foreground)]">Daily Review Goal</h3>
+        <p className="mt-1 text-sm text-[var(--muted-foreground)]">
           How many flashcards do you want to aim to review each day?
         </p>
-        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+        <div className="mt-5 flex items-center gap-4">
           <input
             type="range"
             min="5"
@@ -45,19 +44,18 @@ export function SettingsForm({ preferences }: { preferences: UserPreferences }) 
             step="5"
             value={dailyGoal}
             onChange={(e) => setDailyGoal(Number(e.target.value))}
-            style={{ flex: 1 }}
+            className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-[var(--theme-border)] accent-[var(--theme-primary)]"
           />
-          <span style={{ fontSize: "1.25rem", fontWeight: 700, width: "3rem", textAlign: "right" }}>{dailyGoal}</span>
+          <span className="w-12 text-right text-xl font-bold text-[var(--foreground)]">{dailyGoal}</span>
         </div>
       </div>
 
-      {/* SM-2 Algorithm */}
-      <div style={{ padding: "1.5rem", borderRadius: "16px", backgroundColor: "var(--card)", border: "1px solid var(--theme-border)" }}>
-        <h3 style={{ fontSize: "1.1rem", fontWeight: 600, marginBottom: "0.5rem" }}>SM-2 Aggressiveness</h3>
-        <p style={{ fontSize: "0.9rem", color: "var(--distill-text-secondary)", marginBottom: "1.5rem" }}>
+      <div className="rounded-xl border border-[var(--theme-border)] bg-[var(--card)] p-5 sm:p-6">
+        <h3 className="text-base font-bold text-[var(--foreground)]">SM-2 Aggressiveness</h3>
+        <p className="mt-1 text-sm text-[var(--muted-foreground)]">
           Lower numbers make flashcards appear more frequently (harder). Standard is 2.5.
         </p>
-        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+        <div className="mt-5 flex items-center gap-4">
           <input
             type="range"
             min="1.5"
@@ -65,33 +63,22 @@ export function SettingsForm({ preferences }: { preferences: UserPreferences }) 
             step="0.1"
             value={sm2}
             onChange={(e) => setSm2(Number(e.target.value))}
-            style={{ flex: 1 }}
+            className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-[var(--theme-border)] accent-[var(--theme-primary)]"
           />
-          <span style={{ fontSize: "1.25rem", fontWeight: 700, width: "3rem", textAlign: "right" }}>{sm2.toFixed(1)}</span>
+          <span className="w-12 text-right text-xl font-bold text-[var(--foreground)]">{sm2.toFixed(1)}</span>
         </div>
       </div>
 
-      {/* Save Button */}
-      <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginTop: "1rem" }}>
+      <div className="mt-2 flex items-center gap-4">
         <button
           onClick={handleSave}
           disabled={saving}
-          style={{
-            padding: "0.75rem 2rem",
-            borderRadius: "12px",
-            backgroundColor: "var(--theme-primary)",
-            color: "white",
-            fontWeight: 600,
-            border: "none",
-            cursor: saving ? "not-allowed" : "pointer",
-            opacity: saving ? 0.7 : 1,
-            transition: "opacity 0.2s ease"
-          }}
+          className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--theme-primary)] px-6 text-sm font-semibold text-white transition hover:brightness-105 disabled:pointer-events-none disabled:opacity-70"
         >
           {saving ? "Saving..." : "Save Preferences"}
         </button>
         {message && (
-          <span style={{ fontSize: "0.9rem", color: message.includes("success") ? "#10b981" : "#ef4444" }}>
+          <span className={`text-sm font-medium ${message.includes("success") ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
             {message}
           </span>
         )}
