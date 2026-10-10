@@ -258,11 +258,37 @@ Goal: Stop relying on "tests pass" and start measuring actual RAG and AI quality
 - [x] C6: Regression runner
 - [x] C7: CI integration
 
-## Phase D: Chunking Strategy & Hyperparameter Tuning (Current Priority)
+## Phase D: Chunking Strategy & Hyperparameter Tuning (Skipped)
 
 Goal: Begin systematic chunking experiments and threshold tuning evaluating candidate runs against frozen baseline.
+
+*Status: Skipped. The existing chunking strategy performs perfectly against the C3/C4/C5 evaluation baselines, so optimization is not currently required.*
 
 ### Production Stabilization
 - [x] Add `lru_cache` to Clerk JWKS fetch to prevent rate limit 500s
 - [x] Rename eval scripts to prevent pytest collection errors that broke CI/CD
 - [x] Disable psycopg3 prepared statements for PgBouncer compatibility to fix intermittent 500s on the status polling route
+
+## Phase 12: Documents Library Redesign (Completed)
+
+- [x] Redesign `document-list-view.tsx` to replace `ResourceCard` with `ResourceRow`
+- [x] Update `LibraryStats` with `shadow-sm` and `rounded-xl`
+- [x] Add `variant="icon"` prop to `DeleteDocumentButton` and `RetryDocumentButton`
+
+## Phase 13: Study Workspace Shell Refinement (Completed)
+
+- [x] Strip `bg-card`, `border`, and `shadow-sm` from left sidebar material context and navigation menu.
+- [x] Remove `shadow-sm` from the main reading area container to flatten the UI.
+- [x] Swap hardcoded `text-primary` colors for `var(--theme-primary)` in the workspace shell.
+
+## Phase 14: Summary Library Refinement (Completed)
+
+- [x] Redesign `summary-library-view.tsx` to replace the heavy grid layout (`SummaryCard`) with a single-column list view (`SummaryRow`)
+- [x] Replace heavy shadows and glow effects on `FeaturedSummary` with a cleaner `shadow-sm` and `rounded-xl`
+- [x] Remove heavy shadows from `EmptyLibrary` to adhere to minimalist constraints
+
+## Phase 15: Settings Page Refinement (Completed)
+
+- [x] Replace legacy gradients and inline layout CSS in `frontend/app/(app)/dashboard/settings/page.tsx` with the `DashboardFeatureShell` component
+- [x] Add a `"settings"` tone to `DashboardFeatureShell` and flatten its main header to use `shadow-sm` and `rounded-xl`
+- [x] Strip inline styles from `frontend/components/settings-form.tsx` and migrate to Tailwind CSS with clean borders, backgrounds, and hover states

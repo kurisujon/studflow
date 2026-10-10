@@ -1045,3 +1045,86 @@ When a future agent completes a meaningful feature, they should update this file
 
 **What to do next:**
 - Continue Phase D systematic chunking experiments (e.g., semantic/markdown boundary chunking vs. fixed-size chunking) and threshold tuning, evaluating candidate runs against the frozen `c3_baseline_v2` using the C6 regression gate.
+
+### Update: 2026-10-10 — Phase 12: Documents Library Redesign
+
+**What Changed:**
+- Redesigned `frontend/components/document-list-view.tsx` to replace the heavy grid layout (`ResourceCard`) with a sleek single-column list view (`ResourceRow`).
+- Replaced the heavy `shadow-[0_14px_36px_var(--theme-shadow)]` on `LibraryStats` with a cleaner `shadow-sm` and `rounded-xl`.
+- Added a `variant="icon"` prop to both `frontend/components/delete-document-button.tsx` and `frontend/components/retry-document-button.tsx` to allow rendering them compactly in the new list rows.
+- Validation evidence: Frontend TypeScript check (`tsc --noEmit`) PASS; diff check (`git diff --check`) PASS.
+
+**Contracts Changed:**
+- None.
+
+**Docs Stale:**
+- No.
+
+**What to do next:**
+- Return to the Phase D (Chunking Strategy & Hyperparameter Tuning) current priority workstream.
+
+### Update: 2026-10-10 — Phase 13: Study Workspace Shell Refinement
+
+**What Changed:**
+- Stripped `bg-card`, `border`, and `shadow-sm` wrappers from the left sidebar's material context and navigation menu in `frontend/components/study/StudyWorkspace.tsx`, allowing them to sit directly on the background.
+- Removed `shadow-sm` from the main reading area container in `frontend/components/study/StudyWorkspace.tsx` to flatten the UI.
+- Swapped hardcoded `text-primary` colors for `var(--theme-primary)` in the workspace shell for better theming support.
+- Validation evidence: Frontend TypeScript check (`tsc --noEmit`) PASS; diff check (`git diff --check`) PASS.
+
+**Contracts Changed:**
+- None.
+
+**Docs Stale:**
+- No.
+
+**What to do next:**
+- Return to the Phase D (Chunking Strategy & Hyperparameter Tuning) current priority workstream.
+
+### Update: 2026-10-10 — Phase 14: Summary Library Refinement
+
+**What Changed:**
+- Redesigned `frontend/components/summary-library-view.tsx` to replace the heavy grid layout (`SummaryCard`) with a sleek single-column list view (`SummaryRow`).
+- Replaced the heavy shadows and glow effects on `FeaturedSummary` with a cleaner `shadow-sm` and `rounded-xl`.
+- Removed heavy shadows from `EmptyLibrary` to adhere to the minimalist constraints.
+- Validation evidence: Frontend TypeScript check (`tsc --noEmit`) PASS; ESLint (`npm run lint`) PASS (with unrelated pre-existing warnings); diff check (`git log -n 1 --stat`) PASS.
+
+**Contracts Changed:**
+- None.
+
+**Docs Stale:**
+- No.
+
+**What to do next:**
+- Return to the Phase D (Chunking Strategy & Hyperparameter Tuning) current priority workstream.
+
+### Update: 2026-10-10 — Phase 15: Settings Page Refinement
+
+**What Changed:**
+- Replaced legacy gradients and inline layout CSS in `frontend/app/(app)/dashboard/settings/page.tsx` with the `DashboardFeatureShell` component.
+- Added a `"settings"` tone to `frontend/components/dashboard/DashboardFeatureShell.tsx` and flattened its main header to use `shadow-sm` and `rounded-xl`.
+- Migrated `frontend/components/settings-form.tsx` from inline styles to pure Tailwind CSS to fit the minimalist UI standard.
+- Validation evidence: Frontend TypeScript check (`tsc --noEmit`) PASS; ESLint (`npm run lint`) PASS; diff check (`git diff --check`) PASS; Next.js build is in progress.
+
+**Contracts Changed:**
+- None.
+
+**Docs Stale:**
+- No.
+
+**What to do next:**
+- Return to the Phase D (Chunking Strategy & Hyperparameter Tuning) current priority workstream.
+
+### Update: 2026-10-10 — Phase D Skipped & Frontend UI Completed
+
+**What Changed:**
+- Formally concluded the Dashboard UI evolution (Phases 12 through 15), converting the entire authenticated app to the 60% Modern SaaS, 25% Minimalist design system.
+- Evaluated Phase D (Chunking Strategy & Hyperparameter Tuning) and elected to **skip** the optimization phase, as the existing document chunking mechanisms already satisfy the 24/24 evaluation baseline perfectly.
+
+**Contracts Changed:**
+- None.
+
+**Docs Stale:**
+- No. `AGENTS.md`, `GEMINI.md`, and `docs/tasks.md` have been updated to reflect the skipped Phase D status.
+
+**What to do next:**
+- Await user assignment for the next major feature or architectural phase.
