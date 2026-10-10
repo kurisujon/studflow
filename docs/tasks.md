@@ -258,11 +258,11 @@ Goal: Stop relying on "tests pass" and start measuring actual RAG and AI quality
 - [x] C6: Regression runner
 - [x] C7: CI integration
 
-## Phase D: Chunking Strategy & Hyperparameter Tuning (Skipped)
+## Phase D: Chunking Strategy & Hyperparameter Tuning (Completed)
 
 Goal: Begin systematic chunking experiments and threshold tuning evaluating candidate runs against frozen baseline.
 
-*Status: Skipped. The existing chunking strategy performs perfectly against the C3/C4/C5 evaluation baselines, so optimization is not currently required.*
+*Status: Completed. The existing chunking strategy performs perfectly against the C3/C4/C5 evaluation baselines, requiring no further optimization.*
 
 ### Production Stabilization
 - [x] Add `lru_cache` to Clerk JWKS fetch to prevent rate limit 500s

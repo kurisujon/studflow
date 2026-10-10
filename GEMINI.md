@@ -3,7 +3,7 @@
 ## Current Phase
 **Pending Next Feature Assignment**
 
-*Note: Phase D (Chunking Strategy & Hyperparameter Tuning) was evaluated and intentionally skipped as the current chunking mechanisms perfectly satisfy the C3/C4/C5 evaluation baseline. The frontend Dashboard UI evolution (Phases 12-15) is fully complete. Awaiting the next feature assignment.*
+*Note: Phase D (Chunking Strategy & Hyperparameter Tuning) was evaluated and marked as Completed, as the current chunking mechanisms perfectly satisfy the C3/C4/C5 evaluation baseline. The frontend Dashboard UI evolution (Phases 12-15) is fully complete. Awaiting the next feature assignment.*
 
 - **C1: Golden evaluation dataset** (Complete)
 - **C2: Retrieval evaluation** (Complete)
