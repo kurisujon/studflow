@@ -61,9 +61,6 @@ const TrashIcon = () => (
 const FileIcon = () => (
   <Icon className="size-5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6M8 13h8M8 17h6" /></Icon>
 );
-const CheckIcon = () => (
-  <Icon><path d="m5 12 4 4L19 6" /></Icon>
-);
 
 function isProcessing(document: DocumentListItem) {
   return document.status !== "COMPLETED" && document.status !== "FAILED";
@@ -303,7 +300,7 @@ function DocumentLibrary({ documents }: DocumentListViewProps) {
       />
 
       <section aria-labelledby="library-resources" className="space-y-5">
-        <div className="flex flex-col gap-4 rounded-2xl border border-[var(--theme-border)] bg-[var(--card)] p-4 shadow-[0_14px_36px_var(--theme-shadow)] lg:flex-row lg:items-end lg:justify-between">
+        <div className="flex flex-col gap-4 rounded-xl border border-[var(--theme-border)] bg-[var(--card)] p-4 shadow-sm lg:flex-row lg:items-end lg:justify-between">
           <div className="w-full max-w-xl">
             <label htmlFor="library-search" className="text-sm font-semibold text-[var(--foreground)]">
               Search documents
@@ -362,7 +359,7 @@ function DocumentLibrary({ documents }: DocumentListViewProps) {
         {folderEntries.length > 0 ? (
           <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {folderEntries.map(([name, ids]) => (
-              <li key={name} className="rounded-2xl border border-[var(--theme-border)] bg-[var(--card)] p-3">
+              <li key={name} className="rounded-xl border border-[var(--theme-border)] bg-[var(--card)] p-3">
                 <div className="flex items-center gap-2">
                   {editingFolder === name ? (
                     <div className="flex min-w-0 flex-1 items-center gap-3 rounded-xl p-2">
@@ -469,7 +466,7 @@ function LibraryStats({
         {items.map((item) => (
           <li
             key={item.label}
-            className="rounded-2xl border border-[var(--theme-border)] bg-[var(--card)] p-4 shadow-[0_14px_36px_var(--theme-shadow)]"
+            className="rounded-xl border border-[var(--theme-border)] bg-[var(--card)] p-4 shadow-sm"
           >
             <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${item.tone}`}>
               {item.label}
@@ -536,7 +533,7 @@ function FolderDialogView({
         aria-labelledby={titleId}
         aria-describedby={descriptionId}
         onKeyDown={trapFocus}
-        className="w-full max-w-md rounded-2xl border border-[var(--theme-border)] bg-[var(--card)] p-5 shadow-2xl"
+        className="w-full max-w-md rounded-xl border border-[var(--theme-border)] bg-[var(--card)] p-5 shadow-2xl"
       >
         <h2 id={titleId} className="text-xl font-bold text-[var(--foreground)]">
           {dialog.mode === "create" ? "Create a folder" : `Delete ${dialog.name}?`}
@@ -629,16 +626,16 @@ function ResourceSection({
   emptyMessage: string;
 }) {
   return (
-    <section aria-labelledby={`resource-${title.replace(/\s+/g, "-").toLowerCase()}`} className="rounded-2xl border border-[var(--theme-border)] bg-[var(--card)] p-4 shadow-[0_18px_50px_var(--theme-shadow)] sm:p-5">
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+    <section aria-labelledby={`resource-${title.replace(/\s+/g, "-").toLowerCase()}`} className="rounded-xl border border-[var(--theme-border)] bg-[var(--card)] shadow-sm">
+      <div className="flex flex-col gap-1 border-b border-[var(--theme-border)] p-4 sm:flex-row sm:items-end sm:justify-between sm:p-5">
         <h3 id={`resource-${title.replace(/\s+/g, "-").toLowerCase()}`} className="text-lg font-bold text-[var(--foreground)]">{title}</h3>
         <p className="text-sm text-[var(--muted-foreground)]">{description}</p>
       </div>
       {documents.length > 0 ? (
-        <ul className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {documents.map((document) => (
-            <li key={document.id}>
-              <ResourceCard
+        <ul className="flex flex-col">
+          {documents.map((document, index) => (
+            <li key={document.id} className={index !== documents.length - 1 ? "border-b border-[var(--theme-border)]" : ""}>
+              <ResourceRow
                 document={document}
                 folders={folders}
                 onMove={onMove}
@@ -648,7 +645,7 @@ function ResourceSection({
           ))}
         </ul>
       ) : (
-        <div className="mt-4 rounded-xl border border-dashed border-[var(--theme-border)] bg-[var(--background)] p-8 text-center text-sm leading-6 text-[var(--muted-foreground)]">
+        <div className="rounded-b-xl bg-[var(--background)] p-8 text-center text-sm leading-6 text-[var(--muted-foreground)]">
           {emptyMessage}
         </div>
       )}
@@ -656,7 +653,7 @@ function ResourceSection({
   );
 }
 
-function ResourceCard({
+function ResourceRow({
   document,
   folders,
   onMove,
@@ -674,83 +671,91 @@ function ResourceCard({
     Object.entries(folders).find(([, ids]) => ids.includes(document.id))?.[0] ??
     "Unorganized";
   const statusLabel = failed
-    ? "Needs attention"
+    ? "Failed"
     : processing
-      ? document.status
+      ? "Processing"
       : "Ready";
 
   return (
-    <article className="flex h-full min-h-[300px] flex-col rounded-2xl border border-[var(--theme-border)] bg-[var(--background)] p-4 transition hover:-translate-y-0.5 hover:border-[var(--theme-primary)] focus-within:border-[var(--theme-primary)]">
-      <div className="flex items-start justify-between gap-3">
-        <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-blue-500/10 text-blue-700 dark:text-blue-300">
+    <article className="group flex flex-col gap-4 p-4 transition hover:bg-[var(--theme-soft)] sm:flex-row sm:items-center sm:gap-6 sm:px-5">
+      <div className="flex min-w-0 flex-1 items-center gap-4">
+        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-blue-500/10 text-blue-700 dark:text-blue-300">
           <FileIcon />
         </span>
-        <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${failed ? "bg-red-500/10 text-red-700 dark:text-red-300" : processing ? "bg-amber-500/10 text-amber-800 dark:text-amber-300" : "bg-emerald-500/10 text-emerald-800 dark:text-emerald-300"}`}>
+        <div className="min-w-0 flex-1">
+          <h4 className="truncate font-bold text-[var(--foreground)]" title={document.filename}>
+            {document.filename}
+          </h4>
+          <div className="mt-1 flex items-center gap-2 text-xs text-[var(--muted-foreground)]">
+            <span>{formatDate(document.updated_at)}</span>
+            {document.page_count ? (
+              <>
+                <span>&middot;</span>
+                <span>{document.page_count} {document.page_count === 1 ? "page" : "pages"}</span>
+              </>
+            ) : null}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex shrink-0 items-center gap-3 sm:w-32">
+        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${
+          failed ? "bg-red-500/10 text-red-700 dark:text-red-300" :
+          processing ? "bg-amber-500/10 text-amber-800 dark:text-amber-300" :
+          "bg-emerald-500/10 text-emerald-800 dark:text-emerald-300"
+        }`}>
+          {processing && <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" />}
+          {failed && <span className="size-1.5 rounded-full bg-red-500" />}
+          {!processing && !failed && <span className="size-1.5 rounded-full bg-emerald-500" />}
           {statusLabel}
         </span>
       </div>
-      <h4 className="mt-4 line-clamp-2 font-bold text-[var(--foreground)]">{document.filename}</h4>
-      <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-        {formatDate(document.updated_at)}{document.page_count ? ` · ${document.page_count} pages` : ""}
-      </p>
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        <ReadinessBadge ready={document.summary_ready} label="Summary" />
-        <ReadinessBadge ready={document.flashcard_count > 0} label={`${document.flashcard_count} cards`} />
-        <ReadinessBadge ready={document.quiz_ready} label="Quiz" />
+      <div className="hidden lg:flex w-48 shrink-0 flex-wrap items-center gap-3">
+         <ReadinessDot ready={document.summary_ready} label="Summary" />
+         <ReadinessDot ready={document.flashcard_count > 0} label={`${document.flashcard_count} cards`} />
+         <ReadinessDot ready={document.quiz_ready} label="Quiz" />
       </div>
 
-      {processing ? (
-        <p aria-live="polite" className="mt-4 text-sm leading-6 text-[var(--muted-foreground)]">
-          StudFlow is processing this document. Refresh later to check its study materials.
-        </p>
-      ) : failed ? (
-        <p className="mt-4 text-sm leading-6 text-[var(--muted-foreground)]">
-          Processing did not finish. Retry to rebuild the generated materials.
-        </p>
-      ) : null}
+      <div className="flex shrink-0 items-center gap-2">
+        <select
+          value={currentFolder}
+          onChange={(event) => onMove(document.id, event.target.value)}
+          aria-label="Move to folder"
+          className="h-9 w-[120px] rounded-lg border border-[var(--theme-border)] bg-[var(--background)] px-2 text-xs font-medium text-[var(--foreground)] outline-none focus:border-[var(--theme-primary)] focus:ring-2 focus:ring-[var(--theme-shadow)]"
+        >
+          <option value="Unorganized">Unorganized</option>
+          {Object.keys(folders).filter((name) => name !== "Unorganized").map((name) => (
+            <option key={name} value={name}>{name}</option>
+          ))}
+        </select>
 
-      <div className="mt-auto space-y-3 pt-5">
-        <label className="block text-xs font-semibold text-[var(--muted-foreground)]">
-          Folder
-          <select
-            value={currentFolder}
-            onChange={(event) => onMove(document.id, event.target.value)}
-            className="mt-1 min-h-10 w-full rounded-lg border border-[var(--theme-border)] bg-[var(--card)] px-2 text-sm text-[var(--foreground)] outline-none focus:border-[var(--theme-primary)] focus:ring-2 focus:ring-[var(--theme-shadow)]"
-          >
-            <option value="Unorganized">Unorganized</option>
-            {Object.keys(folders).filter((name) => name !== "Unorganized").map((name) => (
-              <option key={name} value={name}>{name}</option>
-            ))}
-          </select>
-        </label>
         {canOpen ? (
           <Link
             href={`/dashboard/study/${document.id}?tab=summary`}
-            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--theme-primary)] px-4 text-sm font-semibold text-white transition hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)] focus-visible:ring-offset-2"
+            className="inline-flex h-9 items-center justify-center rounded-lg bg-[var(--theme-primary)] px-4 text-xs font-bold text-white transition hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)] focus-visible:ring-offset-2"
           >
-            Open study workspace <span aria-hidden="true">→</span>
+            Open
           </Link>
         ) : failed ? (
-          <RetryDocumentButton documentId={document.id} />
-        ) : null}
+          <RetryDocumentButton documentId={document.id} variant="icon" />
+        ) : <div className="w-14" />}
+
         {canOpen || failed ? (
-          <DeleteDocumentButton
-            documentId={document.id}
-            filename={document.filename}
-            onSuccess={onDelete}
-          />
-        ) : null}
+           <div className="opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
+             <DeleteDocumentButton documentId={document.id} filename={document.filename} onSuccess={onDelete} variant="icon" />
+           </div>
+        ) : <div className="w-9" />}
       </div>
     </article>
   );
 }
 
-function ReadinessBadge({ ready, label }: { ready: boolean; label: string }) {
+function ReadinessDot({ ready, label }: { ready: boolean; label: string }) {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-[var(--theme-border)] bg-[var(--card)] px-2 py-1 text-xs font-semibold text-[var(--muted-foreground)]">
-      {ready ? <span className="text-emerald-600"><CheckIcon /></span> : <span aria-hidden="true">·</span>}
-      {label}<span className="sr-only"> {ready ? "ready" : "not ready"}</span>
-    </span>
+    <div className={`flex items-center gap-1.5 text-xs font-semibold ${ready ? "text-[var(--foreground)]" : "text-[var(--muted-foreground)] opacity-50"}`} title={label}>
+      <span className={`size-1.5 rounded-full ${ready ? "bg-emerald-500" : "bg-[var(--theme-border)]"}`} />
+      <span className="hidden xl:inline">{label}</span>
+    </div>
   );
 }

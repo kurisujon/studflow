@@ -10,12 +10,14 @@ type DeleteDocumentButtonProps = {
   documentId: string;
   filename: string;
   onSuccess?: (documentId: string) => void;
+  variant?: "default" | "icon";
 };
 
 export function DeleteDocumentButton({
   documentId,
   filename,
   onSuccess,
+  variant = "default",
 }: DeleteDocumentButtonProps) {
   const { getToken } = useAuth();
   const router = useRouter();
@@ -95,9 +97,20 @@ export function DeleteDocumentButton({
         ref={triggerRef}
         type="button"
         onClick={() => { setError(null); setOpen(true); }}
-        className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-red-300 bg-transparent px-4 text-sm font-semibold text-red-700 transition hover:bg-red-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:border-red-800 dark:text-red-300"
+        className={
+          variant === "icon"
+            ? "grid size-9 place-items-center rounded-lg text-red-600 transition hover:bg-red-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+            : "inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-red-300 bg-transparent px-4 text-sm font-semibold text-red-700 transition hover:bg-red-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:border-red-800 dark:text-red-300"
+        }
+        aria-label={variant === "icon" ? "Delete document" : undefined}
       >
-        Delete document
+        {variant === "icon" ? (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-4">
+            <path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" />
+          </svg>
+        ) : (
+          "Delete document"
+        )}
       </button>
 
       {open ? (

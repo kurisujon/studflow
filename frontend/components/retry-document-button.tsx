@@ -9,11 +9,13 @@ import { Loader2Icon, AlertCircleIcon } from "@/components/home/icon-registry";
 type RetryDocumentButtonProps = {
   documentId: string;
   onSuccess?: () => void;
+  variant?: "default" | "icon";
 };
 
 export function RetryDocumentButton({
   documentId,
   onSuccess,
+  variant = "default",
 }: RetryDocumentButtonProps) {
   const { getToken } = useAuth();
   const router = useRouter();
@@ -58,6 +60,25 @@ export function RetryDocumentButton({
     } finally {
       setIsPending(false);
     }
+  }
+
+  if (variant === "icon") {
+    return (
+      <button
+        type="button"
+        disabled={isPending}
+        aria-label="Retry processing"
+        title="Retry processing"
+        onClick={() => void handleRetry()}
+        className="grid size-9 place-items-center rounded-lg text-[var(--theme-primary)] transition hover:bg-[var(--theme-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)] disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {isPending ? (
+          <Loader2Icon aria-hidden="true" className="size-4 animate-spin" />
+        ) : (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        )}
+      </button>
+    );
   }
 
   return (
