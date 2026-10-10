@@ -77,9 +77,9 @@ export function SummaryLibraryView({ summaries }: { summaries: SummaryLibraryIte
             resultCount={matchingSummaries.length}
           />
           {filteredSummaries.length > 0 ? (
-            <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <ul className="flex flex-col rounded-xl border border-[var(--theme-border)] bg-[var(--card)] shadow-sm">
               {filteredSummaries.map((summary) => (
-                <li key={summary.document_id}><SummaryCard summary={summary} /></li>
+                <li key={summary.document_id} className="border-b border-[var(--theme-border)] last:border-0"><SummaryRow summary={summary} /></li>
               ))}
             </ul>
           ) : latestSummary ? (
@@ -113,7 +113,7 @@ function SummaryToolbar({
   resultCount: number;
 }) {
   return (
-    <section aria-labelledby="summary-browser-title" className="rounded-2xl border border-[var(--theme-border)] bg-[var(--card)] p-4 shadow-[0_14px_36px_var(--theme-shadow)] sm:p-5">
+    <section aria-labelledby="summary-browser-title" className="rounded-xl border border-[var(--theme-border)] bg-[var(--card)] p-4 shadow-sm sm:p-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="w-full max-w-xl">
           <label htmlFor="summary-search" className="text-sm font-semibold text-[var(--foreground)]">Search summaries</label>
@@ -166,20 +166,19 @@ function SummaryToolbar({
 
 function FeaturedSummary({ summary }: { summary: SummaryLibraryItem }) {
   return (
-    <article className="relative overflow-hidden rounded-[28px] border border-amber-500/20 bg-[var(--card)] p-5 shadow-[0_20px_55px_var(--theme-shadow)] sm:p-7">
-      <div aria-hidden="true" className="pointer-events-none absolute -right-20 -top-24 size-72 rounded-full bg-amber-400/10 blur-3xl" />
-      <div className="relative grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(260px,0.42fr)]">
+    <article className="rounded-xl border border-[var(--theme-border)] bg-[var(--card)] p-5 sm:p-7">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(260px,0.42fr)]">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-700 dark:text-amber-300">Latest summary</p>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--muted-foreground)]">Latest summary</p>
           <h2 className="mt-2 line-clamp-2 text-2xl font-bold tracking-tight text-[var(--foreground)] sm:text-3xl">{summary.filename}</h2>
-          <p className="mt-3 max-w-3xl text-base leading-7 text-[var(--muted-foreground)]">{summary.overview}</p>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--muted-foreground)]">{summary.overview}</p>
           {summary.topics.length > 0 ? (
             <ul aria-label="Topics" className="mt-5 flex flex-wrap gap-2">
-              {summary.topics.map((topic, index) => <li key={`${index}-${topic}`} className="rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-800 dark:text-amber-300">{topic}</li>)}
+              {summary.topics.map((topic, index) => <li key={`${index}-${topic}`} className="rounded-md border border-[var(--theme-border)] bg-[var(--background)] px-2 py-1 text-xs text-[var(--muted-foreground)]">{topic}</li>)}
             </ul>
           ) : null}
         </div>
-        <div className="flex flex-col justify-between rounded-2xl border border-[var(--theme-border)] bg-[var(--background)]/80 p-4">
+        <div className="flex flex-col justify-between rounded-xl border border-[var(--theme-border)] bg-[var(--background)]/50 p-4">
           <dl className="grid grid-cols-2 gap-4 text-sm">
             <div><dt className="text-[var(--muted-foreground)]">Generated</dt><dd className="mt-1 font-semibold text-[var(--foreground)]">{formatDate(summary.summary_created_at)}</dd></div>
             <div><dt className="text-[var(--muted-foreground)]">Topics</dt><dd className="mt-1 font-semibold text-[var(--foreground)]">{summary.topic_count}</dd></div>
@@ -194,34 +193,33 @@ function FeaturedSummary({ summary }: { summary: SummaryLibraryItem }) {
 
 function ReaderLink({ documentId, label, className = "" }: { documentId: string; label: string; className?: string }) {
   return (
-    <Link href={`/dashboard/study/${documentId}?tab=summary`} className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 ${className}`}>
+    <Link href={`/dashboard/study/${documentId}?tab=summary`} className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 ${className}`}>
       {label}<span aria-hidden="true">→</span>
     </Link>
   );
 }
 
-function SummaryCard({ summary }: { summary: SummaryLibraryItem }) {
+function SummaryRow({ summary }: { summary: SummaryLibraryItem }) {
   return (
-    <article className="flex h-full min-h-[370px] flex-col rounded-2xl border border-[var(--theme-border)] bg-[var(--card)] p-5 shadow-[0_14px_36px_var(--theme-shadow)] transition hover:-translate-y-0.5 hover:border-amber-500/50 focus-within:border-amber-500">
-      <div className="flex items-start justify-between gap-3">
-        <span className="rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-bold text-amber-800 dark:text-amber-300">Summary</span>
-        <time dateTime={summary.summary_created_at} className="text-xs text-[var(--muted-foreground)]">{formatDate(summary.summary_created_at)}</time>
-      </div>
-      <h3 className="mt-4 line-clamp-2 text-lg font-bold text-[var(--foreground)]">{summary.filename}</h3>
-      <p className="mt-2 line-clamp-4 text-sm leading-6 text-[var(--muted-foreground)]">{summary.overview}</p>
-      {summary.topics.length > 0 ? (
-        <ul aria-label="Topics" className="mt-4 flex flex-wrap gap-1.5">
-          {summary.topics.slice(0, 3).map((topic, index) => <li key={`${index}-${topic}`} className="max-w-full truncate rounded-full border border-amber-500/20 bg-amber-500/5 px-2 py-1 text-xs text-amber-800 dark:text-amber-300">{topic}</li>)}
-        </ul>
-      ) : null}
-      {summary.key_takeaways.length > 0 ? (
-        <div className="mt-4 border-t border-[var(--theme-border)] pt-4">
-          <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted-foreground)]">Key takeaway</p>
-          <p className="mt-1 line-clamp-2 text-sm leading-6 text-[var(--foreground)]">{summary.key_takeaways[0]}</p>
+    <article className="group flex flex-col items-start gap-4 p-5 transition hover:bg-amber-500/[0.02] sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-3">
+          <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300">Summary</span>
+          <time dateTime={summary.summary_created_at} className="text-xs text-[var(--muted-foreground)]">{formatDate(summary.summary_created_at)}</time>
         </div>
-      ) : null}
-      <div className="mt-auto pt-5">
-        <ReaderLink documentId={summary.document_id} label="Read summary" className="w-full" />
+        <h3 className="mt-2 truncate text-base font-bold text-[var(--foreground)]">{summary.filename}</h3>
+        <p className="mt-1 line-clamp-2 text-sm text-[var(--muted-foreground)]">{summary.overview}</p>
+        {summary.topics.length > 0 ? (
+          <ul aria-label="Topics" className="mt-3 flex flex-wrap gap-1.5">
+            {summary.topics.slice(0, 3).map((topic, index) => <li key={`${index}-${topic}`} className="max-w-[200px] truncate rounded-md border border-[var(--theme-border)] bg-[var(--background)] px-2 py-0.5 text-[11px] text-[var(--muted-foreground)]">{topic}</li>)}
+            {summary.topics.length > 3 && (
+              <li className="rounded-md border border-[var(--theme-border)] bg-[var(--background)] px-2 py-0.5 text-[11px] text-[var(--muted-foreground)]">+{summary.topics.length - 3}</li>
+            )}
+          </ul>
+        ) : null}
+      </div>
+      <div className="w-full shrink-0 pt-2 sm:w-auto sm:pt-0">
+        <ReaderLink documentId={summary.document_id} label="Read summary" className="w-full sm:w-auto" />
       </div>
     </article>
   );
@@ -229,10 +227,10 @@ function SummaryCard({ summary }: { summary: SummaryLibraryItem }) {
 
 function EmptyLibrary() {
   return (
-    <section className="rounded-[28px] border border-dashed border-amber-500/30 bg-[var(--card)] p-8 text-center shadow-[0_14px_36px_var(--theme-shadow)] sm:p-12">
-      <h2 className="text-2xl font-bold text-[var(--foreground)]">No generated summaries yet</h2>
+    <section className="rounded-xl border border-dashed border-[var(--theme-border)] bg-[var(--card)] p-8 text-center sm:p-12">
+      <h2 className="text-xl font-bold text-[var(--foreground)]">No generated summaries yet</h2>
       <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-[var(--muted-foreground)]">Completed documents with a valid generated summary will appear here. Check your document library to see what is ready.</p>
-      <Link href="/dashboard/docs" className="mt-6 inline-flex min-h-11 items-center justify-center rounded-xl bg-amber-600 px-4 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2">View documents</Link>
+      <Link href="/dashboard/docs" className="mt-6 inline-flex min-h-10 items-center justify-center rounded-xl bg-amber-600 px-4 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2">View documents</Link>
     </section>
   );
 }
