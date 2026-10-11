@@ -132,75 +132,86 @@ export function StudyWorkspace({
       {/* MATERIAL CONTEXT + STUDY TOOLS */}
       <aside
         aria-label="Study material and tools"
-        className="flex w-full shrink-0 flex-col gap-6 lg:sticky lg:top-6 lg:w-64 xl:w-72 lg:gap-8"
+        className="flex w-full shrink-0 flex-col gap-4 lg:sticky lg:top-6 lg:w-72 xl:w-80 lg:gap-5"
       >
         <Link
           href="/dashboard"
-          className="inline-flex w-fit items-center rounded-md text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)]"
+          className="inline-flex w-fit items-center gap-1.5 rounded-lg text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)]"
         >
-          <ChevronLeftIcon aria-hidden="true" className="mr-1 size-4" />
+          <ChevronLeftIcon aria-hidden="true" className="size-4" />
           Back to Dashboard
         </Link>
 
-        {/* Active source */}
+        {/* STUDYING CONTAINER */}
         <section
           aria-labelledby="study-material-heading"
-          className="flex flex-col gap-3 px-1"
+          className="flex flex-col gap-2.5 rounded-2xl border border-border/80 bg-card p-3.5 shadow-xs"
         >
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Studying
-          </p>
-          <div className="flex items-start gap-3">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[var(--theme-soft)] text-[var(--theme-primary)]">
-              <FileTextIcon aria-hidden="true" className="size-5" />
-            </div>
-            <div className="min-w-0">
-              <h1
-                id="study-material-heading"
-                className="break-words text-sm font-semibold leading-snug text-foreground line-clamp-3 lg:text-base"
-                title={document.filename}
-              >
-                {document.filename}
-              </h1>
-              <p className="mt-1 text-xs text-muted-foreground">Added {addedOn}</p>
-            </div>
+          <div className="flex items-center justify-between px-0.5">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              Studying
+            </p>
           </div>
 
-          <div className="mt-1" role="status">
-            {isCompleted ? (
-              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
-                <CheckCircle2Icon aria-hidden="true" className="size-3.5" />
-                Ready to study
-              </span>
-            ) : isFailed ? (
-              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-red-600 dark:text-red-400">
-                <AlertCircleIcon aria-hidden="true" className="size-3.5" />
-                Processing failed
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-400">
-                <Loader2Icon aria-hidden="true" className="size-3.5 animate-spin" />
-                Processing
-              </span>
-            )}
+          {/* Document Card */}
+          <div className="flex flex-col gap-3 rounded-xl border border-border/60 bg-muted/20 p-3 transition-colors hover:border-border">
+            <div className="flex items-start gap-3">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[var(--theme-soft)] text-[var(--theme-primary)]">
+                <FileTextIcon aria-hidden="true" className="size-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h1
+                  id="study-material-heading"
+                  className="break-words text-sm font-semibold leading-snug text-foreground line-clamp-2"
+                  title={document.filename}
+                >
+                  {document.filename}
+                </h1>
+                <p className="mt-1 text-xs text-muted-foreground">Added {addedOn}</p>
+              </div>
+            </div>
+
+            <div className="border-t border-border/50 pt-2" role="status">
+              {isCompleted ? (
+                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                  <CheckCircle2Icon aria-hidden="true" className="size-3.5" />
+                  Ready to study
+                </span>
+              ) : isFailed ? (
+                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-red-600 dark:text-red-400">
+                  <AlertCircleIcon aria-hidden="true" className="size-3.5" />
+                  Processing failed
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+                  <Loader2Icon aria-hidden="true" className="size-3.5 animate-spin" />
+                  Processing
+                </span>
+              )}
+            </div>
           </div>
         </section>
 
-        {/* Study tools */}
-        <nav
-          aria-label="Study tools"
-          className="flex gap-1 overflow-x-auto lg:flex-col"
-        >
+        {/* TOOL GROUPS (LEARN & PRACTICE) CONTAINERS */}
+        <nav aria-label="Study tools" className="flex flex-col gap-4 lg:gap-5">
           {TOOL_GROUPS.map((group) => (
-            <div key={group.label} className="contents lg:block lg:mb-6 lg:last:mb-0">
-              <p className="hidden px-2 pb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground lg:block">
-                {group.label}
-              </p>
-              <div className="flex gap-1 lg:flex-col">
+            <section
+              key={group.label}
+              aria-label={group.label}
+              className="flex flex-col gap-2.5 rounded-2xl border border-border/80 bg-card p-3.5 shadow-xs"
+            >
+              <div className="flex items-center justify-between px-0.5">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                  {group.label}
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-2">
                 {group.tools.map((tool) => {
                   const Icon = tool.icon;
                   const isActive = currentTab === tool.key;
                   const count = counts[tool.key];
+
                   return (
                     <button
                       key={tool.key}
@@ -208,18 +219,30 @@ export function StudyWorkspace({
                       onClick={() => navigateToTab(tool.key)}
                       aria-current={isActive ? "page" : undefined}
                       aria-keyshortcuts={tool.shortcut}
-                      className={`flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)] lg:w-full lg:gap-3 lg:py-2.5 ${
+                      className={`group flex w-full items-center gap-3 rounded-xl border p-2.5 text-sm font-medium transition-all text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)] ${
                         isActive
-                          ? "bg-[var(--theme-soft)] text-[var(--theme-primary)]"
-                          : "text-muted-foreground hover:bg-[var(--theme-soft)]/50 hover:text-foreground"
+                          ? "border-[var(--theme-primary)]/50 bg-[var(--theme-soft)] text-[var(--theme-primary)] shadow-xs"
+                          : "border-border/60 bg-muted/20 text-muted-foreground hover:border-border hover:bg-muted/50 hover:text-foreground"
                       }`}
                     >
-                      <Icon aria-hidden="true" className="size-4" />
-                      {tool.label}
+                      <div
+                        className={`flex size-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                          isActive
+                            ? "bg-[var(--theme-primary)] text-white shadow-xs"
+                            : "bg-background text-muted-foreground border border-border/50 group-hover:text-foreground group-hover:border-border"
+                        }`}
+                      >
+                        <Icon aria-hidden="true" className="size-4" />
+                      </div>
+
+                      <span className="flex-1 font-semibold">{tool.label}</span>
+
                       {count !== undefined ? (
                         <span
-                          className={`ml-1 rounded-full px-1.5 text-xs font-medium tabular-nums lg:ml-auto ${
-                            isActive ? "bg-[var(--theme-primary)]/10 text-[var(--theme-primary)]" : "bg-muted text-muted-foreground"
+                          className={`rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${
+                            isActive
+                              ? "bg-[var(--theme-primary)]/15 text-[var(--theme-primary)]"
+                              : "bg-muted text-muted-foreground border border-border/40"
                           }`}
                         >
                           {count}
@@ -229,16 +252,53 @@ export function StudyWorkspace({
                   );
                 })}
               </div>
-            </div>
+            </section>
           ))}
         </nav>
 
-        <p className="hidden px-2 text-xs text-muted-foreground lg:block">
-          Shortcuts:{" "}
-          <kbd className="rounded border border-border bg-muted px-1 py-0.5 font-sans text-[10px]">1</kbd> Summary,{" "}
-          <kbd className="rounded border border-border bg-muted px-1 py-0.5 font-sans text-[10px]">2</kbd> Flashcards,{" "}
-          <kbd className="rounded border border-border bg-muted px-1 py-0.5 font-sans text-[10px]">3</kbd> Quiz
-        </p>
+        {/* SHORTCUTS CONTAINER */}
+        <section
+          aria-label="Keyboard shortcuts"
+          className="hidden flex-col gap-2.5 rounded-2xl border border-border/80 bg-card p-3.5 shadow-xs lg:flex"
+        >
+          <div className="px-0.5">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              Shortcuts
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-1.5">
+            <div className="flex items-center justify-between rounded-lg border border-border/50 bg-muted/20 px-2.5 py-2 text-xs text-muted-foreground transition-colors hover:border-border hover:text-foreground">
+              <span className="flex items-center gap-2">
+                <SparklesIcon aria-hidden="true" className="size-3.5 text-amber-500" />
+                <span className="font-medium">Summary</span>
+              </span>
+              <kbd className="rounded border border-border bg-background px-1.5 py-0.5 font-mono text-[10px] font-bold text-foreground shadow-2xs">
+                1
+              </kbd>
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg border border-border/50 bg-muted/20 px-2.5 py-2 text-xs text-muted-foreground transition-colors hover:border-border hover:text-foreground">
+              <span className="flex items-center gap-2">
+                <BrainIcon aria-hidden="true" className="size-3.5 text-purple-600 dark:text-purple-400" />
+                <span className="font-medium">Flashcards</span>
+              </span>
+              <kbd className="rounded border border-border bg-background px-1.5 py-0.5 font-mono text-[10px] font-bold text-foreground shadow-2xs">
+                2
+              </kbd>
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg border border-border/50 bg-muted/20 px-2.5 py-2 text-xs text-muted-foreground transition-colors hover:border-border hover:text-foreground">
+              <span className="flex items-center gap-2">
+                <CircleHelpIcon aria-hidden="true" className="size-3.5 text-blue-500" />
+                <span className="font-medium">Quiz</span>
+              </span>
+              <kbd className="rounded border border-border bg-background px-1.5 py-0.5 font-mono text-[10px] font-bold text-foreground shadow-2xs">
+                3
+              </kbd>
+            </div>
+          </div>
+        </section>
       </aside>
 
       {/* MAIN WORKSPACE */}
