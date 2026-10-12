@@ -8,8 +8,8 @@ const { Brain, Zap, Shield, TrendingUp } = Lucide as unknown as Record<string, R
 export function TrustSection() {
   const benefits = [
     {
-      title: "Study 3x Faster",
-      description: "Stop re-reading the same pages. AI extracts exactly what you need to know in seconds.",
+      title: "Start With Structure",
+      description: "Use a generated summary to review the document structure before deeper reading.",
       icon: Zap,
       color: "from-blue-500 to-cyan-500"
     },
@@ -20,8 +20,8 @@ export function TrustSection() {
       color: "from-indigo-500 to-purple-500"
     },
     {
-      title: "Remember Longer",
-      description: "Automated spaced repetition flashcards ensure you never forget what you've learned.",
+      title: "Schedule Review",
+      description: "Rate flashcards to update their intervals and next review dates.",
       icon: TrendingUp,
       color: "from-purple-500 to-pink-500"
     },

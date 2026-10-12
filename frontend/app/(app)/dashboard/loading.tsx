@@ -1,62 +1,10 @@
 import { Skeleton } from "@/components/ui/skeleton";
-import { Loader2Icon as Loader2 } from "@/components/home/icon-registry";
 
 export default function DashboardLoading() {
-  return (
-    <div aria-hidden="true" className="flex flex-col gap-10 px-4 pb-12 pt-6 sm:px-6 lg:px-8 lg:pt-8">
-      {/* Top section: Header + Stats Grid */}
-      <div className="flex flex-col gap-6 rounded-[24px] border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm sm:p-7">
-        <div className="flex flex-col items-start justify-between gap-5 md:flex-row md:items-center md:gap-8">
-          <div className="w-full min-w-0 max-w-2xl space-y-3">
-            <Skeleton className="h-8 w-3/4 max-w-[400px] rounded" />
-            <Skeleton className="h-5 w-full max-w-[500px] rounded" />
-          </div>
-          <div className="flex shrink-0 flex-wrap items-center gap-3">
-            <Skeleton className="h-10 w-24 rounded-lg" />
-            <Skeleton className="h-10 w-32 rounded-lg" />
-          </div>
-        </div>
-        
-        <div aria-hidden="true" className="h-px w-full bg-[var(--border)]" />
-
-        {/* Typographic Stats */}
-        <section className="grid grid-cols-2 gap-6 sm:grid-cols-4 sm:gap-8">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className={`flex flex-col gap-2 ${i !== 1 ? "sm:border-l sm:border-[var(--border)] sm:pl-8" : ""}`}>
-              <Skeleton className="h-3 w-20 rounded" />
-              <Skeleton className="h-8 w-16 rounded" />
-            </div>
-          ))}
-        </section>
-      </div>
-
-      {/* Main Grid Layout (Bento) */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Large Left Card */}
-        <div className="lg:col-span-2">
-          <Skeleton className="h-full min-h-[320px] rounded-[24px]" />
-        </div>
-
-        {/* Right Column */}
-        <div className="flex flex-col gap-6">
-          <Skeleton className="h-[280px] rounded-[24px] flex items-center justify-center">
-            <Loader2 className="size-8 animate-spin text-muted-foreground opacity-50" />
-          </Skeleton>
-          <Skeleton className="h-[160px] rounded-[24px]" />
-        </div>
-      </div>
-
-      {/* Recent Materials */}
-      <section className="flex flex-col gap-4 pt-4">
-        <Skeleton className="h-5 w-32 rounded mx-3 sm:mx-4" />
-        <div className="flex flex-col gap-2">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-20 w-full rounded-xl" />
-          ))}
-        </div>
-      </section>
-
-      <span className="sr-only">Loading dashboard...</span>
-    </div>
-  );
+  return <div className="mx-auto w-full max-w-[1400px] space-y-7 px-4 py-6 sm:px-6 lg:px-8 lg:py-8" aria-label="Loading workspace" role="status">
+    <div className="space-y-3"><Skeleton className="h-3 w-28" /><Skeleton className="h-9 w-64 max-w-full" /><Skeleton className="h-4 w-[32rem] max-w-full" /></div>
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{Array.from({ length: 4 }, (_, index) => <Skeleton key={index} className="h-24 rounded-2xl" />)}</div>
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(300px,.85fr)]"><Skeleton className="h-72 rounded-2xl" /><Skeleton className="h-72 rounded-2xl" /></div>
+    <span className="sr-only">Loading StudFlow</span>
+  </div>;
 }

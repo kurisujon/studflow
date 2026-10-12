@@ -15,7 +15,7 @@ export function ProductDemoSection() {
           See Studflow In Action
         </h2>
         <p className="text-[#475569] text-lg max-w-2xl mx-auto mb-16">
-          Watch how we transform a standard PDF into a fully interactive, AI-assisted study session in seconds.
+          See how asynchronous processing turns a standard PDF into an interactive, AI-assisted study workspace.
         </p>
 
         {/* Video Placeholder Container */}

@@ -8,9 +8,13 @@ type SummaryData = NonNullable<StudyDocument["summary_data"]>;
 export function SummaryStudy({
   documentId,
   summary,
+  initialPanel,
+  active = true,
 }: {
   documentId: string;
   summary: SummaryData | null;
+  initialPanel?: string;
+  active?: boolean;
 }) {
-  return <InteractiveSummaryReader documentId={documentId} summary={summary} />;
+  return <InteractiveSummaryReader documentId={documentId} summary={summary} initialPanel={initialPanel} active={active} />;
 }

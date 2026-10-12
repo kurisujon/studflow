@@ -34,7 +34,7 @@ export function ChallengeModeHub({
   const passed = score >= passingScore;
 
   useEffect(() => {
-    if (!showScore || !passed || hasCelebratedRef.current) {
+    if (!showScore || !passed || hasCelebratedRef.current || reduceMotion) {
       return;
     }
 
@@ -56,7 +56,7 @@ export function ChallengeModeHub({
     return () => {
       isMounted = false;
     };
-  }, [passed, showScore]);
+  }, [passed, reduceMotion, showScore]);
 
   useEffect(() => {
     function handleQuizShortcuts(event: KeyboardEvent) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 // @ts-expect-error - lucide-react types are outdated in this project
 import { ArrowRight, Sparkles } from "lucide-react";
 import { LandingSection } from "./ui/LandingSection";
@@ -10,6 +10,7 @@ import { LandingButton } from "./ui/LandingButton";
 import { LandingCard } from "./ui/LandingCard";
 
 export function CTASection() {
+  const reduceMotion = useReducedMotion();
   return (
     <LandingSection background="card" spacing="lg" className="relative overflow-hidden">
       {/* Background Ambience */}
@@ -24,10 +25,10 @@ export function CTASection() {
 
       <LandingContainer variant="narrow" className="relative z-10">
         <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          whileInView={{ opacity: 1, y: 0 }}
+          initial={reduceMotion ? false : { opacity: 0, y: 40 }}
+          whileInView={reduceMotion ? undefined : { opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
+          transition={{ duration: reduceMotion ? 0 : 0.8, ease: "easeOut" }}
         >
           <LandingCard
             variant="muted"
@@ -48,7 +49,7 @@ export function CTASection() {
             </h2>
 
             <p className="text-[#475569] max-w-[600px] mb-10 text-base sm:text-lg leading-[1.7]">
-              Your personal AI study desk is waiting. Transform your documents into intelligent learning experiences in seconds.
+              Upload a PDF or DOCX and let asynchronous processing prepare its summary, flashcards, quiz, notes workspace, and grounded AI tools.
             </p>
 
             <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto z-10">

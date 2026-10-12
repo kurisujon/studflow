@@ -1,7 +1,6 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 
 import { FlashcardStudy } from "@/components/flashcard-study";
@@ -57,21 +56,34 @@ function isTypingTarget(target: EventTarget | null) {
 export function StudyWorkspace({
   document,
   initialTab,
+  initialPanel,
 }: {
   document: StudyDocument;
   initialTab: string;
+  initialPanel?: string;
 }) {
-  const router = useRouter();
-  const currentTab: StudyTab =
-    initialTab === "flashcards" || initialTab === "quiz" ? initialTab : "summary";
+  const [currentTab, setCurrentTab] = useState<StudyTab>(initialTab === "flashcards" || initialTab === "quiz" ? initialTab : "summary");
 
   const navigateToTab = useCallback((tab: StudyTab) => {
     if (tab === currentTab) {
       return;
     }
 
-    router.push(`/dashboard/study/${document.id}?tab=${tab}`);
-  }, [currentTab, document.id, router]);
+    setCurrentTab(tab);
+    const url = new URL(window.location.href);
+    url.searchParams.set("tab", tab);
+    if (tab !== "summary") url.searchParams.delete("panel");
+    window.history.pushState({}, "", `${url.pathname}${url.search}`);
+  }, [currentTab]);
+
+  useEffect(() => {
+    const syncTab = () => {
+      const tab = new URL(window.location.href).searchParams.get("tab");
+      setCurrentTab(tab === "flashcards" || tab === "quiz" ? tab : "summary");
+    };
+    window.addEventListener("popstate", syncTab);
+    return () => window.removeEventListener("popstate", syncTab);
+  }, []);
 
   useEffect(() => {
     function handleStudyTabShortcuts(event: KeyboardEvent) {
@@ -128,11 +140,11 @@ export function StudyWorkspace({
   });
 
   return (
-    <div className="flex w-full flex-1 flex-col gap-5 pb-10 lg:flex-row lg:items-start lg:gap-8">
+    <div className="flex w-full flex-1 flex-col gap-5 pb-10 lg:flex-row lg:items-start lg:gap-6">
       {/* MATERIAL CONTEXT + STUDY TOOLS */}
       <aside
         aria-label="Study material and tools"
-        className="flex w-full shrink-0 flex-col gap-4 lg:sticky lg:top-6 lg:w-72 xl:w-80 lg:gap-5"
+        className="flex w-full shrink-0 flex-col gap-3 lg:sticky lg:top-20 lg:w-64 xl:w-72 lg:gap-4"
       >
         <Link
           href="/dashboard"
@@ -193,20 +205,20 @@ export function StudyWorkspace({
         </section>
 
         {/* TOOL GROUPS (LEARN & PRACTICE) CONTAINERS */}
-        <nav aria-label="Study tools" className="flex flex-col gap-4 lg:gap-5">
+        <nav aria-label="Study tools" className="grid grid-cols-3 gap-2 lg:flex lg:flex-col lg:gap-4">
           {TOOL_GROUPS.map((group) => (
             <section
               key={group.label}
               aria-label={group.label}
-              className="flex flex-col gap-2.5 rounded-2xl border border-border/80 bg-card p-3.5 shadow-xs"
+              className="contents lg:flex lg:flex-col lg:gap-2.5 lg:rounded-2xl lg:border lg:border-border/80 lg:bg-card lg:p-3.5 lg:shadow-xs"
             >
-              <div className="flex items-center justify-between px-0.5">
+              <div className="hidden items-center justify-between px-0.5 lg:flex">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                   {group.label}
                 </p>
               </div>
 
-              <div className="flex flex-col gap-2">
+              <div className="contents lg:flex lg:flex-col lg:gap-2">
                 {group.tools.map((tool) => {
                   const Icon = tool.icon;
                   const isActive = currentTab === tool.key;
@@ -219,7 +231,7 @@ export function StudyWorkspace({
                       onClick={() => navigateToTab(tool.key)}
                       aria-current={isActive ? "page" : undefined}
                       aria-keyshortcuts={tool.shortcut}
-                      className={`group flex w-full items-center gap-3 rounded-xl border p-2.5 text-sm font-medium transition-all text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)] ${
+                      className={`group flex min-h-16 w-full flex-col items-center justify-center gap-1 rounded-xl border p-2 text-center text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)] lg:min-h-0 lg:flex-row lg:justify-start lg:gap-3 lg:p-2.5 lg:text-left lg:text-sm ${
                         isActive
                           ? "border-[var(--theme-primary)]/50 bg-[var(--theme-soft)] text-[var(--theme-primary)] shadow-xs"
                           : "border-border/60 bg-muted/20 text-muted-foreground hover:border-border hover:bg-muted/50 hover:text-foreground"
@@ -228,18 +240,18 @@ export function StudyWorkspace({
                       <div
                         className={`flex size-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
                           isActive
-                            ? "bg-[var(--theme-primary)] text-white shadow-xs"
+                            ? "bg-[var(--theme-primary)] text-[var(--theme-on-primary)] shadow-xs"
                             : "bg-background text-muted-foreground border border-border/50 group-hover:text-foreground group-hover:border-border"
                         }`}
                       >
                         <Icon aria-hidden="true" className="size-4" />
                       </div>
 
-                      <span className="flex-1 font-semibold">{tool.label}</span>
+                      <span className="font-semibold lg:flex-1">{tool.label}</span>
 
                       {count !== undefined ? (
                         <span
-                          className={`rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${
+                          className={`hidden rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums lg:inline ${
                             isActive
                               ? "bg-[var(--theme-primary)]/15 text-[var(--theme-primary)]"
                               : "bg-muted text-muted-foreground border border-border/40"
@@ -339,15 +351,15 @@ export function StudyWorkspace({
             </div>
           ) : (
             <div className="flex-1 p-4 md:p-6 lg:p-8">
-              {currentTab === "summary" ? (
-                <SummaryStudy documentId={document.id} summary={document.summary_data} />
-              ) : null}
-              {currentTab === "flashcards" ? (
-                <FlashcardStudy flashcards={document.flashcards} />
-              ) : null}
-              {currentTab === "quiz" ? (
-                <QuizStudy documentId={document.id} questions={document.quiz} />
-              ) : null}
+              <div hidden={currentTab !== "summary"} aria-hidden={currentTab !== "summary"}>
+                <SummaryStudy documentId={document.id} summary={document.summary_data} initialPanel={initialPanel} active={currentTab === "summary"} />
+              </div>
+              <div hidden={currentTab !== "flashcards"} aria-hidden={currentTab !== "flashcards"}>
+                <FlashcardStudy flashcards={document.flashcards} active={currentTab === "flashcards"} />
+              </div>
+              <div hidden={currentTab !== "quiz"} aria-hidden={currentTab !== "quiz"}>
+                <QuizStudy documentId={document.id} questions={document.quiz} active={currentTab === "quiz"} />
+              </div>
             </div>
           )}
         </div>

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 // @ts-expect-error - lucide-react types are outdated in this project
 import { Menu, X, ArrowRight } from "lucide-react";
 import { useAuth } from "@clerk/nextjs";
@@ -11,6 +11,7 @@ import { LandingContainer } from "./ui/LandingContainer";
 import { LandingButton } from "./ui/LandingButton";
 
 export function LandingNavbar() {
+  const reduceMotion = useReducedMotion();
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { isSignedIn } = useAuth();
@@ -34,7 +35,7 @@ export function LandingNavbar() {
     <header
       className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${
         scrolled
-          ? "bg-white/80 backdrop-blur-xl shadow-sm border-b border-[#E2E8F0]"
+          ? "bg-white/90 backdrop-blur-xl shadow-sm border-b border-[#E8EBF0]"
           : "bg-transparent border-b border-transparent"
       }`}
     >
@@ -47,19 +48,19 @@ export function LandingNavbar() {
         </Link>
 
         {/* Desktop Nav */}
-        <nav className="hidden md:flex items-center gap-8">
+        <nav className="hidden lg:flex items-center gap-8">
           {navLinks.map((link) => (
             <Link
               key={link.label}
               href={link.href}
-              className="text-[15px] font-medium text-[#64748B] hover:text-[#168BFF] transition-colors"
+            className="text-[15px] font-medium text-[#697386] hover:text-[#4F46E5] transition-colors"
             >
               {link.label}
             </Link>
           ))}
         </nav>
 
-        <div className="hidden md:flex items-center gap-3">
+        <div className="hidden lg:flex items-center gap-3">
           {isSignedIn ? (
             <LandingButton href="/dashboard" variant="primary" size="md">
               Go to Dashboard
@@ -83,7 +84,7 @@ export function LandingNavbar() {
 
         {/* Mobile Menu Toggle */}
         <button
-          className="md:hidden rounded-lg p-2 text-[#0F172A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5964FF] focus-visible:ring-offset-2"
+          className="lg:hidden rounded-lg p-2 text-[#0F172A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5964FF] focus-visible:ring-offset-2"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           aria-label="Toggle menu"
           aria-expanded={mobileMenuOpen}
@@ -98,17 +99,18 @@ export function LandingNavbar() {
         {mobileMenuOpen && (
           <motion.div
             id="landing-mobile-menu"
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="absolute top-full left-0 w-full bg-white shadow-xl border-t border-[#E2E8F0] md:hidden flex flex-col px-6 py-6 gap-6"
+            initial={reduceMotion ? false : { opacity: 0, y: -20 }}
+            animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
+            exit={reduceMotion ? undefined : { opacity: 0, y: -20 }}
+            transition={{ duration: reduceMotion ? 0 : 0.2 }}
+            className="absolute top-full left-0 w-full bg-white shadow-xl border-t border-[#E8EBF0] lg:hidden flex flex-col px-6 py-6 gap-6"
           >
             <nav className="flex flex-col gap-4">
               {navLinks.map((link) => (
                 <Link
                   key={link.label}
                   href={link.href}
-                  className="text-lg font-medium text-[#0F172A] hover:text-[#168BFF]"
+                  className="text-lg font-medium text-[#151821] hover:text-[#4F46E5]"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   {link.label}

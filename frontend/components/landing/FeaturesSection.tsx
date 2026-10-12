@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useState, useEffect } from "react";
 // @ts-expect-error - lucide-react types are outdated in this project
 import { FileText, Layers, CheckCircle, Edit3, MessageSquare, Video, Sparkles, RotateCcw } from "lucide-react";
@@ -14,7 +14,7 @@ import { LandingCard } from "./ui/LandingCard";
 const standardFeatures = [
   {
     title: "Concise Summaries",
-    description: "Instantly distill long lectures and dense readings into easy-to-digest bullet points and key takeaways — saving hours of re-reading.",
+    description: "Turn long lectures and dense readings into structured overviews, topic sections, key points, and important terms.",
     icon: FileText,
     label: "AI Powered",
     labelColor: "text-[#168BFF]",
@@ -25,10 +25,10 @@ const standardFeatures = [
     accentGradient: "from-[#168BFF] to-[#4F46E5]",
   },
   {
-    title: "Adaptive Quizzes",
-    description: "Test your knowledge with AI-generated multiple-choice quizzes that adapt to your weakest topics and reinforce retention.",
+    title: "Document Quizzes",
+    description: "Practice with generated multiple-choice questions, immediate answer feedback, saved attempts, and retry support for missed questions.",
     icon: CheckCircle,
-    label: "Personalized",
+    label: "Document scoped",
     labelColor: "text-[#7C3AED]",
     labelBg: "bg-[#F5F3FF]",
     color: "text-[#7C3AED]",
@@ -38,7 +38,7 @@ const standardFeatures = [
   },
   {
     title: "Contextual Notes",
-    description: "Highlight text and add inline notes directly inside your study workspace. Never lose your annotations or context again.",
+    description: "Highlight text and add inline notes inside the study workspace, with saved annotations connected to their source document.",
     icon: Edit3,
     label: "Smart",
     labelColor: "text-[#2563EB]",
@@ -52,7 +52,7 @@ const standardFeatures = [
     title: "Ask Document AI",
     description: "Stuck on a concept? Ask questions grounded directly in your uploaded file's text for accurate, source-backed answers.",
     icon: MessageSquare,
-    label: "Instant",
+    label: "Structured",
     labelColor: "text-[#168BFF]",
     labelBg: "bg-[#F0F7FF]",
     color: "text-[#168BFF]",
@@ -62,7 +62,7 @@ const standardFeatures = [
   },
   {
     title: "Related Videos",
-    description: "Automatically surface YouTube lectures and tutorials that match the exact topics in your uploaded document.",
+    description: "Suggest related YouTube lectures and tutorials using topics identified from your uploaded document.",
     icon: Video,
     label: "Smart",
     labelColor: "text-[#4F46E5]",
@@ -82,22 +82,31 @@ const sampleCards = [
 ];
 
 function FlashcardPreview() {
+  const reduceMotion = useReducedMotion();
   const [cardIndex, setCardIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
+    if (reduceMotion) {
+      const frame = window.requestAnimationFrame(() => {
+        setFlipped(false);
+        setGenerating(false);
+      });
+      return () => window.cancelAnimationFrame(frame);
+    }
+    let cardUpdate: ReturnType<typeof setTimeout> | undefined;
     const showFront = setTimeout(() => setFlipped(false), 0);
     const flip = setTimeout(() => setFlipped(true), 1800);
     const next = setTimeout(() => {
       setGenerating(true);
-      setTimeout(() => {
+      cardUpdate = setTimeout(() => {
         setCardIndex((i) => (i + 1) % sampleCards.length);
         setGenerating(false);
       }, 600);
     }, 3600);
-    return () => { clearTimeout(showFront); clearTimeout(flip); clearTimeout(next); };
-  }, [cardIndex]);
+    return () => { clearTimeout(showFront); clearTimeout(flip); clearTimeout(next); if (cardUpdate) clearTimeout(cardUpdate); };
+  }, [cardIndex, reduceMotion]);
 
   const card = sampleCards[cardIndex];
 
@@ -108,9 +117,9 @@ function FlashcardPreview() {
           {generating ? (
             <motion.div
               key="loader"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
+              initial={reduceMotion ? false : { opacity: 0, scale: 0.95 }}
+              animate={reduceMotion ? undefined : { opacity: 1, scale: 1 }}
+              exit={reduceMotion ? undefined : { opacity: 0, scale: 0.95 }}
               className="absolute inset-0 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] flex flex-col items-center justify-center gap-3 p-6 text-center shadow-inner"
             >
               <RotateCcw className="w-6 h-6 text-[#7C3AED] animate-spin" />
@@ -119,15 +128,15 @@ function FlashcardPreview() {
           ) : (
             <motion.div
               key={cardIndex}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.3 }}
+              initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+              animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
+              exit={reduceMotion ? undefined : { opacity: 0, y: -10 }}
+              transition={{ duration: reduceMotion ? 0 : 0.3 }}
               className="w-full h-full cursor-pointer"
               onClick={() => setFlipped((f) => !f)}
             >
               <div
-                className={`relative w-full h-full rounded-2xl transition-all duration-500 [transform-style:preserve-3d] ${
+                className={`relative w-full h-full rounded-2xl transition-all ${reduceMotion ? "duration-0" : "duration-500"} [transform-style:preserve-3d] ${
                   flipped ? "[transform:rotateY(180deg)]" : ""
                 }`}
               >
@@ -246,7 +255,7 @@ function FeaturedFlashcardCard() {
             </h3>
 
             <p className="text-sm sm:text-base text-[#64748B] leading-relaxed mb-6">
-              Never forget what you study. StudFlow automatically extracts key terms from your documents, creates two-sided active recall cards, and schedules reviews using scientifically proven spaced repetition intervals.
+              StudFlow creates two-sided active recall cards from your documents and schedules future reviews from the ratings you provide.
             </p>
 
             <div className="flex flex-wrap gap-4 text-xs font-semibold text-[#0F172A]">
@@ -272,6 +281,7 @@ function FeaturedFlashcardCard() {
 
 // ── Main export ───────────────────────────────────────────────────────────────
 export function FeaturesSection() {
+  const reduceMotion = useReducedMotion();
   return (
     <LandingSection id="features" background="card" spacing="lg">
       {/* Background decoration */}
@@ -284,8 +294,8 @@ export function FeaturesSection() {
         {/* Section heading */}
         <motion.div
           variants={headingVariants}
-          initial="hidden"
-          whileInView="visible"
+          initial={reduceMotion ? false : "hidden"}
+          whileInView={reduceMotion ? undefined : "visible"}
           viewport={{ once: true, margin: "-80px" }}
         >
           <LandingHeading
@@ -295,11 +305,11 @@ export function FeaturesSection() {
                 AI-Powered Learning Tools
               </LandingBadge>
             }
-            subtitle="Transform your study materials into summaries, flashcards, quizzes, and more with a complete AI-powered learning workspace designed for success."
+            subtitle="Transform your study materials into summaries, flashcards, quizzes, notes, and grounded AI tools for source review and practice."
           >
             Everything You Need to <br className="hidden sm:block" />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#168BFF] via-[#4F46E5] to-[#7C3AED]">
-              Ace Every Exam
+              Build a Better Study Workflow
             </span>
           </LandingHeading>
         </motion.div>
@@ -308,8 +318,8 @@ export function FeaturesSection() {
         <motion.div
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 lg:gap-8"
           variants={sectionVariants}
-          initial="hidden"
-          whileInView="visible"
+          initial={reduceMotion ? false : "hidden"}
+          whileInView={reduceMotion ? undefined : "visible"}
           viewport={{ once: true, margin: "-60px" }}
         >
           {/* Featured Card */}

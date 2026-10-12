@@ -1,23 +1,15 @@
-"use client";
+import { AppShell } from "@/components/app-shell/AppShell";
+import { fetchDocuments } from "@/lib/server-api";
+import { unstable_rethrow } from "next/navigation";
 
-import { Navbar } from "@/components/navbar";
-
-export default function AppLayout({
+export default async function AppLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <>
-      <Navbar />
-      <main
-        style={{
-          minHeight: "calc(100dvh - var(--nav-height))",
-          paddingTop: "var(--nav-height)",
-        }}
-      >
-        {children}
-      </main>
-    </>
-  );
+  const documents = await fetchDocuments().catch((error: unknown) => {
+    unstable_rethrow(error);
+    return [];
+  });
+  return <AppShell documents={documents}>{children}</AppShell>;
 }

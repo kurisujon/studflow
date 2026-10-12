@@ -1,7 +1,7 @@
 "use client";
 
 import { CheckCircle2 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -14,13 +14,16 @@ import { cn } from "@/lib/utils";
 export function QuizStudy({
   documentId,
   questions,
+  active = true,
 }: {
   documentId: string;
   questions: StudyQuizQuestion[];
+  active?: boolean;
 }) {
   const PASSING_SCORE_RATIO = 0.7;
   const router = useRouter();
   const { getToken, isLoaded, isSignedIn } = useAuth();
+  const reduceMotion = useReducedMotion();
   const [activeIndex, setActiveIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
   const [showScore, setShowScore] = useState(false);
@@ -85,7 +88,7 @@ export function QuizStudy({
   }, [documentId, getToken, isLoaded, isSignedIn]);
 
   useEffect(() => {
-    if (!showScore || !passed || hasCelebratedRef.current) return;
+    if (!showScore || !passed || hasCelebratedRef.current || reduceMotion) return;
     let isMounted = true;
     import("canvas-confetti").then((module) => {
       if (!isMounted) return;
@@ -94,9 +97,10 @@ export function QuizStudy({
       confetti({ particleCount: 80, spread: 70, origin: { y: 0.65 } });
     });
     return () => { isMounted = false; };
-  }, [passed, showScore]);
+  }, [passed, reduceMotion, showScore]);
 
   useEffect(() => {
+    if (!active) return;
     function handleQuizShortcuts(event: KeyboardEvent) {
       const target = event.target as HTMLElement | null;
       if (
@@ -132,7 +136,7 @@ export function QuizStudy({
     }
     window.addEventListener("keydown", handleQuizShortcuts);
     return () => { window.removeEventListener("keydown", handleQuizShortcuts); };
-  }, [activeIndex, answered, question, sessionQuestions.length, showScore]);
+  }, [active, activeIndex, answered, question, sessionQuestions.length, showScore]);
 
   useEffect(() => {
     if (!showScore || persistedAttemptRef.current || !isLoaded || !isSignedIn) return;
@@ -217,7 +221,7 @@ export function QuizStudy({
         )}
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.25, ease: "easeOut" }}
+        transition={{ duration: reduceMotion ? 0 : 0.25, ease: "easeOut" }}
       >
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
           {quizMode === "incorrect-only" ? "Weak Topic Review" : passed ? "Quiz Complete" : "Try Again"}
