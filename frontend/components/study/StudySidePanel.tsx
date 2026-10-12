@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type KeyboardEvent } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 
 import { AIStudyAssistantPanel } from "@/components/study/AIStudyAssistantPanel";
 import { NotesPanel } from "@/components/study/NotesPanel";
@@ -51,6 +51,11 @@ export function StudySidePanel({
   onAskAINote: (note: StudyNote) => void;
 }) {
   const [isCompactLayout, setIsCompactLayout] = useState(false);
+  const [aiInitialized, setAiInitialized] = useState(open && activeTab === "ai");
+
+  useEffect(() => {
+    if (open && activeTab === "ai") window.requestAnimationFrame(() => setAiInitialized(true));
+  }, [activeTab, open]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -80,15 +85,16 @@ export function StudySidePanel({
   }
 
   return (
-    <AnimatePresence>
-      {open ? (
         <motion.aside
           id={`study-side-panel-${documentId}`}
           aria-label="Notes and AI study tools"
+          aria-hidden={!open}
+          inert={!open ? true : undefined}
           data-study-bubble="true"
-          initial={isCompactLayout ? { y: 24, opacity: 0 } : { x: "100%", opacity: 0 }}
-          animate={isCompactLayout ? { y: 0, opacity: 1 } : { x: 0, opacity: 1 }}
-          exit={isCompactLayout ? { y: 24, opacity: 0 } : { x: "100%", opacity: 0 }}
+          initial={false}
+          animate={open
+            ? isCompactLayout ? { y: 0, opacity: 1 } : { x: 0, opacity: 1 }
+            : isCompactLayout ? { y: 24, opacity: 0 } : { x: "100%", opacity: 0 }}
           transition={{ duration: 0.2, ease: "easeOut" }}
           className="study-side-panel-shell"
           style={{
@@ -101,6 +107,8 @@ export function StudySidePanel({
               "linear-gradient(180deg, color-mix(in srgb, var(--card) 98%, white), color-mix(in srgb, var(--card) 94%, var(--theme-soft)))",
             border: "1px solid color-mix(in srgb, var(--theme-border) 58%, var(--border))",
             boxShadow: "0 20px 52px color-mix(in srgb, var(--theme-shadow) 56%, transparent)",
+            pointerEvents: open ? "auto" : "none",
+            visibility: open ? "visible" : "hidden",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1rem" }}>
@@ -150,18 +158,17 @@ export function StudySidePanel({
           </div>
 
           <div className="study-side-panel-content">
-          <AnimatePresence mode="wait">
-            {activeTab === "ai" ? (
-              <motion.div key="ai" role="tabpanel" id={`study-ai-panel-${documentId}`} aria-labelledby={`study-ai-tab-${documentId}`} className="study-side-tab-panel" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.18, ease: "easeOut" }}>
+            <div role="tabpanel" id={`study-ai-panel-${documentId}`} aria-labelledby={`study-ai-tab-${documentId}`} className="study-side-tab-panel" hidden={!open || activeTab !== "ai"} inert={!open || activeTab !== "ai" ? true : undefined}>
+              {aiInitialized ? (
                 <AIStudyAssistantPanel
                   documentId={documentId}
                   context={aiContext}
                   initialQuestion={assistantInitialQuestion}
                   mode={aiMode}
                 />
-              </motion.div>
-            ) : (
-              <motion.div key="notes" role="tabpanel" id={`study-notes-panel-${documentId}`} aria-labelledby={`study-notes-tab-${documentId}`} className="study-side-tab-panel study-side-notes-panel" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.18, ease: "easeOut" }}>
+              ) : null}
+            </div>
+            <div role="tabpanel" id={`study-notes-panel-${documentId}`} aria-labelledby={`study-notes-tab-${documentId}`} className="study-side-tab-panel study-side-notes-panel" hidden={!open || activeTab !== "notes"} inert={!open || activeTab !== "notes" ? true : undefined}>
                 <NotesPanel
                   notes={notes}
                   deletedNotes={deletedNotes}
@@ -177,12 +184,8 @@ export function StudySidePanel({
                   onJumpToText={onJumpToText}
                   onAskAI={onAskAINote}
                 />
-              </motion.div>
-            )}
-          </AnimatePresence>
+            </div>
           </div>
         </motion.aside>
-      ) : null}
-    </AnimatePresence>
   );
 }

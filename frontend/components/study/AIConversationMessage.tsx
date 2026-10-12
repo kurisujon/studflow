@@ -53,6 +53,15 @@ export function AIConversationMessage({
         <span>StudFlow AI</span>
       </div>
       <SafeMessageContent content={message.content} citations={message.citations} />
+      {message.status === "INSUFFICIENT_EVIDENCE" ? (
+        <p className="mt-3 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-sm text-amber-900 dark:text-amber-200" role="status">
+          StudFlow could not find enough verified evidence in this material to support an answer.
+        </p>
+      ) : message.status === "OUT_OF_SCOPE" ? (
+        <p className="mt-3 rounded-xl border border-border bg-muted px-3 py-2 text-sm text-muted-foreground" role="status">
+          This question falls outside the selected material. Try asking about a topic contained in the document.
+        </p>
+      ) : null}
       <AIConversationSources citations={message.citations} />
       {message.suggested_followups.length > 0 ? (
         <div className="ai-chat-followups" aria-label="Suggested follow-up questions">

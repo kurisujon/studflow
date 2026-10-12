@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import type { StudyFlashcard } from "@/lib/types";
@@ -10,12 +10,16 @@ const CARD_FLIP_DURATION_MS = 500;
 
 export function FlashcardStudy({
   flashcards,
+  active = true,
 }: {
   flashcards: StudyFlashcard[];
+  active?: boolean;
 }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [isChangingCard, setIsChangingCard] = useState(false);
+  const reduceMotion = useReducedMotion();
+  const flipDurationMs = reduceMotion ? 0 : CARD_FLIP_DURATION_MS;
   const cardChangeTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -46,10 +50,11 @@ export function FlashcardStudy({
       setActiveIndex(nextIndex);
       setIsChangingCard(false);
       cardChangeTimeoutRef.current = null;
-    }, CARD_FLIP_DURATION_MS);
-  }, [flashcards.length, isChangingCard, isFlipped]);
+    }, flipDurationMs);
+  }, [flashcards.length, flipDurationMs, isChangingCard, isFlipped]);
 
   useEffect(() => {
+    if (!active) return;
     function handleFlashcardShortcuts(event: KeyboardEvent) {
       const target = event.target as HTMLElement | null;
       if (
@@ -89,7 +94,7 @@ export function FlashcardStudy({
     return () => {
       window.removeEventListener("keydown", handleFlashcardShortcuts);
     };
-  }, [activeIndex, changeCard, isChangingCard]);
+  }, [active, activeIndex, changeCard, isChangingCard]);
 
   if (flashcards.length === 0) {
     return (
@@ -135,6 +140,9 @@ export function FlashcardStudy({
       </div>
 
       <div className="relative w-full max-w-3xl mx-auto mb-12 perspective-[2000px]" style={{ perspective: "2000px" }}>
+        <p className="sr-only" aria-live="polite">
+          {isFlipped ? "Answer shown" : "Question shown"} for card {activeIndex + 1} of {flashcards.length}.
+        </p>
         <motion.button
           type="button"
           aria-keyshortcuts="Space ArrowLeft ArrowRight"
@@ -144,12 +152,14 @@ export function FlashcardStudy({
             }
           }}
           animate={{ rotateY: isFlipped ? 180 : 0 }}
-          transition={{ duration: CARD_FLIP_DURATION_MS / 1000, ease: "easeInOut" }}
+          transition={{ duration: flipDurationMs / 1000, ease: "easeInOut" }}
           className="w-full min-h-[400px] sm:min-h-[480px] relative cursor-pointer rounded-[32px] border border-border/40 bg-card shadow-lg hover:shadow-xl transition-shadow outline-none focus-visible:ring-2 focus-visible:ring-theme-primary focus-visible:ring-offset-4 focus-visible:ring-offset-background p-0"
           style={{ transformStyle: "preserve-3d" }}
         >
           {/* Front Face (Prompt) */}
           <div
+            aria-hidden={isFlipped}
+            inert={isFlipped ? true : undefined}
             className="absolute inset-0 p-8 sm:p-12 flex flex-col justify-between bg-gradient-to-b from-card to-muted/20 rounded-[32px]"
             style={{ backfaceVisibility: "hidden" }}
           >
@@ -169,6 +179,8 @@ export function FlashcardStudy({
 
           {/* Back Face (Answer) */}
           <div
+            aria-hidden={!isFlipped}
+            inert={!isFlipped ? true : undefined}
             className="absolute inset-0 p-8 sm:p-12 flex flex-col justify-between bg-gradient-to-b from-card to-theme-soft/10 rounded-[32px]"
             style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
           >

@@ -9,8 +9,8 @@ export default async function SettingsPage() {
     <DashboardFeatureShell
       tone="settings"
       eyebrow="Preferences"
-      title="Study Settings"
-      description="Customize your spaced repetition algorithm and daily study goals."
+      title="Settings"
+      description="Manage appearance and the study preferences supported by your account."
     >
       <SettingsForm preferences={preferences} />
     </DashboardFeatureShell>

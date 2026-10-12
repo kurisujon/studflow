@@ -7,6 +7,7 @@ type StudyPageProps = {
   }>;
   searchParams: Promise<{
     tab?: string;
+    panel?: string;
   }>;
 };
 
@@ -15,13 +16,13 @@ export default async function StudyPage({
   searchParams,
 }: StudyPageProps) {
   const { id } = await params;
-  const { tab = "summary" } = await searchParams;
+  const { tab = "summary", panel } = await searchParams;
   const document = await fetchStudyDocument(id);
 
   return (
     <section className="min-h-[calc(100dvh-var(--nav-height))] w-full bg-background">
-      <div className="mx-auto flex h-full w-full max-w-[1600px] flex-col px-4 py-6 md:px-6 md:py-8 lg:px-8">
-        <StudyWorkspace document={document} initialTab={tab} />
+      <div className="mx-auto flex h-full w-full max-w-[1480px] flex-col px-3 py-4 sm:px-4 md:px-6 md:py-6 lg:px-8">
+        <StudyWorkspace document={document} initialTab={tab} initialPanel={panel} />
       </div>
     </section>
   );

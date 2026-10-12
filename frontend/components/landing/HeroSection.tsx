@@ -21,7 +21,7 @@ const workflowSteps = [
 const trustItems = [
   { emoji: "🎯", text: "Document-grounded learning" },
   { emoji: "📄", text: "Supports PDF & DOCX" },
-  { emoji: "⚡", text: "AI results in seconds" },
+  { emoji: "⚡", text: "One connected study workflow" },
 ];
 
 // ── Animation variants ──────────────────────────────────────────────────────
@@ -42,6 +42,9 @@ function ProductPreview() {
   const shouldReduceMotion = useReducedMotion();
 
   useEffect(() => {
+    if (shouldReduceMotion) {
+      return;
+    }
     const duration = 2000;
 
     const progressInterval = setInterval(() => {
@@ -60,21 +63,20 @@ function ProductPreview() {
       clearInterval(progressInterval);
       clearTimeout(stepTimer);
     };
-  }, [stepIndex]);
+  }, [shouldReduceMotion, stepIndex]);
 
   const completedCount = stepIndex;
 
   return (
     <div className="relative w-full max-w-[580px] mx-auto z-10">
       {/* Background decoration behind card */}
-      <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-30 pointer-events-none" />
       <div className="absolute top-[-50px] right-[-50px] w-[300px] h-[300px] bg-gradient-to-br from-[#168BFF]/10 to-[#7C3AED]/20 blur-[60px] rounded-full pointer-events-none" />
 
       {/* Floating Badges */}
       <motion.div 
         className="absolute -top-6 right-8 z-30 w-12 h-12 rounded-xl bg-[#A78BFA] flex items-center justify-center shadow-lg shadow-[#8B5CF6]/30 border border-white/20 shrink-0"
         animate={shouldReduceMotion ? {} : { y: [0, -8, 0] }}
-        transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
+        transition={shouldReduceMotion ? undefined : { repeat: Infinity, duration: 4, ease: "easeInOut" }}
       >
         <Sparkles className="w-5 h-5 text-white" />
       </motion.div>
@@ -82,7 +84,7 @@ function ProductPreview() {
       <motion.div 
         className="absolute -bottom-6 -right-6 z-30 w-14 h-14 rounded-2xl bg-[#60A5FA] flex items-center justify-center shadow-xl shadow-[#3B82F6]/30 border border-white/20 shrink-0"
         animate={shouldReduceMotion ? {} : { y: [0, 8, 0], rotate: [0, -5, 0] }}
-        transition={{ repeat: Infinity, duration: 5, ease: "easeInOut", delay: 1 }}
+        transition={shouldReduceMotion ? undefined : { repeat: Infinity, duration: 5, ease: "easeInOut", delay: 1 }}
       >
         <GraduationCap className="w-6 h-6 text-white" />
       </motion.div>
@@ -169,6 +171,7 @@ function ProductPreview() {
 
 // ── Main Export ─────────────────────────────────────────────────────────────
 export function HeroSection() {
+  const shouldReduceMotion = useReducedMotion();
   return (
     <LandingSection spacing="none" className="pt-[140px] lg:pt-[160px] pb-16 sm:pb-24 lg:pb-32 bg-[#F8FAFC]">
       {/* Background Patterns */}
@@ -189,8 +192,8 @@ export function HeroSection() {
           <motion.div
             className="w-full lg:w-[45%] xl:w-[44%] shrink-0 flex flex-col items-start text-left"
             variants={containerVariants}
-            initial="hidden"
-            animate="visible"
+            initial={shouldReduceMotion ? false : "hidden"}
+            animate={shouldReduceMotion ? undefined : "visible"}
           >
             {/* Badge */}
             <motion.div variants={itemVariants} className="mb-8">
@@ -207,7 +210,7 @@ export function HeroSection() {
               Turn Every Lecture<br />
               Into Your<br />
               <span className="text-[#5964FF]">
-                Best Grade.
+                Focused Study.
               </span>
             </motion.h1>
 
@@ -216,7 +219,7 @@ export function HeroSection() {
               variants={itemVariants}
               className="mb-10 text-[#475569] text-base sm:text-lg leading-[1.7] w-full max-w-[560px]"
             >
-              Upload your lecture notes, slides, or PDFs and let StudFlow instantly transform them into concise summaries, interactive flashcards, and personalized quizzes.
+              Upload PDF or DOCX study material and let StudFlow turn it into summaries, interactive flashcards, quizzes, notes, and grounded AI conversations.
             </motion.p>
 
             {/* CTA Buttons */}
@@ -247,7 +250,7 @@ export function HeroSection() {
               className="flex flex-wrap items-center justify-start gap-x-8 gap-y-4 w-full"
             >
               {trustItems.map((item, index) => (
-                <span key={index} className="flex items-center gap-2 text-[14px] sm:text-[15px] text-[#475569] font-medium whitespace-nowrap shrink-0">
+                <span key={index} className="flex w-full min-w-0 items-center gap-2 text-[14px] font-medium text-[#475569] sm:w-auto sm:whitespace-nowrap sm:text-[15px]">
                   <span className="text-lg">{item.emoji}</span>
                   {item.text}
                 </span>
@@ -258,9 +261,9 @@ export function HeroSection() {
           {/* Right Side: Interactive Product Preview */}
           <motion.div
             className="w-full lg:w-[50%] xl:w-[52%] shrink-0 relative z-20 flex justify-center lg:justify-end mt-12 lg:mt-0"
-            initial={{ opacity: 0, x: 40 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, delay: 0.3, ease: "easeOut" }}
+            initial={shouldReduceMotion ? false : { opacity: 0, x: 40 }}
+            animate={shouldReduceMotion ? undefined : { opacity: 1, x: 0 }}
+            transition={{ duration: shouldReduceMotion ? 0 : 0.8, delay: shouldReduceMotion ? 0 : 0.3, ease: "easeOut" }}
           >
             <ProductPreview />
           </motion.div>

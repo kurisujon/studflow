@@ -135,9 +135,13 @@ function getOverlapLength(
 export function InteractiveSummaryReader({
   documentId,
   summary,
+  initialPanel,
+  active = true,
 }: {
   documentId: string;
   summary: SummaryData | null;
+  initialPanel?: string;
+  active?: boolean;
 }) {
   const noteComposerTextareaId = `study-note-composer-${documentId}`;
   const [activeIndex, setActiveIndex] = useState(0);
@@ -145,8 +149,8 @@ export function InteractiveSummaryReader({
   const [notes, setNotes] = useState<StudyNote[]>([]);
   const [selectionState, setSelectionState] = useState<SelectionState | null>(null);
   const [pendingSelection, setPendingSelection] = useState<SelectionState | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [activeBubbleTab, setActiveBubbleTab] = useState<StudyBubbleTab>("notes");
+  const [drawerOpen, setDrawerOpen] = useState(initialPanel === "ai" || initialPanel === "notes");
+  const [activeBubbleTab, setActiveBubbleTab] = useState<StudyBubbleTab>(initialPanel === "ai" ? "ai" : "notes");
   const [assistantInitialQuestion, setAssistantInitialQuestion] = useState("");
   const [aiMode, setAiMode] = useState<AIToolMode>("ask-ai");
   const [aiContextText, setAiContextText] = useState("");
@@ -230,6 +234,7 @@ export function InteractiveSummaryReader({
   }, [documentId, getToken, isLoaded, isSignedIn]);
 
   useEffect(() => {
+    if (!active) return;
     function handleDocumentPointerDown(event: PointerEvent) {
       const target = event.target as Node;
 
@@ -316,7 +321,7 @@ export function InteractiveSummaryReader({
       window.removeEventListener("keydown", handleEscape);
       window.removeEventListener("keydown", handleShortcuts);
     };
-  }, [drawerOpen, noteComposerTextareaId, pendingSelection]);
+  }, [active, drawerOpen, noteComposerTextareaId, pendingSelection]);
 
   if (!summary || summary.detailed_sections.length === 0) {
     return <p className="text-muted-foreground p-8">No summary available yet.</p>;
@@ -921,7 +926,7 @@ export function InteractiveSummaryReader({
               onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
               onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
               onClick={(e) => e.stopPropagation()}
-              className="fixed flex items-center gap-2 p-2 rounded-2xl bg-[#1c1917] shadow-2xl z-[110]"
+              className="study-selection-popover fixed flex items-center gap-2 p-2 rounded-2xl bg-[#1c1917] shadow-2xl z-[110]"
               style={{
                 top: pendingSelection.y,
                 left: typeof window !== "undefined"

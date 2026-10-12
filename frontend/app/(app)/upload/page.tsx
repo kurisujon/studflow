@@ -132,6 +132,12 @@ export default function UploadPage() {
       return;
     }
 
+    const extension = file.name.split(".").pop()?.toLocaleLowerCase();
+    if (extension !== "pdf" && extension !== "docx") {
+      setError("Choose a PDF or DOCX file.");
+      return;
+    }
+
     const formData = new FormData();
     formData.append("file", file);
 
@@ -188,7 +194,7 @@ export default function UploadPage() {
       retryQueued && statusData?.status === "FAILED";
 
     return (
-      <main className="flex min-h-[calc(100dvh-var(--nav-height))] flex-col items-center justify-center p-6 bg-[var(--background)]">
+      <section className="flex min-h-[calc(100dvh-var(--nav-height))] flex-col items-center justify-center p-6 bg-[var(--background)]">
         <DocumentProcessingStatus
           status={statusData}
           error={error ?? statusError}
@@ -202,20 +208,20 @@ export default function UploadPage() {
             setPollingEnabled(true);
           }}
         />
-      </main>
+      </section>
     );
   }
 
   return (
-    <main className="flex min-h-[calc(100dvh-var(--nav-height))] flex-col items-center justify-center p-6 bg-[var(--background)]">
+    <section className="flex min-h-[calc(100dvh-var(--nav-height))] flex-col items-center justify-center p-4 sm:p-6 bg-[var(--background)]">
       <div className="w-full max-w-[640px]">
         {/* Header Section */}
         <div className="mb-8 text-center sm:text-left">
           <h1 className="text-3xl font-bold tracking-tight text-[var(--foreground)] sm:text-4xl">
-            Add study material
+            Upload material
           </h1>
           <p className="mt-2 text-base text-[var(--muted-foreground)]">
-            Upload your lecture notes, syllabus, or reading assignment. Studflow will automatically generate flashcards and a quiz for you.
+            Add a PDF or DOCX. StudFlow will process the source into a summary, flashcards, quiz, and a grounded study workspace.
           </p>
         </div>
 
@@ -296,12 +302,12 @@ export default function UploadPage() {
           <button
             type="submit"
             disabled={!file || isUploading || isPending}
-            className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-[var(--theme-primary)] px-6 text-base font-semibold text-white shadow-sm transition hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--card)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:brightness-100"
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-[var(--theme-primary)] px-6 text-base font-semibold text-[var(--theme-on-primary)] shadow-sm transition hover:bg-[var(--theme-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--card)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isUploading || isPending ? (
               <>
                 <Loader2Icon aria-hidden="true" className="size-5 animate-spin" />
-                Uploading...
+                  Uploading…
               </>
             ) : (
               "Upload and Process"
@@ -309,6 +315,6 @@ export default function UploadPage() {
           </button>
         </form>
       </div>
-    </main>
+    </section>
   );
 }

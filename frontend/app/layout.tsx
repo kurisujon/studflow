@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     canonical: '/',
   },
   title: {
-    default: "Studflow — Best AI Note Taker & Study Workflow",
+    default: "StudFlow — AI Learning Workspace",
     template: "%s | Studflow",
   },
   description:
@@ -24,12 +24,12 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     url: "https://studflow.webcris.dev",
-    title: "Studflow — Best AI Note Taker & Study Workflow",
+    title: "StudFlow — AI Learning Workspace",
     description: "Transform any document into a smart study session. Automatically generate summaries, flashcards, and quizzes from your PDFs.",
     siteName: "Studflow",
     images: [
       {
-        url: "/og-image.png",
+        url: "/feature-dashboard.jpg",
         width: 1200,
         height: 630,
         alt: "Studflow — AI Study Workflow",
@@ -38,9 +38,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Studflow — Best AI Note Taker & Study Workflow",
+    title: "StudFlow — AI Learning Workspace",
     description: "Automatically generate summaries, flashcards, and quizzes from your PDFs.",
-    images: ["/og-image.png"],
+    images: ["/feature-dashboard.jpg"],
   },
   robots: {
     index: true,

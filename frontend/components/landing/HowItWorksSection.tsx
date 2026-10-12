@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useScroll, useTransform } from "framer-motion";
+import { motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
 import { useRef, useState, useEffect } from "react";
 // @ts-expect-error - lucide-react types are outdated in this project
 import { UploadCloud, Cpu, Target, FileText, CheckCircle, Sparkles, Layers, FileImage } from "lucide-react";
@@ -14,7 +14,7 @@ const steps = [
   {
     step: "01",
     title: "Upload Your Materials",
-    description: "Drop any PDF or DOCX file — lecture slides, textbook chapters, or handwritten notes.",
+    description: "Choose a PDF or DOCX file containing the study material you want to process.",
     icon: UploadCloud,
     color: "text-[#168BFF]",
     bgColor: "bg-[#F0F7FF]",
@@ -24,7 +24,7 @@ const steps = [
   {
     step: "02",
     title: "AI Processing",
-    description: "Our specialized study engines analyze, summarize, and chunk your document in seconds.",
+    description: "StudFlow extracts, chunks, and analyzes your document before generating its study tools.",
     icon: Cpu,
     color: "text-[#7C3AED]",
     bgColor: "bg-[#F5F3FF]",
@@ -45,20 +45,19 @@ const steps = [
 
 // ── Step 1 Animated Preview: Interactive Drag & Drop Box ────────────────────
 function Step1Preview() {
-  const [isHovered, setIsHovered] = useState(false);
+  const reduceMotion = useReducedMotion();
   const [uploaded, setUploaded] = useState(false);
 
   useEffect(() => {
+    if (reduceMotion) return;
     const timer = setInterval(() => {
       setUploaded((prev) => !prev);
     }, 3000);
     return () => clearInterval(timer);
-  }, []);
+  }, [reduceMotion]);
 
   return (
     <div
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
       className="p-4 rounded-2xl border border-dashed border-[#168BFF]/40 bg-white shadow-sm flex flex-col items-center justify-center text-center transition-all duration-300 relative overflow-hidden group min-h-[110px]"
     >
       <div className="flex items-center gap-3">
@@ -70,7 +69,7 @@ function Step1Preview() {
             {uploaded ? "Bio_Lecture_3.pdf" : "Drag & drop PDF here"}
           </p>
           <p className="text-[11px] text-[#64748B]">
-            {uploaded ? "2.4 MB · Uploaded" : "Supports up to 50 MB"}
+            {uploaded ? "PDF · Uploaded" : "PDF or DOCX"}
           </p>
         </div>
       </div>
@@ -85,15 +84,17 @@ function Step1Preview() {
 
 // ── Step 2 Animated Preview: AI Analysis Pulse Box ──────────────────────────
 function Step2Preview() {
+  const reduceMotion = useReducedMotion();
   const [activeChip, setActiveChip] = useState(0);
   const chips = ["Extraction", "Summarizing", "Quiz Generating"];
 
   useEffect(() => {
+    if (reduceMotion) return;
     const interval = setInterval(() => {
       setActiveChip((prev) => (prev + 1) % chips.length);
     }, 1500);
     return () => clearInterval(interval);
-  }, [chips.length]);
+  }, [chips.length, reduceMotion]);
 
   return (
     <div className="p-4 rounded-2xl border border-[#E2E8F0] bg-white shadow-sm flex flex-col gap-2.5 min-h-[110px] justify-center">
@@ -131,15 +132,15 @@ function Step3Preview() {
           <Layers className="w-5 h-5" />
         </div>
         <div className="text-left">
-          <p className="text-xs font-bold text-[#0F172A]">Quiz Score: 94%</p>
+          <p className="text-xs font-bold text-[#0F172A]">Practice with document questions</p>
           <p className="text-[11px] text-[#10B981] font-semibold flex items-center gap-1">
-            <CheckCircle className="w-3 h-3" /> Mastered Topic
+            <CheckCircle className="w-3 h-3" /> Answer feedback available
           </p>
         </div>
       </div>
       <div className="text-right">
         <span className="text-xs font-bold text-[#4F46E5] bg-[#EEEDFC] px-2.5 py-1 rounded-full border border-[#4F46E5]/20">
-          +45 XP
+          Attempts saved
         </span>
       </div>
     </div>
@@ -148,6 +149,7 @@ function Step3Preview() {
 
 // ── Main Export ─────────────────────────────────────────────────────────────
 export function HowItWorksSection() {
+  const reduceMotion = useReducedMotion();
   const containerRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({
     target: containerRef,
@@ -168,8 +170,8 @@ export function HowItWorksSection() {
       <LandingContainer variant="default" className="relative z-10 flex flex-col">
         {/* Header */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
+          initial={reduceMotion ? false : { opacity: 0, y: 20 }}
+          whileInView={reduceMotion ? undefined : { opacity: 1, y: 0 }}
           viewport={{ once: true }}
         >
           <LandingHeading
@@ -181,7 +183,7 @@ export function HowItWorksSection() {
             }
             subtitle="Stop spending hours preparing study materials. Let StudFlow do the heavy lifting so you can focus on actually learning."
           >
-            From document to mastery in <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#4F46E5] to-[#7C3AED]">3 steps</span>
+            From document to study workspace in <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#4F46E5] to-[#7C3AED]">3 steps</span>
           </LandingHeading>
         </motion.div>
 
@@ -190,7 +192,7 @@ export function HowItWorksSection() {
           <div className="hidden lg:block absolute top-[60px] left-[15%] right-[15%] h-1 bg-[#E2E8F0] rounded-full z-0 overflow-hidden">
             <motion.div 
               className="h-full bg-gradient-to-r from-[#168BFF] via-[#7C3AED] to-[#4F46E5]"
-              style={{ width: lineWidth }}
+              style={{ width: reduceMotion ? "100%" : lineWidth }}
             />
           </div>
 
@@ -198,7 +200,7 @@ export function HowItWorksSection() {
           <div className="block lg:hidden absolute top-10 bottom-10 left-[48px] md:left-1/2 md:-translate-x-1/2 w-1 bg-[#E2E8F0] rounded-full z-0 overflow-hidden">
             <motion.div 
               className="w-full bg-gradient-to-b from-[#168BFF] via-[#7C3AED] to-[#4F46E5]"
-              style={{ height: lineHeight }}
+              style={{ height: reduceMotion ? "100%" : lineHeight }}
             />
           </div>
           
@@ -206,17 +208,17 @@ export function HowItWorksSection() {
             {steps.map((step, idx) => (
               <motion.div 
                 key={idx}
-                initial={{ opacity: 0, y: 40, scale: 0.95 }}
-                whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                initial={reduceMotion ? false : { opacity: 0, y: 40, scale: 0.95 }}
+                whileInView={reduceMotion ? undefined : { opacity: 1, y: 0, scale: 1 }}
                 viewport={{ once: true, margin: "-100px" }}
-                transition={{ duration: 0.6, delay: idx * 0.2, ease: "easeOut" }}
+                transition={{ duration: reduceMotion ? 0 : 0.6, delay: reduceMotion ? 0 : idx * 0.2, ease: "easeOut" }}
                 className="flex flex-col lg:items-center text-left lg:text-center group relative pl-[100px] lg:pl-0"
               >
                 {/* Step Number Badge + Icon Container */}
                 <div className="absolute left-0 lg:static lg:mx-auto">
                   <div className={`w-24 h-24 rounded-full ${step.bgColor} border-4 border-white shadow-xl ${step.glowColor} flex items-center justify-center mb-6 relative transition-transform duration-400 ease-out group-hover:scale-105`}>
                     <motion.div 
-                      whileHover={{ scale: 1.1, rotate: 5 }}
+                      whileHover={reduceMotion ? undefined : { scale: 1.1, rotate: 5 }}
                       className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-white border border-[#E2E8F0] shadow-md flex items-center justify-center font-black text-[#0F172A] text-sm z-20"
                     >
                       {idx + 1}
@@ -239,10 +241,10 @@ export function HowItWorksSection() {
 
                 {/* Mini UI Previews */}
                 <motion.div 
-                  initial={{ opacity: 0, y: 10 }}
-                  whileInView={{ opacity: 1, y: 0 }}
+                  initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+                  whileInView={reduceMotion ? undefined : { opacity: 1, y: 0 }}
                   viewport={{ once: true }}
-                  transition={{ delay: 0.3 + (idx * 0.2) }}
+                  transition={{ duration: reduceMotion ? 0 : undefined, delay: reduceMotion ? 0 : 0.3 + (idx * 0.2) }}
                   className="w-full max-w-[280px] mx-0 lg:mx-auto"
                 >
                   {idx === 0 && <Step1Preview />}

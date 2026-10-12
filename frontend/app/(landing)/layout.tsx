@@ -9,7 +9,7 @@ export default function LandingLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className={`${manrope.variable}`} style={{ fontFamily: "var(--font-landing), system-ui, sans-serif" }}>
+    <div className={`landing-shell min-h-dvh bg-[var(--landing-bg)] text-[var(--landing-text-primary)] ${manrope.variable}`} style={{ fontFamily: "var(--font-landing), system-ui, sans-serif" }}>
       <LandingNavbar />
       {children}
     </div>

@@ -1,48 +1,47 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
-import { useState, useEffect } from "react";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+import { useState } from "react";
 // @ts-expect-error - lucide-react types are outdated in this project
-import { TrendingUp, Zap, ShieldCheck, CheckCircle, Sparkles, Flame, LayoutDashboard, Brain, Target } from "lucide-react";
+import { TrendingUp, Zap, ShieldCheck, CheckCircle, Flame, Brain } from "lucide-react";
 import { LandingSection } from "./ui/LandingSection";
 import { LandingContainer } from "./ui/LandingContainer";
-import { LandingHeading } from "./ui/LandingHeading";
 import { LandingCard } from "./ui/LandingCard";
 
 // ── Benefits data ────────────────────────────────────────────────────────────
 const benefits = [
   {
     icon: TrendingUp,
-    title: "10+ Hours Saved Weekly",
-    description: "Automate note organization, summarization, and flashcard creation so you can focus on active learning.",
-    badge: "Efficiency",
+    title: "One Connected Workflow",
+    description: "Move from an uploaded source to its summary, annotations, flashcards, quiz, and AI conversation in one workspace.",
+    badge: "Focused workflow",
     color: "text-[#168BFF]",
     bgColor: "bg-[#F0F7FF]",
     badgeColor: "text-[#168BFF] bg-[#F0F7FF]",
   },
   {
     icon: Zap,
-    title: "Long-term Memory Boost",
-    description: "Built-in Spaced Repetition System (SRS) ensures information transfers to long-term memory effortlessly.",
-    badge: "Scientifically Proven",
+    title: "Scheduled Active Recall",
+    description: "Rate reviewed flashcards with Again, Hard, Good, or Easy to update their spaced repetition schedule.",
+    badge: "Spaced repetition",
     color: "text-[#4F46E5]",
     bgColor: "bg-[#EEEDFC]",
     badgeColor: "text-[#4F46E5] bg-[#EEEDFC]",
   },
   {
     icon: Brain,
-    title: "AI-Grounded Accuracy",
-    description: "Every generated summary and quiz answer cites its exact source chunk from your uploaded PDF.",
-    badge: "Zero Hallucination",
+    title: "Source-Grounded Answers",
+    description: "AI conversations stay scoped to your selected document and show citations when verified evidence supports the response.",
+    badge: "Grounded AI",
     color: "text-[#7C3AED]",
     bgColor: "bg-[#F5F3FF]",
     badgeColor: "text-[#7C3AED] bg-[#F5F3FF]",
   },
   {
     icon: ShieldCheck,
-    title: "Exam Readiness Score",
-    description: "Track your real-time mastery stats across subjects to know exactly when you're ready to ace your exam.",
-    badge: "Analytics",
+    title: "Progress You Can Verify",
+    description: "See account totals, saved quiz results, review counts, and recorded activity without fabricated projections.",
+    badge: "Real account data",
     color: "text-[#2563EB]",
     bgColor: "bg-[#EFF6FF]",
     badgeColor: "text-[#2563EB] bg-[#EFF6FF]",
@@ -51,15 +50,8 @@ const benefits = [
 
 // ── Live Interactive Dashboard Showcase Component ─────────────────────────────
 function LiveDashboard() {
+  const reduceMotion = useReducedMotion();
   const [activeTab, setActiveTab] = useState<"overview" | "flashcards" | "quizzes">("overview");
-  const [streakCount, setStreakCount] = useState(5);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setStreakCount((prev) => (prev >= 7 ? 1 : prev + 1));
-    }, 4000);
-    return () => clearInterval(timer);
-  }, []);
 
   return (
     <div className="relative w-full rounded-[32px] border border-[#E2E8F0] bg-white shadow-[0_24px_80px_rgba(79,70,229,0.08)] overflow-hidden flex flex-col">
@@ -74,12 +66,12 @@ function LiveDashboard() {
 
         {/* Dynamic Streak Badge */}
         <motion.div
-          animate={{ scale: [1, 1.05, 1] }}
-          transition={{ repeat: Infinity, duration: 2 }}
+          animate={reduceMotion ? undefined : { scale: [1, 1.05, 1] }}
+          transition={reduceMotion ? undefined : { repeat: Infinity, duration: 2 }}
           className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold shadow-sm"
         >
           <Flame className="w-3.5 h-3.5 fill-current" />
-          <span>{streakCount} Day Streak!</span>
+          <span>Review queue ready</span>
         </motion.div>
       </div>
 
@@ -101,7 +93,7 @@ function LiveDashboard() {
               activeTab === "flashcards" ? "bg-white text-[#0F172A] shadow-sm font-bold" : "text-[#64748B]"
             }`}
           >
-            Flashcards (24)
+            Flashcards
           </button>
           <button
             onClick={() => setActiveTab("quizzes")}
@@ -109,7 +101,7 @@ function LiveDashboard() {
               activeTab === "quizzes" ? "bg-white text-[#0F172A] shadow-sm font-bold" : "text-[#64748B]"
             }`}
           >
-            Quizzes (3)
+            Quizzes
           </button>
         </div>
 
@@ -119,24 +111,24 @@ function LiveDashboard() {
             {activeTab === "overview" && (
               <motion.div
                 key="overview"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
+                initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+                animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
+                exit={reduceMotion ? undefined : { opacity: 0, y: -10 }}
                 className="flex flex-col gap-4"
               >
                 {/* Stats Row */}
                 <div className="grid grid-cols-3 gap-3">
                   <div className="p-3.5 rounded-2xl bg-[#F0F7FF] border border-[#168BFF]/20 flex flex-col">
-                    <span className="text-[11px] font-semibold text-[#168BFF]">Total Documents</span>
-                    <span className="text-xl font-bold text-[#0F172A]">14 Files</span>
+                    <span className="text-[11px] font-semibold text-[#168BFF]">Materials</span>
+                    <span className="text-xl font-bold text-[#0F172A]">Library</span>
                   </div>
                   <div className="p-3.5 rounded-2xl bg-[#EEEDFC] border border-[#4F46E5]/20 flex flex-col">
-                    <span className="text-[11px] font-semibold text-[#4F46E5]">Cards Due Today</span>
-                    <span className="text-xl font-bold text-[#0F172A]">8 Reviews</span>
+                    <span className="text-[11px] font-semibold text-[#4F46E5]">Flashcards</span>
+                    <span className="text-xl font-bold text-[#0F172A]">Due queue</span>
                   </div>
                   <div className="p-3.5 rounded-2xl bg-[#F5F3FF] border border-[#7C3AED]/20 flex flex-col">
-                    <span className="text-[11px] font-semibold text-[#7C3AED]">Avg Quiz Score</span>
-                    <span className="text-xl font-bold text-[#0F172A]">92%</span>
+                    <span className="text-[11px] font-semibold text-[#7C3AED]">Quiz attempts</span>
+                    <span className="text-xl font-bold text-[#0F172A]">Saved</span>
                   </div>
                 </div>
 
@@ -144,10 +136,10 @@ function LiveDashboard() {
                 <div className="p-4 rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] flex flex-col gap-2">
                   <div className="flex items-center justify-between text-xs font-bold text-[#0F172A]">
                     <span>Neuroscience_Ch4_Final.pdf</span>
-                    <span className="text-[#10B981]">85% Mastered</span>
+                    <span className="text-[#10B981]">Study tools ready</span>
                   </div>
                   <div className="w-full h-2.5 bg-[#EEEDFC] rounded-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-[#168BFF] to-[#10B981] w-[85%] rounded-full" />
+                    <div className="h-full bg-gradient-to-r from-[#168BFF] to-[#10B981] w-full rounded-full" />
                   </div>
                 </div>
               </motion.div>
@@ -156,9 +148,9 @@ function LiveDashboard() {
             {activeTab === "flashcards" && (
               <motion.div
                 key="flashcards"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
+                initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+                animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
+                exit={reduceMotion ? undefined : { opacity: 0, y: -10 }}
                 className="flex flex-col gap-3"
               >
                 <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] relative overflow-hidden group">
@@ -173,14 +165,14 @@ function LiveDashboard() {
             {activeTab === "quizzes" && (
               <motion.div
                 key="quizzes"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
+                initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+                animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
+                exit={reduceMotion ? undefined : { opacity: 0, y: -10 }}
                 className="flex flex-col gap-3"
               >
                 <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] relative overflow-hidden group">
                   <span className="text-[10px] font-bold text-[#168BFF] uppercase bg-[#F0F7FF] px-2 py-0.5 rounded-full">
-                    Adaptive Quiz · 10 Questions
+                    Document quiz · Answer feedback
                   </span>
                   <p className="text-xs sm:text-sm font-bold text-[#0F172A] mt-2">Neuroscience & Action Potentials</p>
                 </div>
@@ -191,15 +183,15 @@ function LiveDashboard() {
 
         {/* Footer info pill */}
         <motion.div
-          animate={{ opacity: [0.7, 1, 0.7] }}
-          transition={{ repeat: Infinity, duration: 3 }}
+          animate={reduceMotion ? undefined : { opacity: [0.7, 1, 0.7] }}
+          transition={reduceMotion ? undefined : { repeat: Infinity, duration: 3 }}
           className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between"
         >
           <div className="flex items-center gap-2 text-xs font-semibold text-emerald-900">
             <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span>Spaced repetition algorithm updated for 2 cards today!</span>
+            <span>Review ratings update each card&apos;s next scheduled interval.</span>
           </div>
-          <span className="text-xs font-bold text-emerald-700 bg-emerald-200/50 px-2.5 py-1 rounded-full">Awesome! 🎉</span>
+          <span className="text-xs font-bold text-emerald-700 bg-emerald-200/50 px-2.5 py-1 rounded-full">Schedule saved</span>
         </motion.div>
       </div>
     </div>
@@ -208,6 +200,7 @@ function LiveDashboard() {
 
 // ── Main Export ─────────────────────────────────────────────────────────────
 export function BenefitsSection() {
+  const reduceMotion = useReducedMotion();
   return (
     <LandingSection id="benefits" background="card" spacing="lg">
       {/* Subtle Background Gradients */}
@@ -221,10 +214,10 @@ export function BenefitsSection() {
           {/* Left Column: Benefits Content */}
           <motion.div 
             className="flex-1 w-full"
-            initial={{ opacity: 0, x: -40 }}
-            whileInView={{ opacity: 1, x: 0 }}
+            initial={reduceMotion ? false : { opacity: 0, x: -40 }}
+            whileInView={reduceMotion ? undefined : { opacity: 1, x: 0 }}
             viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.6 }}
+            transition={{ duration: reduceMotion ? 0 : 0.6 }}
           >
             {/* Header */}
             <div className="mb-12">
@@ -232,7 +225,7 @@ export function BenefitsSection() {
                 Study smarter, not harder. <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#168BFF] to-[#4F46E5]">Seriously.</span>
               </h2>
               <p className="text-[#475569] leading-relaxed max-w-[500px] text-base sm:text-lg">
-                StudFlow was built for students who want to maximize grades while reclaiming their free time. We combine proven frameworks with cutting-edge AI.
+                StudFlow brings source reading, grounded AI assistance, active recall, quizzes, and scheduled review into one connected workspace.
               </p>
             </div>
             
@@ -268,10 +261,10 @@ export function BenefitsSection() {
           {/* Right Column: Interactive Dashboard Preview */}
           <motion.div 
             className="flex-1 w-full relative"
-            initial={{ opacity: 0, x: 40, scale: 0.95 }}
-            whileInView={{ opacity: 1, x: 0, scale: 1 }}
+            initial={reduceMotion ? false : { opacity: 0, x: 40, scale: 0.95 }}
+            whileInView={reduceMotion ? undefined : { opacity: 1, x: 0, scale: 1 }}
             viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
+            transition={{ duration: reduceMotion ? 0 : 0.6, delay: reduceMotion ? 0 : 0.2, ease: "easeOut" }}
           >
             <div className="absolute inset-4 rounded-full bg-gradient-to-r from-[#168BFF]/20 via-[#4F46E5]/20 to-[#7C3AED]/20 blur-[80px] pointer-events-none" />
             <LiveDashboard />

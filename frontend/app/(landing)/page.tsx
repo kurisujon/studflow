@@ -8,7 +8,7 @@ import { LandingFooter } from "@/components/landing/LandingFooter";
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] overflow-x-hidden selection:bg-[#168BFF]/20 selection:text-[#168BFF]">
+    <div className="min-h-screen overflow-x-hidden bg-[#F8F9FC] text-[#151821] selection:bg-[#4F46E5]/20 selection:text-[#4F46E5]">
       <main className="relative flex flex-col items-center w-full">
         <HeroSection />
         <FeaturesSection />

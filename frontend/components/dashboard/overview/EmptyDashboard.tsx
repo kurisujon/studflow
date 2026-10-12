@@ -15,7 +15,7 @@ export function EmptyDashboard() {
       </p>
       <Link
         href="/dashboard/upload"
-        className="mt-8 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[var(--theme-primary)] px-6 text-sm font-semibold text-white shadow-sm transition hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
+        className="mt-8 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[var(--theme-primary)] px-6 text-sm font-semibold text-[var(--theme-on-primary)] shadow-sm transition hover:bg-[var(--theme-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
       >
         Upload your first document
       </Link>

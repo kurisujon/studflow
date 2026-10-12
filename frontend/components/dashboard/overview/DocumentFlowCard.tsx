@@ -70,7 +70,7 @@ export function DocumentFlowCard({ document }: { document: DocumentListItem }) {
         {completed ? (
           <Link
             href={`/dashboard/study/${document.id}`}
-            className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-[var(--theme-soft)] px-3 text-xs font-semibold text-[var(--theme-primary)] opacity-100 sm:opacity-0 transition-all sm:group-hover:opacity-100 hover:bg-[var(--theme-primary)] hover:text-white focus-visible:opacity-100"
+            className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-[var(--theme-soft)] px-3 text-xs font-semibold text-[var(--theme-primary)] opacity-100 sm:opacity-0 transition-all sm:group-hover:opacity-100 hover:bg-[var(--theme-primary)] hover:text-[var(--theme-on-primary)] focus-visible:opacity-100"
           >
             Study
             <ArrowRight aria-hidden="true" className="size-3.5" />

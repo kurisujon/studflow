@@ -14,10 +14,10 @@ export function ComparisonSection() {
   ];
 
   const studflowMethods = [
-    "AI-assisted instant summaries",
+    "AI-generated structured summaries",
     "Focus on true understanding",
     "Your personal AI document tutor",
-    "Adaptive active recall quizzes"
+    "Generated document quizzes"
   ];
 
   return (

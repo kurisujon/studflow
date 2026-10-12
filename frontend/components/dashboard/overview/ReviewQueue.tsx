@@ -50,8 +50,8 @@ export function ReviewQueue({ queue }: { queue: UserQueue }) {
                     <span
                       className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
                         isReview
-                          ? "bg-[var(--theme-primary)] text-white"
-                          : "bg-[var(--theme-primary)] text-white"
+                          ? "bg-[var(--theme-primary)] text-[var(--theme-on-primary)]"
+                          : "bg-[var(--theme-primary)] text-[var(--theme-on-primary)]"
                       }`}
                     >
                       {task.badge}
@@ -63,7 +63,7 @@ export function ReviewQueue({ queue }: { queue: UserQueue }) {
                 </div>
                 <Link
                   href={href}
-                  className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-lg bg-[var(--theme-soft)] px-4 text-sm font-semibold text-[var(--theme-primary)] transition hover:bg-[var(--theme-primary)] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)]"
+                  className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-lg bg-[var(--theme-soft)] px-4 text-sm font-semibold text-[var(--theme-primary)] transition hover:bg-[var(--theme-primary)] hover:text-[var(--theme-on-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)]"
                 >
                   Start
                   <ArrowRight aria-hidden="true" className="size-4" />

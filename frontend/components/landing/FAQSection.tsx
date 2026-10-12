@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 // @ts-expect-error - lucide-react types are outdated in this project
 import { ChevronDown, HelpCircle } from "lucide-react";
 import { LandingSection } from "./ui/LandingSection";
@@ -13,27 +13,28 @@ import { LandingCard } from "./ui/LandingCard";
 const faqs = [
   {
     question: "What file types do you support?",
-    answer: "Currently, StudFlow supports PDF and DOCX files. We are actively working on adding support for PPT (PowerPoint) and TXT files in the near future."
+    answer: "StudFlow currently accepts PDF and DOCX files through the upload workflow."
   },
   {
     question: "How does the AI generate summaries and flashcards?",
-    answer: "When you upload a document, our backend extracts the text and uses advanced AI models to identify the core concepts. It then structures this information into readable summaries, flashcards, and adaptive quizzes tailored to your specific material."
+    answer: "After upload, asynchronous processing extracts and chunks the document before generating its structured summary, flashcards, and document-based multiple-choice quiz."
   },
   {
     question: "Can I ask questions about my document?",
-    answer: "Yes! Our 'Ask AI' feature is grounded entirely in your uploaded document. It will read the specific chunks of text related to your question and provide answers complete with citations so you know exactly where the information came from."
+    answer: "Yes. Ask AI retrieves relevant chunks from the selected document. When verified evidence supports a response, StudFlow includes source citations; otherwise it shows an insufficient-evidence or out-of-scope state."
   },
   {
-    question: "Are my documents kept private?",
-    answer: "Absolutely. Your uploaded files are stored securely and are only accessible by you. We do not use your personal study materials to train public AI models."
+    question: "How is access to my documents handled?",
+    answer: "StudFlow requires an authenticated account for the document workspace and applies the platform's existing ownership controls. Review the deployed service's approved privacy information before uploading sensitive material."
   },
   {
     question: "Do you have a spaced repetition system (SRS)?",
-    answer: "Yes, our flashcard system uses a Spaced Repetition System. As you study, the algorithm learns which concepts you find difficult and schedules them for review more frequently to maximize your retention."
+    answer: "Yes. During Daily Review, your Again, Hard, Good, or Easy rating updates that card's interval and next review date."
   }
 ];
 
 export function FAQSection() {
+  const reduceMotion = useReducedMotion();
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   const toggleOpen = (index: number) => {
@@ -58,6 +59,8 @@ export function FAQSection() {
         <div className="space-y-4 w-full">
           {faqs.map((faq, idx) => {
             const isOpen = openIndex === idx;
+            const triggerId = `faq-trigger-${idx}`;
+            const panelId = `faq-panel-${idx}`;
             return (
               <LandingCard
                 key={idx}
@@ -70,7 +73,11 @@ export function FAQSection() {
                 }`}
               >
                 <button
+                  type="button"
+                  id={triggerId}
                   onClick={() => toggleOpen(idx)}
+                  aria-expanded={isOpen}
+                  aria-controls={panelId}
                   className="w-full flex items-center justify-between p-6 md:p-8 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#168BFF]/50"
                 >
                   <span className="text-[1.125rem] md:text-[1.25rem] font-semibold text-[#0F172A]">
@@ -85,10 +92,13 @@ export function FAQSection() {
                 <AnimatePresence initial={false}>
                   {isOpen && (
                     <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.3 }}
+                      id={panelId}
+                      role="region"
+                      aria-labelledby={triggerId}
+                      initial={reduceMotion ? false : { height: 0, opacity: 0 }}
+                      animate={reduceMotion ? undefined : { height: "auto", opacity: 1 }}
+                      exit={reduceMotion ? undefined : { height: 0, opacity: 0 }}
+                      transition={{ duration: reduceMotion ? 0 : 0.3 }}
                     >
                       <div className="px-6 md:px-8 pb-6 md:pb-8 pt-0 text-[#475569] text-base md:text-lg leading-relaxed border-t border-[#F1F5F9] pt-4">
                         {faq.answer}

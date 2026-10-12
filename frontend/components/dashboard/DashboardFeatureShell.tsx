@@ -109,25 +109,19 @@ export function DashboardFeatureShell({
   const palette = toneClasses[tone];
 
   return (
-    <div className="relative min-h-[calc(100dvh-var(--nav-height))] overflow-hidden">
-      <div
-        aria-hidden="true"
-        className={`pointer-events-none absolute inset-x-0 top-0 h-80 bg-gradient-to-br ${palette.glow} to-transparent`}
-      />
+    <div className="relative min-h-[calc(100dvh-var(--nav-height))]">
       <div className="relative mx-auto w-full max-w-[1440px] space-y-7 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-        <header className="relative overflow-hidden rounded-xl border border-[var(--theme-border)] bg-[var(--card)] p-5 shadow-sm sm:p-7">
+        <header className="relative p-0">
           <div className="relative flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
             <div className="flex min-w-0 items-start gap-4">
-              <span
-                className={`grid size-12 shrink-0 place-items-center rounded-2xl ${palette.icon}`}
-              >
+              <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${palette.icon}`}>
                 <FeatureIcon tone={tone} aria-hidden="true" className="size-6" />
               </span>
               <div className="min-w-0">
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--theme-primary)]">
                   {eyebrow}
                 </p>
-                <h1 className="mt-1 text-3xl font-bold tracking-tight text-[var(--foreground)] sm:text-4xl">
+                <h1 className="mt-1 text-2xl font-bold tracking-[-0.025em] text-[var(--foreground)] sm:text-3xl">
                   {title}
                 </h1>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted-foreground)] sm:text-base">
@@ -146,7 +140,7 @@ export function DashboardFeatureShell({
               {action ? (
                 <Link
                   href={action.href}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--theme-primary)] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)] focus-visible:ring-offset-2"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--theme-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--theme-on-primary)] shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:bg-[var(--theme-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)] focus-visible:ring-offset-2"
                 >
                   {action.label}
                   <span aria-hidden="true">→</span>

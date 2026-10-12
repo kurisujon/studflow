@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useEffectEvent, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react";
 
 import { API_BASE_URL, buildAPIError } from "@/lib/api";
 import { useAuth } from "@clerk/nextjs";
@@ -50,6 +50,7 @@ export function useDocumentStatus(
   const [data, setData] = useState<DocumentStatusResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const activeRequestRef = useRef<AbortController | null>(null);
 
   const { getToken } = useAuth();
   const clearError = useCallback(() => {
@@ -60,6 +61,11 @@ export function useDocumentStatus(
     if (!documentId || !enabled) {
       return;
     }
+
+    if (activeRequestRef.current) return;
+
+    const controller = new AbortController();
+    activeRequestRef.current = controller;
 
     setIsLoading(true);
 
@@ -75,6 +81,7 @@ export function useDocumentStatus(
         {
           cache: "no-store",
           headers,
+          signal: controller.signal,
         },
       );
 
@@ -87,12 +94,14 @@ export function useDocumentStatus(
       setData(payload);
       setError(null);
     } catch (fetchError) {
+      if (fetchError instanceof Error && fetchError.name === "AbortError") return;
       setError(
         fetchError instanceof Error
           ? fetchError.message
           : "Failed to fetch document status.",
       );
     } finally {
+      if (activeRequestRef.current === controller) activeRequestRef.current = null;
       setIsLoading(false);
     }
   });
@@ -113,6 +122,8 @@ export function useDocumentStatus(
     return () => {
       window.clearTimeout(initialFetchTimeoutId);
       window.clearInterval(intervalId);
+      activeRequestRef.current?.abort();
+      activeRequestRef.current = null;
     };
   }, [documentId, enabled, intervalMs]);
 
