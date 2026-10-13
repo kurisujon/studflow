@@ -123,7 +123,7 @@ export function AppShell({ children, documents }: { children: React.ReactNode; d
               {results.length ? results.map((item) => <Link key={item.id} href={item.status === "COMPLETED" ? `/dashboard/study/${item.id}` : "/dashboard/docs"} className="flex items-center gap-3 rounded-lg px-2.5 py-2.5 text-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[var(--theme-soft)] text-[var(--theme-primary)]"><FileTextIcon className="size-4" /></span><span className="min-w-0 flex-1 truncate font-medium">{item.filename}</span><span className="text-[10px] font-semibold text-muted-foreground">{item.status === "COMPLETED" ? "Ready" : item.status}</span></Link>) : <p className="px-3 py-6 text-center text-sm text-muted-foreground">No matching materials</p>}
             </div> : null}
           </div>
-          <Link href="/upload" className="hidden h-10 shrink-0 items-center gap-2 rounded-xl bg-[var(--theme-primary)] px-3.5 text-sm font-semibold text-[var(--theme-on-primary)] shadow-sm transition hover:bg-[var(--theme-primary-hover)] md:inline-flex"><UploadIcon className="size-4" aria-hidden="true" />Upload</Link>
+          <Link href="/upload" className="hidden h-10 shrink-0 items-center gap-2 rounded-xl bg-[var(--theme-primary)] px-3.5 text-sm font-semibold text-[var(--theme-on-primary)] shadow-sm transition hover:bg-[var(--theme-primary-hover)] md:inline-flex lg:hidden"><UploadIcon className="size-4" aria-hidden="true" />Upload</Link>
           <ThemeSettings /><UserButton />
         </header>
         <main id="main-content" className="min-w-0 flex-1">{children}</main>
