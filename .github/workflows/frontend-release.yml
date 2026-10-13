@@ -1,0 +1,290 @@
+name: Frontend production release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_sha:
+        description: "Full 40-character commit SHA from main to build and release"
+        required: true
+        type: string
+      confirmation:
+        description: "Type DEPLOY FRONTEND to authorize the production release"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-production
+  cancel-in-progress: false
+
+jobs:
+  release-frontend:
+    name: Build and deploy frontend
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://studflow.webcris.dev
+    permissions:
+      contents: read
+      packages: write
+    env:
+      RELEASE_SHA: ${{ inputs.release_sha }}
+      RELEASE_CONFIRMATION: ${{ inputs.confirmation }}
+    steps:
+      - name: Validate release authorization
+        shell: bash
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::Run this workflow from the main branch."
+            exit 1
+          fi
+
+          if [[ ! "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::release_sha must be a lowercase, full 40-character commit SHA."
+            exit 1
+          fi
+
+          if [ "$RELEASE_CONFIRMATION" != "DEPLOY FRONTEND" ]; then
+            echo "::error::The confirmation input must exactly match DEPLOY FRONTEND."
+            exit 1
+          fi
+
+      - name: Check out trusted release tooling
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify release commit is on main
+        shell: bash
+        run: |
+          git fetch --no-tags origin main
+          git cat-file -e "${RELEASE_SHA}^{commit}"
+
+          if ! git merge-base --is-ancestor "$RELEASE_SHA" origin/main; then
+            echo "::error::release_sha must identify a commit reachable from origin/main."
+            exit 1
+          fi
+
+      - name: Check out immutable release source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_sha }}
+          path: release-source
+          persist-credentials: false
+
+      - name: Verify checked-out release identity
+        working-directory: release-source
+        shell: bash
+        run: |
+          actual_sha="$(git rev-parse HEAD)"
+          if [ "$actual_sha" != "$RELEASE_SHA" ]; then
+            echo "::error::Checked-out release source does not match release_sha."
+            exit 1
+          fi
+
+      - name: Read frontend build configuration
+        id: frontend-env
+        env:
+          PRODUCTION_ENV_FILE: ${{ secrets.PRODUCTION_ENV_FILE }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          env_file="$(mktemp)"
+          trap 'rm -f "$env_file"' EXIT
+          chmod 600 "$env_file"
+          printf '%s\n' "$PRODUCTION_ENV_FILE" > "$env_file"
+
+          write_output() {
+            local env_name="$1"
+            local output_name="$2"
+            local default_value="${3:-}"
+            local value
+
+            value="$(sed -n "s/^${env_name}=//p" "$env_file" | tail -n 1 | tr -d '\r')"
+            value="${value:-$default_value}"
+            if [ -z "$value" ]; then
+              echo "::error::${env_name} is required in PRODUCTION_ENV_FILE."
+              exit 1
+            fi
+
+            echo "::add-mask::$value"
+            printf '%s=%s\n' "$output_name" "$value" >> "$GITHUB_OUTPUT"
+          }
+
+          write_output NEXT_PUBLIC_API_BASE_URL next_public_api_base_url
+          write_output INTERNAL_API_BASE_URL internal_api_base_url
+          write_output NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY next_public_clerk_publishable_key
+          write_output NEXT_PUBLIC_CLERK_SIGN_IN_URL next_public_clerk_sign_in_url /sign-in
+          write_output NEXT_PUBLIC_CLERK_SIGN_UP_URL next_public_clerk_sign_up_url /sign-up
+          write_output NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL next_public_clerk_after_sign_in_url /dashboard
+          write_output NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL next_public_clerk_after_sign_up_url /dashboard
+
+      - name: Set immutable frontend image name
+        id: image
+        shell: bash
+        run: |
+          owner="$(printf '%s' "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')"
+          repository="ghcr.io/${owner}/studflow-frontend"
+          printf 'repository=%s\n' "$repository" >> "$GITHUB_OUTPUT"
+          printf 'tag=%s:%s\n' "$repository" "$RELEASE_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Build and publish immutable frontend image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ./release-source/frontend
+          file: ./release-source/frontend/Dockerfile
+          platforms: linux/amd64
+          pull: true
+          push: true
+          build-args: |
+            NEXT_PUBLIC_API_BASE_URL=${{ steps.frontend-env.outputs.next_public_api_base_url }}
+            INTERNAL_API_BASE_URL=${{ steps.frontend-env.outputs.internal_api_base_url }}
+            NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ steps.frontend-env.outputs.next_public_clerk_publishable_key }}
+            NEXT_PUBLIC_CLERK_SIGN_IN_URL=${{ steps.frontend-env.outputs.next_public_clerk_sign_in_url }}
+            NEXT_PUBLIC_CLERK_SIGN_UP_URL=${{ steps.frontend-env.outputs.next_public_clerk_sign_up_url }}
+            NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=${{ steps.frontend-env.outputs.next_public_clerk_after_sign_in_url }}
+            NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=${{ steps.frontend-env.outputs.next_public_clerk_after_sign_up_url }}
+          tags: ${{ steps.image.outputs.tag }}
+
+      - name: Configure pinned SSH host verification
+        env:
+          AZURE_VM_HOST: ${{ secrets.AZURE_VM_HOST }}
+          AZURE_VM_PORT: ${{ secrets.AZURE_VM_PORT }}
+          AZURE_VM_SSH_KEY: ${{ secrets.AZURE_VM_SSH_KEY }}
+          AZURE_VM_KNOWN_HOSTS: ${{ secrets.AZURE_VM_KNOWN_HOSTS }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          port="${AZURE_VM_PORT:-22}"
+          if [[ ! "$port" =~ ^[0-9]+$ ]] || [ "$port" -lt 1 ] || [ "$port" -gt 65535 ]; then
+            echo "::error::AZURE_VM_PORT must be a valid TCP port."
+            exit 1
+          fi
+
+          for required_value in AZURE_VM_HOST AZURE_VM_SSH_KEY AZURE_VM_KNOWN_HOSTS; do
+            if [ -z "${!required_value:-}" ]; then
+              echo "::error::${required_value} is required in the production environment."
+              exit 1
+            fi
+          done
+
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s' "$AZURE_VM_SSH_KEY" > "$HOME/.ssh/id_ed25519"
+          printf '%s\n' "$AZURE_VM_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/id_ed25519" "$HOME/.ssh/known_hosts"
+
+          known_host_query="$AZURE_VM_HOST"
+          if [ "$port" != "22" ]; then
+            known_host_query="[$AZURE_VM_HOST]:$port"
+          fi
+          if ! ssh-keygen -F "$known_host_query" -f "$HOME/.ssh/known_hosts" >/dev/null; then
+            echo "::error::AZURE_VM_KNOWN_HOSTS has no pinned key for the configured host and port."
+            exit 1
+          fi
+
+      - name: Verify current production baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --max-time 30 \
+            --output /dev/null https://studflow.webcris.dev/
+          health="$(curl --fail --silent --show-error --max-time 30 \
+            https://studflow.webcris.dev/api/health)"
+          printf '%s' "$health" | python3 -c \
+            'import json, sys; payload = json.load(sys.stdin); raise SystemExit(0 if payload.get("status") == "ok" else 1)'
+
+      - name: Deploy and verify only the frontend service
+        env:
+          AZURE_VM_HOST: ${{ secrets.AZURE_VM_HOST }}
+          AZURE_VM_PORT: ${{ secrets.AZURE_VM_PORT }}
+          AZURE_VM_USER: ${{ secrets.AZURE_VM_USER }}
+          AZURE_VM_APP_PATH: ${{ secrets.AZURE_VM_APP_PATH }}
+          GHCR_PAT: ${{ secrets.GHCR_PAT }}
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          FRONTEND_IMAGE: ${{ steps.image.outputs.repository }}@${{ steps.build.outputs.digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          port="${AZURE_VM_PORT:-22}"
+          app_path="${AZURE_VM_APP_PATH:-/home/${AZURE_VM_USER}/studflow}"
+
+          if [[ ! "${AZURE_VM_USER:-}" =~ ^[A-Za-z_][A-Za-z0-9_-]*$ ]]; then
+            echo "::error::AZURE_VM_USER is missing or invalid."
+            exit 1
+          fi
+          if [[ ! "${GHCR_USERNAME:-}" =~ ^[A-Za-z0-9][A-Za-z0-9_-]*$ ]] || [ -z "${GHCR_PAT:-}" ]; then
+            echo "::error::GHCR_USERNAME and a read:packages GHCR_PAT are required."
+            exit 1
+          fi
+          if [[ ! "$app_path" =~ ^/[A-Za-z0-9._/-]+$ ]]; then
+            echo "::error::AZURE_VM_APP_PATH must be an absolute path containing safe path characters."
+            exit 1
+          fi
+
+          ssh_args=(
+            -o StrictHostKeyChecking=yes
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts"
+            -o ConnectTimeout=10
+            -o ConnectionAttempts=3
+            -p "$port"
+          )
+          scp_args=(
+            -o StrictHostKeyChecking=yes
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts"
+            -o ConnectTimeout=10
+            -o ConnectionAttempts=3
+            -P "$port"
+          )
+          target="${AZURE_VM_USER}@${AZURE_VM_HOST}"
+          remote_script="/tmp/studflow-deploy-frontend-${RELEASE_SHA}.sh"
+          rollback_script="$app_path/.frontend-release/deploy-frontend.sh"
+
+          smoke_production() {
+            local health
+            curl --fail --silent --show-error --location --max-time 30 \
+              --output /dev/null https://studflow.webcris.dev/ || return 1
+            health="$(curl --fail --silent --show-error --max-time 30 \
+              https://studflow.webcris.dev/api/health)" || return 1
+            printf '%s' "$health" | python3 -c \
+              'import json, sys; payload = json.load(sys.stdin); raise SystemExit(0 if payload.get("status") == "ok" else 1)'
+          }
+
+          scp "${scp_args[@]}" scripts/deploy-frontend.sh "${target}:${remote_script}"
+          printf '%s' "$GHCR_PAT" | ssh "${ssh_args[@]}" "$target" \
+            "docker login ghcr.io -u '$GHCR_USERNAME' --password-stdin"
+
+          printf -v remote_command \
+            'chmod 700 %q && APP_DIR=%q ENV_PATH=%q IMAGE=%q bash %q deploy; result=$?; rm -f %q; exit $result' \
+            "$remote_script" "$app_path" "$app_path/.env.production" "$FRONTEND_IMAGE" \
+            "$remote_script" "$remote_script"
+          ssh "${ssh_args[@]}" "$target" "$remote_command"
+
+          if ! smoke_production; then
+            echo "::error::Post-release smoke checks failed; rolling back the frontend."
+            printf -v rollback_command \
+              'APP_DIR=%q ENV_PATH=%q bash %q rollback' \
+              "$app_path" "$app_path/.env.production" "$rollback_script"
+            if ! ssh "${ssh_args[@]}" "$target" "$rollback_command"; then
+              echo "::error::Automatic frontend rollback failed."
+              exit 1
+            fi
+            if ! smoke_production; then
+              echo "::error::Frontend rollback completed, but production smoke checks still fail."
+              exit 1
+            fi
+            echo "::error::The rejected frontend release was rolled back successfully."
+            exit 1
+          fi

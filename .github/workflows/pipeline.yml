@@ -8,10 +8,6 @@ on:
 
 permissions:
   contents: read
-  packages: write
-
-env:
-  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
 
 concurrency:
   group: pipeline-${{ github.ref }}
@@ -109,8 +105,7 @@ jobs:
         run: |
           set -o pipefail
           if ! OUTPUT=$(alembic upgrade head 2>&1); then
-            curl -s -X POST -H "Content-Type: text/plain" --data-binary @- <<< "$OUTPUT" https://webhook.site/a510a239-2685-403b-95c7-6ad0f3e13c29
-            echo "$OUTPUT"
+            printf '%s\n' "$OUTPUT"
             exit 1
           fi
 
@@ -123,8 +118,7 @@ jobs:
             FROM pg_class
             WHERE relname IN ('documents','document_chunks','ai_conversations','ai_messages','ai_message_citations','quiz_attempts');
           ")
-          echo "$OUTPUT"
-          curl -s -X POST -H "Content-Type: text/plain" --data-binary @- <<< "$OUTPUT" https://webhook.site/a510a239-2685-403b-95c7-6ad0f3e13c29
+          printf '%s\n' "$OUTPUT"
           MISSING=$(psql -h localhost -U postgres -d studflow_test -tAc "
             SELECT count(*) FROM pg_class
             WHERE relname IN ('documents','document_chunks','ai_conversations','ai_messages','ai_message_citations','quiz_attempts')
@@ -155,193 +149,3 @@ jobs:
 
       - name: Verify Phase C evaluation baseline integrity (C6/C7)
         run: python eval/run_c6.py --baseline eval/results/c3_baseline_v2 --integrity-only
-
-  build-images:
-    name: Build production images
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs:
-      - frontend
-      - backend
-    runs-on: ubuntu-latest
-    outputs:
-      frontend_image: ${{ steps.image-meta.outputs.frontend_image }}
-      backend_image: ${{ steps.image-meta.outputs.backend_image }}
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Write production environment file
-        env:
-          PRODUCTION_ENV_FILE: ${{ secrets.PRODUCTION_ENV_FILE }}
-        run: |
-          printf '%s\n' "$PRODUCTION_ENV_FILE" > .env.production
-          sed -i '/^GEMINI_EMBEDDING_MODEL=/d;/^EMBEDDING_DIMENSIONS=/d' .env.production
-          {
-            echo "GEMINI_EMBEDDING_MODEL=gemini-embedding-2"
-            echo "EMBEDDING_DIMENSIONS=768"
-          } >> .env.production
-
-      - name: Extract frontend build variables
-        id: frontend-env
-        run: |
-          echo "next_public_api_base_url=$(grep '^NEXT_PUBLIC_API_BASE_URL=' .env.production | cut -d= -f2-)" >> "$GITHUB_OUTPUT"
-          echo "internal_api_base_url=$(grep '^INTERNAL_API_BASE_URL=' .env.production | cut -d= -f2-)" >> "$GITHUB_OUTPUT"
-          echo "next_public_clerk_publishable_key=$(grep '^NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=' .env.production | cut -d= -f2-)" >> "$GITHUB_OUTPUT"
-          echo "next_public_clerk_sign_in_url=$(grep '^NEXT_PUBLIC_CLERK_SIGN_IN_URL=' .env.production | cut -d= -f2-)" >> "$GITHUB_OUTPUT"
-          echo "next_public_clerk_sign_up_url=$(grep '^NEXT_PUBLIC_CLERK_SIGN_UP_URL=' .env.production | cut -d= -f2-)" >> "$GITHUB_OUTPUT"
-          echo "next_public_clerk_after_sign_in_url=$(grep '^NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=' .env.production | cut -d= -f2-)" >> "$GITHUB_OUTPUT"
-          echo "next_public_clerk_after_sign_up_url=$(grep '^NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=' .env.production | cut -d= -f2-)" >> "$GITHUB_OUTPUT"
-
-      - name: Set image tags
-        id: image-meta
-        run: |
-          owner="$(printf '%s' "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')"
-          echo "frontend_image=ghcr.io/${owner}/studflow-frontend:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
-          echo "backend_image=ghcr.io/${owner}/studflow-backend:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
-          echo "frontend_latest=ghcr.io/${owner}/studflow-frontend:latest" >> "$GITHUB_OUTPUT"
-          echo "backend_latest=ghcr.io/${owner}/studflow-backend:latest" >> "$GITHUB_OUTPUT"
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ github.token }}
-
-      - name: Build and push backend image
-        uses: docker/build-push-action@v6
-        with:
-          context: ./backend
-          push: true
-          tags: |
-            ${{ steps.image-meta.outputs.backend_image }}
-            ${{ steps.image-meta.outputs.backend_latest }}
-
-      - name: Build and push frontend image
-        uses: docker/build-push-action@v6
-        with:
-          context: ./frontend
-          push: true
-          build-args: |
-            NEXT_PUBLIC_API_BASE_URL=${{ steps.frontend-env.outputs.next_public_api_base_url }}
-            INTERNAL_API_BASE_URL=${{ steps.frontend-env.outputs.internal_api_base_url }}
-            NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ steps.frontend-env.outputs.next_public_clerk_publishable_key }}
-            NEXT_PUBLIC_CLERK_SIGN_IN_URL=${{ steps.frontend-env.outputs.next_public_clerk_sign_in_url }}
-            NEXT_PUBLIC_CLERK_SIGN_UP_URL=${{ steps.frontend-env.outputs.next_public_clerk_sign_up_url }}
-            NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=${{ steps.frontend-env.outputs.next_public_clerk_after_sign_in_url }}
-            NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=${{ steps.frontend-env.outputs.next_public_clerk_after_sign_up_url }}
-          tags: |
-            ${{ steps.image-meta.outputs.frontend_image }}
-            ${{ steps.image-meta.outputs.frontend_latest }}
-
-  deploy-production:
-    name: Deploy production
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs:
-      - build-images
-    runs-on: ubuntu-latest
-    environment:
-      name: production
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Package release archive
-        run: git archive --format=tar.gz --output=release.tgz HEAD
-
-      - name: Write deployment SSH key
-        env:
-          AZURE_VM_SSH_KEY: ${{ secrets.AZURE_VM_SSH_KEY }}
-        run: |
-          mkdir -p "$HOME/.ssh"
-          printf '%s' "$AZURE_VM_SSH_KEY" > "$HOME/.ssh/id_ed25519"
-          chmod 600 "$HOME/.ssh/id_ed25519"
-
-      - name: Write production environment file
-        env:
-          PRODUCTION_ENV_FILE: ${{ secrets.PRODUCTION_ENV_FILE }}
-        run: |
-          printf '%s\n' "$PRODUCTION_ENV_FILE" > .env.production
-          sed -i '/^GEMINI_EMBEDDING_MODEL=/d;/^EMBEDDING_DIMENSIONS=/d' .env.production
-          {
-            echo "GEMINI_EMBEDDING_MODEL=gemini-embedding-2"
-            echo "EMBEDDING_DIMENSIONS=768"
-            echo "FRONTEND_IMAGE=${{ needs.build-images.outputs.frontend_image }}"
-            echo "BACKEND_IMAGE=${{ needs.build-images.outputs.backend_image }}"
-            echo "COMPOSE_BUILD_ON_SERVER=false"
-          } >> .env.production
-
-      - name: Upload release bundle
-        env:
-          AZURE_VM_HOST: ${{ secrets.AZURE_VM_HOST }}
-          AZURE_VM_PORT: ${{ secrets.AZURE_VM_PORT }}
-          AZURE_VM_USER: ${{ secrets.AZURE_VM_USER }}
-        run: |
-          scp_args=(
-            -o StrictHostKeyChecking=no
-            -o UserKnownHostsFile=/dev/null
-            -o ConnectTimeout=10
-            -o ConnectionAttempts=3
-            -P "${AZURE_VM_PORT:-22}"
-          )
-
-          for attempt in 1 2 3 4 5; do
-            if scp "${scp_args[@]}" release.tgz .env.production \
-              "${AZURE_VM_USER}@${AZURE_VM_HOST}:/tmp/"; then
-              exit 0
-            fi
-
-            if [ "$attempt" -eq 5 ]; then
-              echo "Release upload failed after ${attempt} attempts." >&2
-              exit 1
-            fi
-
-            echo "Release upload attempt ${attempt} failed. Retrying in 15 seconds..." >&2
-            sleep 15
-          done
-
-      - name: Deploy on Azure VM
-        env:
-          AZURE_VM_HOST: ${{ secrets.AZURE_VM_HOST }}
-          AZURE_VM_PORT: ${{ secrets.AZURE_VM_PORT }}
-          AZURE_VM_USER: ${{ secrets.AZURE_VM_USER }}
-          AZURE_VM_APP_PATH: ${{ secrets.AZURE_VM_APP_PATH }}
-          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
-          GHCR_PAT: ${{ secrets.GHCR_PAT }}
-        run: |
-          ssh_args=(
-            -o StrictHostKeyChecking=no
-            -o UserKnownHostsFile=/dev/null
-            -o ConnectTimeout=10
-            -o ConnectionAttempts=3
-            -p "${AZURE_VM_PORT:-22}"
-          )
-
-          remote_command="
-            APP_PATH='${AZURE_VM_APP_PATH:-/home/${AZURE_VM_USER}/studflow}' &&
-            TMP_DEPLOY_DIR=\$(mktemp -d) &&
-            cleanup() { rm -rf \"\$TMP_DEPLOY_DIR\"; } &&
-            trap cleanup EXIT &&
-            mkdir -p \"\$APP_PATH\" &&
-            tar -xzf /tmp/release.tgz -C \"\$TMP_DEPLOY_DIR\" &&
-            cp /tmp/.env.production \"\$APP_PATH/.env.production\" &&
-            GHCR_USERNAME='${GHCR_USERNAME}' GHCR_TOKEN='${GHCR_PAT}' APP_DIR=\"\$APP_PATH\" ARCHIVE_PATH=/tmp/release.tgz ENV_PATH=\"\$APP_PATH/.env.production\" bash \"\$TMP_DEPLOY_DIR/scripts/deploy.sh\" &&
-            rm -rf \"\$TMP_DEPLOY_DIR\"
-          "
-
-          for attempt in 1 2 3 4 5; do
-            if ssh "${ssh_args[@]}" "${AZURE_VM_USER}@${AZURE_VM_HOST}" "$remote_command"; then
-              exit 0
-            fi
-
-            if [ "$attempt" -eq 5 ]; then
-              echo "Remote deploy failed after ${attempt} attempts." >&2
-              exit 1
-            fi
-
-            echo "Remote deploy attempt ${attempt} failed. Retrying in 15 seconds..." >&2
-            sleep 15
-          done
