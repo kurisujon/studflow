@@ -1,14 +1,14 @@
 import { DashboardOverview } from "@/components/dashboard/overview/DashboardOverview";
-import { fetchDocuments, fetchUserQueue, fetchUserStats } from "@/lib/server-api";
+import { fetchDocuments, fetchDueFlashcards, fetchUserStats } from "@/lib/server-api";
 
 export default async function DashboardPage() {
-  const [documents, stats, queue] = await Promise.all([
+  const [documents, stats, dueFlashcards] = await Promise.all([
     fetchDocuments(),
     fetchUserStats(),
-    fetchUserQueue(),
+    fetchDueFlashcards(),
   ]);
 
   return (
-    <DashboardOverview documents={documents} stats={stats} queue={queue} />
+    <DashboardOverview documents={documents} stats={stats} dueCount={dueFlashcards.length} />
   );
 }
