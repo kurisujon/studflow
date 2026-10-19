@@ -34,7 +34,11 @@ from services.ai_service import (
     evaluate_citations,
     generate_query_embedding,
 )
-from services.domain_validation import validate_conversation_answer, apply_semantic_validation
+from services.domain_validation import (
+    apply_semantic_validation,
+    question_requires_document_evidence,
+    validate_conversation_answer,
+)
 from services.documents import get_document_index_readiness, search_owned_similar_chunks
 from services.retrieval_quality import evaluate_retrieval_quality
 
@@ -43,6 +47,9 @@ logger = logging.getLogger(__name__)
 
 INSUFFICIENT_EVIDENCE_ANSWER = (
     "I don't have enough evidence in this document to answer that question."
+)
+MIXED_SOURCE_UNVERIFIED_NOTICE = (
+    "I couldn't verify the source-specific part from the retrieved document evidence."
 )
 
 
@@ -328,18 +335,154 @@ def _bounded_history(messages: list[AIMessage]) -> list[tuple[str, str]]:
     for message in messages:
         if remaining_characters <= 0:
             break
-        context_prefix = (
-            f"Selected context: {message.selected_text}\n"
-            if message.role == "user" and message.selected_text
-            else ""
-        )
-        content = f"{context_prefix}{message.content}"[:remaining_characters]
+        content = message.content[:remaining_characters]
         selected.append((message.role, content))
         remaining_characters -= len(content)
     return list(reversed(selected))
 
 
-from schemas.domain import DomainGroundedClaim, SemanticallyValidatedClaim
+def _recent_selected_context(messages: list[AIMessage]) -> str | None:
+    """Return a selection only when it belongs to the latest user turn."""
+    for message in messages:
+        if message.role != "user":
+            continue
+        if message.selected_text and message.selected_text.strip():
+            return message.selected_text.strip()
+        return None
+    return None
+
+
+_TEACHING_CONTEXT_STOPWORDS = {
+    "about", "after", "also", "and", "answer", "are", "assistant", "before", "contains",
+    "context", "document", "figure", "following", "highlighted", "ignore",
+    "describes", "had", "has", "how", "instruction", "instructions", "material", "of", "out", "output", "passage", "previous",
+    "prompt", "provided", "report", "reported", "reports", "respond", "response", "selected",
+    "source", "study", "system", "table", "text", "the", "this", "uploaded", "using",
+    "value", "values", "was", "were", "with", "would",
+}
+
+
+def _teaching_topic_keywords(context: str | None) -> str | None:
+    """Reduce source text to a bounded, non-propositional concept cue."""
+    if not context:
+        return None
+    keywords: list[str] = []
+    for token in re.findall(r"[A-Za-z][A-Za-z-]{2,}", context):
+        normalized = token.lower()
+        if normalized in _TEACHING_CONTEXT_STOPWORDS or normalized in keywords:
+            continue
+        keywords.append(normalized)
+        if len(keywords) == 12:
+            break
+    return "Topic keywords: " + ", ".join(keywords) if keywords else None
+
+
+from schemas.domain import (
+    ClaimProvenance,
+    ConversationAnswerMode,
+    ConversationGenerationPath,
+    ConversationRequestScope,
+    SemanticallyValidatedClaim,
+)
+
+
+_EXPLICIT_DOCUMENT_ONLY_PATTERNS = (
+    re.compile(r"\b(?:only|strictly)\s+(?:use|using|from|based on)\s+(?:this|the|my)\s+(?:uploaded\s+)?(?:document|material|source|upload)", re.IGNORECASE),
+    re.compile(r"\b(?:use|using|answer from)\s+only\s+(?:this|the|my)\s+(?:uploaded\s+)?(?:document|material|source|upload)", re.IGNORECASE),
+    re.compile(r"\bdo not use\s+(?:anything|information|knowledge)\s+(?:outside|beyond)\s+(?:this|the|my)\s+(?:document|material|source|upload)", re.IGNORECASE),
+    re.compile(r"\b(?:use|using)\s+(?:only|solely|exclusively)\s+(?:this|the|my)?\s*(?:uploaded\s+)?(?:document|material|source|upload|paper)", re.IGNORECASE),
+    re.compile(r"\bdo not use\s+(?:any\s+)?(?:outside|external)\s+(?:knowledge|information|sources?)\b", re.IGNORECASE),
+    re.compile(r"\buse\s+no\s+(?:outside|external)\s+(?:knowledge|information|sources?)\b", re.IGNORECASE),
+    re.compile(r"\banswer\s+only\s+with\s+information\s+(?:contained\s+)?in\s+(?:this|the|my)\s+(?:file|document|paper|upload)\b", re.IGNORECASE),
+    re.compile(r"\brestrict\s+(?:the\s+)?answer\s+to\s+(?:this|the|my)\s+(?:file|document|paper|upload|source|material)\b", re.IGNORECASE),
+)
+_REFERENTIAL_FOLLOWUP = re.compile(
+    r"^(?:and\s+)?what about\b|"
+    r"\b(?:it|they|them|that|this|those|these|the method|the value)\b|"
+    r"^(?:why|how|how so|when|where)\s*[?.!]*$|"
+    r"^(?:please\s+)?(?:explain|elaborate|continue)(?:\s+(?:further|more))?\s*[?.!]*$|"
+    r"^can you\s+(?:explain|elaborate|continue)(?:\s+(?:further|more))?\s*[?.!]*$",
+    re.IGNORECASE,
+)
+_GENERAL_SCOPE_PATTERN = re.compile(
+    r"\b(?:in general|generally|using general knowledge|as a general concept)\b",
+    re.IGNORECASE,
+)
+_TEACHING_REQUEST_PATTERN = re.compile(
+    r"\b(?:and|also)\s+(?:explain|teach|show|give|provide|compare)|"
+    r"\b(?:give|provide|show)\s+(?:me\s+)?(?:an?|another)\s+(?:worked|practical|hypothetical)?\s*example\b|"
+    r"\b(?:worked|practical|hypothetical)\s+example\b|\b(?:in general|generally)\b",
+    re.IGNORECASE,
+)
+
+
+def _is_explicit_document_only(question: str) -> bool:
+    return any(pattern.search(question) for pattern in _EXPLICIT_DOCUMENT_ONLY_PATTERNS)
+
+
+def _is_source_specific(question: str) -> bool:
+    return question_requires_document_evidence(question)
+
+
+def _request_scope(
+    question: str,
+    history: list[tuple[str, str]],
+) -> ConversationRequestScope:
+    if _is_explicit_document_only(question):
+        return ConversationRequestScope.DOCUMENT_ONLY
+    source_specific = _is_source_specific(question)
+    if source_specific and _TEACHING_REQUEST_PATTERN.search(question):
+        return ConversationRequestScope.MIXED
+    if source_specific:
+        return ConversationRequestScope.SOURCE_SPECIFIC
+    if _GENERAL_SCOPE_PATTERN.search(question):
+        return ConversationRequestScope.HYBRID
+    if not _REFERENTIAL_FOLLOWUP.search(question.strip()):
+        return ConversationRequestScope.HYBRID
+    if _TEACHING_REQUEST_PATTERN.search(question):
+        return ConversationRequestScope.HYBRID
+    previous_user_question = next(
+        (content for role, content in reversed(history) if role == "user"),
+        None,
+    )
+    if previous_user_question and _is_explicit_document_only(previous_user_question):
+        return ConversationRequestScope.DOCUMENT_ONLY
+    if previous_user_question and _is_source_specific(previous_user_question):
+        return ConversationRequestScope.SOURCE_SPECIFIC
+    return ConversationRequestScope.HYBRID
+
+
+def _is_document_only_turn(
+    question: str,
+    history: list[tuple[str, str]],
+) -> bool:
+    return _request_scope(question, history) == ConversationRequestScope.DOCUMENT_ONLY
+
+
+def _retrieval_query(
+    question: str,
+    selected_text: str | None,
+    history: list[tuple[str, str]],
+    prior_selected_text: str | None = None,
+) -> str:
+    parts = [question.strip()]
+    if selected_text:
+        parts.append(f"Selected context:\n{selected_text.strip()}")
+    if _REFERENTIAL_FOLLOWUP.search(question.strip()):
+        if not selected_text and prior_selected_text:
+            parts.append(f"Prior selected context:\n{prior_selected_text.strip()}")
+        recent_user_questions = [
+            (
+                content.strip()
+                if len(content.strip()) <= 2_000
+                else f"{content.strip()[:1_000]}\n…\n{content.strip()[-1_000:]}"
+            )
+            for role, content in history
+            if role == "user" and content.strip()
+        ][-2:]
+        if recent_user_questions:
+            parts.append("Recent student context:\n" + "\n".join(recent_user_questions))
+    return "\n\n".join(parts)
 
 
 def _render_grounded_answer(claims: list[SemanticallyValidatedClaim]) -> tuple[str, set[str]]:
@@ -371,6 +514,95 @@ def _render_grounded_answer(claims: list[SemanticallyValidatedClaim]) -> tuple[s
             paragraphs.append(f"{claim.claim_text}{markers_str}")
 
     return "\n\n".join(paragraphs), cited_eids
+
+
+def _render_hybrid_answer(
+    claims: list[SemanticallyValidatedClaim],
+) -> tuple[str, set[str]]:
+    """Render validated claims while making non-document teaching explicit."""
+    paragraphs: list[str] = []
+    cited_eids: set[str] = set()
+    introduced_general = False
+    introduced_example = False
+
+    for claim in claims:
+        if claim.provenance == ClaimProvenance.DOCUMENT:
+            rendered, claim_eids = _render_grounded_answer([claim])
+            if rendered:
+                paragraphs.append(rendered)
+                cited_eids.update(claim_eids)
+            continue
+
+        if claim.provenance == ClaimProvenance.GENERAL:
+            if not introduced_general:
+                paragraphs.append("**General explanation**")
+                introduced_general = True
+            paragraphs.append(claim.claim_text)
+            continue
+
+        if not introduced_example:
+            paragraphs.append("**Illustrative example**")
+            introduced_example = True
+        paragraphs.append(claim.claim_text)
+
+    return "\n\n".join(paragraphs), cited_eids
+
+
+def _generate_validated_path(
+    *,
+    generation_path: ConversationGenerationPath,
+    source_registry: dict[str, RetrievedChatChunk],
+    question: str,
+    history: list[tuple[str, str]],
+    selected_text: str | None,
+    teaching_context: str | None,
+):
+    path_sources = (
+        [(eid, chunk.content) for eid, chunk in source_registry.items()]
+        if generation_path == ConversationGenerationPath.STRICT_DOCUMENT
+        else []
+    )
+    path_history = (
+        history
+        if generation_path == ConversationGenerationPath.STRICT_DOCUMENT
+        else [(role, content) for role, content in history if role == "user"]
+    )
+    path_context = (
+        selected_text
+        if generation_path == ConversationGenerationPath.STRICT_DOCUMENT
+        else teaching_context if generation_path == ConversationGenerationPath.TEACHING else None
+    )
+    raw_generated = answer_conversation_question(
+        sources=path_sources,
+        user_question=question,
+        conversation_history=path_history,
+        selected_text=path_context,
+        generation_path=generation_path.value,
+    )
+    try:
+        generated = validate_conversation_answer(
+            raw_generated,
+            set(source_registry) if generation_path == ConversationGenerationPath.STRICT_DOCUMENT else set(),
+            generation_path=generation_path,
+        )
+    except ValueError as exc:
+        raise AIServiceError(str(exc)) from exc
+
+    if generation_path == ConversationGenerationPath.STRICT_DOCUMENT:
+        generated = generated.model_copy(update={"suggested_followups": []})
+
+    if generation_path == ConversationGenerationPath.STRICT_DOCUMENT and generated.evidence_sufficient:
+        evaluations = evaluate_citations([
+            (claim.claim_text, eid, source_registry[eid].content)
+            for claim in generated.claims
+            for eid in claim.cited_evidence_ids
+        ])
+        generated = apply_semantic_validation(generated, evaluations)
+    else:
+        generated = apply_semantic_validation(generated, [])
+
+    from services.domain_validation import filter_unsupported_claims
+    return filter_unsupported_claims(generated)
 
 
 def send_conversation_message(
@@ -416,15 +648,27 @@ def send_conversation_message(
             .limit(12)
         ).all()
         history = _bounded_history(recent_messages)
+        prior_selected_text = _recent_selected_context(recent_messages)
         snapshot_updated_at = conversation.updated_at
         document_id = document.id
         document_title = document.filename
         index_generation = document.active_index_generation
 
-    retrieval_query = (
-        f"{question}\n\nSelected context:\n{selected_text}"
-        if selected_text
-        else question
+    request_scope = _request_scope(question, history)
+    document_only = request_scope == ConversationRequestScope.DOCUMENT_ONLY
+    retrieval_query = _retrieval_query(
+        question,
+        selected_text,
+        history,
+        prior_selected_text,
+    )
+    teaching_context = _teaching_topic_keywords(
+        selected_text
+        or (
+            prior_selected_text
+            if _REFERENTIAL_FOLLOWUP.search(question.strip())
+            else None
+        )
     )
     query_embedding = generate_query_embedding(retrieval_query)
 
@@ -470,55 +714,127 @@ def send_conversation_message(
             for chunk, distance in chunks
         ]
 
-    # Phase B5: Deterministic Abstention
-    if not evidence_set.evidence or not evidence_set.quality.threshold_passed:
+    retrieval_passed = bool(
+        evidence_set.evidence and evidence_set.quality.threshold_passed
+    )
+
+    requires_source = request_scope in {
+        ConversationRequestScope.DOCUMENT_ONLY,
+        ConversationRequestScope.SOURCE_SPECIFIC,
+        ConversationRequestScope.MIXED,
+    }
+    mixed_source_unverified = False
+
+    # Phase B5 remains the deterministic fast path for explicit source-only turns.
+    if document_only and not retrieval_passed:
         answer_markdown = INSUFFICIENT_EVIDENCE_ANSWER
         cited_eids: set[str] = set()
         effective_followups: list[str] = []
         message_status = ChatAnswerStatus.INSUFFICIENT_EVIDENCE
         source_registry = {}
     else:
-        source_registry: dict[str, RetrievedChatChunk] = {
-            f"e_{index:02d}": chunk for index, chunk in enumerate(retrieved_chunks, start=1)
-        }
-        raw_generated = answer_conversation_question(
-            sources=[
-                (eid, chunk.content) for eid, chunk in source_registry.items()
-            ],
-            user_question=question,
-            conversation_history=history,
-            selected_text=selected_text,
+        source_registry: dict[str, RetrievedChatChunk] = (
+            {
+                f"e_{index:02d}": chunk
+                for index, chunk in enumerate(retrieved_chunks, start=1)
+            }
+            if retrieval_passed
+            else {}
         )
-        valid_ids = set(source_registry)
-
-        try:
-            generated = validate_conversation_answer(raw_generated, valid_ids)
-        except ValueError as e:
-            raise AIServiceError(str(e))
-
-        # Phase B3: Semantic Validation
-        if generated.evidence_sufficient:
-            eval_batch = []
-            for claim in generated.claims:
-                for eid in claim.cited_evidence_ids:
-                    eval_batch.append((claim.claim_text, eid, source_registry[eid].content))
-
-            evaluations = evaluate_citations(eval_batch)
-            generated = apply_semantic_validation(generated, evaluations)
+        if request_scope == ConversationRequestScope.MIXED and not retrieval_passed:
+            mixed_source_unverified = True
+            paths = [ConversationGenerationPath.TEACHING]
+        elif requires_source and not retrieval_passed:
+            paths = [ConversationGenerationPath.CLARIFICATION]
+        elif request_scope == ConversationRequestScope.MIXED:
+            paths = [
+                ConversationGenerationPath.STRICT_DOCUMENT,
+                ConversationGenerationPath.TEACHING,
+            ]
+        elif requires_source:
+            paths = [ConversationGenerationPath.STRICT_DOCUMENT]
         else:
-            generated = apply_semantic_validation(generated, [])
+            paths = [ConversationGenerationPath.TEACHING]
 
-        # Phase B6: Unsupported-Claim Defense
-        from services.domain_validation import filter_unsupported_claims
-        generated, b6_status = filter_unsupported_claims(generated)
+        path_results = [
+            _generate_validated_path(
+                generation_path=path,
+                source_registry=source_registry,
+                question=question,
+                history=history,
+                selected_text=selected_text,
+                teaching_context=teaching_context,
+            )
+            for path in paths
+        ]
+
+        if (
+            request_scope == ConversationRequestScope.SOURCE_SPECIFIC
+            and paths == [ConversationGenerationPath.STRICT_DOCUMENT]
+            and path_results[0][1] == ChatAnswerStatus.INSUFFICIENT_EVIDENCE
+        ):
+            paths = [ConversationGenerationPath.CLARIFICATION]
+            path_results = [
+                _generate_validated_path(
+                    generation_path=ConversationGenerationPath.CLARIFICATION,
+                    source_registry=source_registry,
+                    question=question,
+                    history=history,
+                    selected_text=selected_text,
+                    teaching_context=teaching_context,
+                )
+            ]
+
+        if len(path_results) == 2:
+            strict_answer, strict_status = path_results[0]
+            teaching_answer, teaching_status = path_results[1]
+            if strict_status == ChatAnswerStatus.INSUFFICIENT_EVIDENCE:
+                mixed_source_unverified = True
+                generated = teaching_answer.model_copy(update={
+                    "answer_mode": ConversationAnswerMode.MIXED,
+                    "generation_path": ConversationGenerationPath.COMPOSITE,
+                    "suggested_followups": [],
+                })
+                b6_status = ChatAnswerStatus.PARTIALLY_ANSWERED
+            else:
+                generated = strict_answer.model_copy(update={
+                    "claims": [*strict_answer.claims, *teaching_answer.claims],
+                    "answer_mode": ConversationAnswerMode.MIXED,
+                    "generation_path": ConversationGenerationPath.COMPOSITE,
+                    "suggested_followups": teaching_answer.suggested_followups,
+                })
+                b6_status = (
+                    ChatAnswerStatus.ANSWERED
+                    if strict_status == teaching_status == ChatAnswerStatus.ANSWERED
+                    else ChatAnswerStatus.PARTIALLY_ANSWERED
+                )
+                if b6_status != ChatAnswerStatus.ANSWERED:
+                    generated = generated.model_copy(update={"suggested_followups": []})
+        else:
+            generated, b6_status = path_results[0]
+            if mixed_source_unverified:
+                generated = generated.model_copy(update={
+                    "answer_mode": ConversationAnswerMode.MIXED,
+                    "generation_path": ConversationGenerationPath.COMPOSITE,
+                    "suggested_followups": [],
+                })
+                b6_status = ChatAnswerStatus.PARTIALLY_ANSWERED
 
         if b6_status == ChatAnswerStatus.INSUFFICIENT_EVIDENCE:
             answer_markdown = INSUFFICIENT_EVIDENCE_ANSWER
             cited_eids = set()
             effective_followups = []
             message_status = ChatAnswerStatus.INSUFFICIENT_EVIDENCE
+        elif generated.answer_mode == ConversationAnswerMode.CLARIFICATION:
+            answer_markdown = generated.clarification_question or INSUFFICIENT_EVIDENCE_ANSWER
+            cited_eids = set()
+            effective_followups = []
+            message_status = ChatAnswerStatus.PARTIALLY_ANSWERED
         else:
-            answer_markdown, cited_eids = _render_grounded_answer(generated.claims)
+            if paths == [ConversationGenerationPath.STRICT_DOCUMENT]:
+                answer_markdown, cited_eids = _render_grounded_answer(generated.claims)
+            else:
+                answer_markdown, cited_eids = _render_hybrid_answer(generated.claims)
             if not answer_markdown.strip():
                 answer_markdown = INSUFFICIENT_EVIDENCE_ANSWER
                 cited_eids = set()
@@ -527,6 +843,10 @@ def send_conversation_message(
             else:
                 effective_followups = generated.suggested_followups
                 message_status = b6_status
+                if mixed_source_unverified:
+                    answer_markdown = (
+                        f"{MIXED_SOURCE_UNVERIFIED_NOTICE}\n\n{answer_markdown}"
+                    )
 
 
     citation_payloads = []

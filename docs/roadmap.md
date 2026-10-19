@@ -1128,3 +1128,22 @@ When a future agent completes a meaningful feature, they should update this file
 
 **What to do next:**
 - Await user assignment for the next major feature or architectural phase.
+
+### Update: 2026-10-19 — Evidence-Aware Hybrid AI Tutoring
+
+**What Changed:**
+- Added deterministic request scopes and isolated strict-document, teaching, clarification, and composite generation paths in `backend/services/ai_chat.py`.
+- Added typed answer modes, claim provenance, and generation-path domain models in `backend/schemas/domain.py` without changing the public API or persistence schema.
+- Hardened `backend/services/domain_validation.py` so document claims require semantically supported citations, teaching cannot receive document evidence, source-dependent suggestions fail closed, and model-authored citation markers are removed.
+- Preserved contextual highlighted-text tutoring through bounded topic keywords while preventing stale selections and raw document text from leaking into later teaching turns.
+- Updated the AI Assistant presentation and selection lifecycle in the frontend study components.
+- Added mocked regression coverage for general formulas, practical examples, exact document facts, missing evidence, ambiguous notation, multi-turn context, explicit document-only requests, fabricated claims/citations, and answerable suggestions.
+
+**Contracts Changed:**
+- None. Public APIs, database schemas, authentication, ownership, persistence, retrieval thresholds, dependencies, and frozen C3/C4/C5 artifacts are unchanged.
+
+**Docs Stale:**
+- No.
+
+**What to do next:**
+- Publish `feature/ai-assistant-hybrid-tutoring` for human pull-request review after explicit push authorization; do not merge or deploy without separate approval.

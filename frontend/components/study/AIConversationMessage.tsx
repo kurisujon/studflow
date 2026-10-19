@@ -63,7 +63,7 @@ export function AIConversationMessage({
         </p>
       ) : null}
       <AIConversationSources citations={message.citations} />
-      {message.suggested_followups.length > 0 ? (
+      {message.status === "ANSWERED" && message.suggested_followups.length > 0 ? (
         <div className="ai-chat-followups" aria-label="Suggested follow-up questions">
           {message.suggested_followups.map((followup) => (
             <button key={followup} type="button" onClick={() => onFollowup(followup)}>

@@ -1,4 +1,5 @@
 import uuid
+from enum import Enum
 from typing import List
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -102,9 +103,38 @@ class DomainQuizQuestion(BaseModel):
         return self
 
 
+class ConversationAnswerMode(str, Enum):
+    DOCUMENT = "document"
+    GENERAL = "general"
+    MIXED = "mixed"
+    CLARIFICATION = "clarification"
+    INSUFFICIENT = "insufficient"
+
+
+class ConversationRequestScope(str, Enum):
+    HYBRID = "hybrid"
+    SOURCE_SPECIFIC = "source_specific"
+    DOCUMENT_ONLY = "document_only"
+    MIXED = "mixed"
+
+
+class ConversationGenerationPath(str, Enum):
+    STRICT_DOCUMENT = "strict_document"
+    TEACHING = "teaching"
+    CLARIFICATION = "clarification"
+    COMPOSITE = "composite"
+
+
+class ClaimProvenance(str, Enum):
+    DOCUMENT = "document"
+    GENERAL = "general"
+    ILLUSTRATIVE = "illustrative"
+
+
 class DomainGroundedClaim(BaseModel):
     claim_text: str
     cited_evidence_ids: List[str]
+    provenance: ClaimProvenance = ClaimProvenance.DOCUMENT
 
     @field_validator("claim_text")
     @classmethod
@@ -132,6 +162,9 @@ class DomainConversationAnswer(BaseModel):
     claims: List[DomainGroundedClaim]
     evidence_sufficient: bool
     suggested_followups: List[str]
+    answer_mode: ConversationAnswerMode = ConversationAnswerMode.DOCUMENT
+    clarification_question: str | None = None
+    generation_path: ConversationGenerationPath = ConversationGenerationPath.STRICT_DOCUMENT
 
     @field_validator("suggested_followups")
     @classmethod
@@ -139,8 +172,14 @@ class DomainConversationAnswer(BaseModel):
         cleaned = [followup.strip()[:160] for followup in v if followup.strip()]
         return cleaned[:4]
 
+    @field_validator("clarification_question")
+    @classmethod
+    def validate_clarification(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        cleaned = v.strip()
+        return cleaned[:500] or None
 
-from enum import Enum
 
 class CitationSupportLevel(str, Enum):
     SUPPORTED = "SUPPORTED"
@@ -155,11 +194,15 @@ class ValidatedCitation(BaseModel):
 class SemanticallyValidatedClaim(BaseModel):
     claim_text: str
     citations: List[ValidatedCitation]
+    provenance: ClaimProvenance = ClaimProvenance.DOCUMENT
 
 class SemanticallyValidatedAnswer(BaseModel):
     claims: List[SemanticallyValidatedClaim]
     evidence_sufficient: bool
     suggested_followups: List[str]
+    answer_mode: ConversationAnswerMode = ConversationAnswerMode.DOCUMENT
+    clarification_question: str | None = None
+    generation_path: ConversationGenerationPath = ConversationGenerationPath.STRICT_DOCUMENT
 
 import uuid
 
