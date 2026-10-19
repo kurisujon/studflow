@@ -256,6 +256,7 @@ export function InteractiveSummaryReader({
       }
 
       if (drawerOpen) {
+        clearAIContext();
         setDrawerOpen(false);
       }
     }
@@ -263,6 +264,7 @@ export function InteractiveSummaryReader({
     function handleEscape(event: KeyboardEvent) {
       if (event.key === "Escape") {
         clearPendingSelection();
+        clearAIContext();
         setDrawerOpen(false);
       }
     }
@@ -281,7 +283,11 @@ export function InteractiveSummaryReader({
 
       if (event.altKey && event.key.toLowerCase() === "m") {
         event.preventDefault();
-        setDrawerOpen((current) => !current);
+        if (drawerOpen) {
+          clearPendingSelection();
+          clearAIContext();
+        }
+        setDrawerOpen(!drawerOpen);
         return;
       }
 
@@ -394,6 +400,13 @@ export function InteractiveSummaryReader({
     setSelectionState(null);
     setPendingSelection(null);
     setUnderlineColorMode(false);
+  }
+
+  function clearAIContext() {
+    setAiContextText("");
+    setAiContext({ source: "selection", selectedText: "" });
+    setAssistantInitialQuestion("");
+    setAiMode("ask-ai");
   }
 
   function findBestOverlappingAnnotation(type: AnnotationType, selection: SelectionState) {
@@ -763,23 +776,12 @@ export function InteractiveSummaryReader({
 
   function handleBubbleHeadClick() {
     setDrawerOpen((current) => {
-      const next = !current;
-      if (next) {
-        setSelectionState(null);
-        setPendingSelection(null);
-        setNoteContextText("");
-        setAiContextText("");
-        setAiContext({ source: "selection", selectedText: "" });
-        setNoteComposerValue("");
-      } else {
-        setSelectionState(null);
-        setPendingSelection(null);
-        setNoteContextText("");
-        setAiContextText("");
-        setAiContext({ source: "selection", selectedText: "" });
-        setNoteComposerValue("");
-      }
-      return next;
+      setSelectionState(null);
+      setPendingSelection(null);
+      setNoteContextText("");
+      clearAIContext();
+      setNoteComposerValue("");
+      return !current;
     });
   }
 

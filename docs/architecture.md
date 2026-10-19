@@ -38,15 +38,16 @@ The AI Study Workflow System is architected as a Decoupled Fullstack application
 The conversational assistant remains inside the FastAPI monolith and reuses the existing document RAG pipeline:
 
 1. The authenticated Clerk user creates a conversation for an owned, completed document.
-2. The backend loads a bounded recent message history for conversational context.
+2. The backend loads bounded authored message history. A prior text selection remains separate and is reused only when it belongs to the immediately preceding user turn and the new question is referential.
 3. Before embedding the question, the backend requires every stored chunk to have an embedding. An incomplete legacy index queues a targeted, embedding-only Celery repair that preserves the completed document status and existing study materials; the user must retry manually after preparation.
 4. The current question and optional selected study text are embedded with `gemini-embedding-2` and matched against owned `document_chunks` with pgvector.
-5. Gemini receives the bounded conversation history, optional selected text, and retrieved document sources. History and selected text guide intent but are not citation evidence.
-6. The backend validates the structured answer and maps citations to real retrieved chunk UUIDs. When the retrieved evidence is insufficient, the assistant records that outcome without manufacturing a citation.
-7. After successful generation, the user message, assistant message, and citation rows are committed atomically.
-8. Conversation messages and citations are returned in stable sequence order and survive refresh.
+5. A deterministic request-scope shell selects an isolated generation path: strict document, general teaching, source clarification, or a composite of independently validated document and teaching results.
+6. Strict document generation receives the verified source registry and permits only document claims with valid evidence IDs. Teaching generation receives no source registry, raw selection, or assistant-authored history; a selection is reduced to bounded topic keywords before it can guide a formula, definition, comparison, or illustrative example.
+7. The backend validates the structured answer, removes model-authored citation markers, semantically verifies every document citation, and maps supported evidence to real retrieved chunk UUIDs. Unsupported source claims fail closed. Ambiguous source notation produces a targeted clarification, while explicit document-only requests preserve deterministic abstention.
+8. Mixed answers combine the two paths only after independent validation. When the document portion cannot be verified, the assistant labels that limitation and may retain the independently valid teaching portion without a document citation.
+9. After successful generation, the user message, assistant message, and citation rows are committed atomically. Messages and citations return in stable sequence order and survive refresh.
 
-Conversation ownership is stored as the existing Clerk subject string. Phase 2 remains document-only and synchronous. The frontend loads the latest conversation, persists follow-up turns, pages backward through canonical history, and renders only structured citations returned by the backend. Chat never falls back to ungrounded generation when the index is incomplete or empty. Page-aware citations, web grounding, and streaming remain later phases. The legacy Ask AI and AI History endpoints remain available during the compatibility rollout.
+Conversation ownership remains the existing Clerk subject string, and the public synchronous API contract remains unchanged. The frontend loads the latest conversation, persists follow-up turns, pages backward through canonical history, and renders only backend-validated document citations. General explanations and hypothetical examples are explicitly labeled and never receive document citation records. Web grounding and streaming remain later phases. The legacy Ask AI and AI History endpoints remain available during the compatibility rollout.
 
 ## AI Architecture Pipeline
 The system enforces strict domain boundaries over generative outputs. It uses a **model-assisted semantic citation evaluation** step to verify whether generated claims are supported by retrieved document chunks, avoiding any false "guarantees" of absolute truth. Unsupported claims are aggressively filtered before presentation.

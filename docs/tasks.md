@@ -182,6 +182,16 @@ Goal: Enforce strict semantic validation of AI citations against retrieved docum
 - [x] B6: Unsupported-Claim Defense (Filter claims based on strict validation policy)
 - [x] Phase B Verification & Gate (Holistic pipeline test and frontend alignment)
 
+## Phase B.1: Evidence-Aware Hybrid Tutoring (Completed)
+
+- [x] Route document, teaching, clarification, insufficient, and mixed answers through isolated internal paths
+- [x] Require semantic citation validation for every document claim while keeping general teaching citation-free and visibly labeled
+- [x] Support formulas, worked examples, practical explanations, and natural follow-ups without weakening explicit document-only behavior
+- [x] Clarify ambiguous source notation and preserve valid teaching when a mixed question's document portion cannot be verified
+- [x] Prevent stale selected text, fabricated citation markers, source-dependent suggestions, and cross-path provenance claims
+- [x] Add mocked regression coverage for the ten approved tutoring scenarios and adversarial routing/provenance cases
+- [x] Preserve public APIs, database schema, authentication, persistence, retrieval thresholds, and frozen evaluation artifacts
+
 ## Explicit Non-Goals For This Workstream
 
 - [ ] Do not turn Studflow into a general-purpose AI toolbox

@@ -236,6 +236,8 @@ export function AIStudyAssistantPanel({
 
   async function chooseConversation(id: string) {
     setConversationId(id);
+    setPendingContext({ source: "general", selectedText: "" });
+    setContextExpanded(false);
     setLoading(true);
     setError(null);
     try {
@@ -267,6 +269,8 @@ export function AIStudyAssistantPanel({
       setNextBefore(null);
       setReconciliationRequired(false);
       setNotice(null);
+      setPendingContext({ source: "general", selectedText: "" });
+      setContextExpanded(false);
       setDraft(initialQuestion(mode, suppliedQuestion));
       requestAnimationFrame(() => composerRef.current?.focus());
     } catch (createError) {
@@ -467,7 +471,7 @@ export function AIStudyAssistantPanel({
           </div>
         </section>
       ) : (
-        <div className="ai-chat-document-banner"><span>Using your document</span><span>Verified chunk citations</span></div>
+        <div className="ai-chat-document-banner"><span>Document-aware tutoring</span><span>Document claims use verified citations</span></div>
       )}
 
       <div
@@ -491,8 +495,8 @@ export function AIStudyAssistantPanel({
         {!panelLoading && messages.length === 0 ? (
           <div className="ai-chat-empty">
             <span className="ai-chat-empty-icon" aria-hidden="true">✦</span>
-            <h4>Ask your document anything</h4>
-            <p>Start a focused conversation. Answers stay grounded in the document and are saved here.</p>
+            <h4>Learn with your document</h4>
+            <p>Ask about the material or request a general explanation, formula, or worked example. Document claims include verified citations.</p>
           </div>
         ) : null}
         {messages.map((message, index) => {
@@ -512,7 +516,7 @@ export function AIStudyAssistantPanel({
             />
           );
         })}
-        {sending ? <div className="ai-chat-thinking" role="status"><span aria-hidden="true" /> StudFlow is reading relevant document chunks…</div> : null}
+        {sending ? <div className="ai-chat-thinking" role="status"><span aria-hidden="true" /> StudFlow is preparing an evidence-aware explanation…</div> : null}
       </div>
 
       {showJump ? <Button type="button" variant="outline" size="sm" className="ai-chat-jump" onClick={() => scrollToLatest()}>Jump to latest</Button> : null}
@@ -530,7 +534,7 @@ export function AIStudyAssistantPanel({
         <div className="ai-chat-quick-actions" aria-label="Quick prompts">
           {QUICK_ACTIONS.map((action) => <button key={action.label} type="button" disabled={sending || reconciliationRequired || !conversationId} onClick={() => void submit(action.question)}>{action.label}</button>)}
         </div>
-        <label htmlFor={`ai-chat-composer-${documentId}`} className="sr-only">Ask a follow-up about this document</label>
+        <label htmlFor={`ai-chat-composer-${documentId}`} className="sr-only">Ask a study question or follow-up</label>
         <div className="ai-chat-composer">
           <textarea
             ref={composerRef}

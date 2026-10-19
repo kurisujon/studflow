@@ -58,11 +58,21 @@ class DocumentQuestionAnswer(BaseModel):
 class RawGroundedClaim(BaseModel):
     claim_text: str = Field(min_length=1, max_length=2000)
     cited_evidence_ids: list[str] = Field(default_factory=list)
+    provenance: Literal["document", "general", "illustrative"] = "document"
+
+
+class RawSuggestedFollowup(BaseModel):
+    question: str = Field(min_length=1, max_length=160)
+    answer_path: Literal["document", "general"]
+    cited_evidence_ids: list[str] = Field(default_factory=list)
 
 class ConversationAnswer(BaseModel):
     claims: list[RawGroundedClaim]
     evidence_sufficient: bool
     suggested_followups: list[str] = Field(default_factory=list, max_length=4)
+    answer_mode: Literal["document", "general", "mixed", "clarification", "insufficient"] = "document"
+    clarification_question: str | None = Field(default=None, max_length=500)
+    followup_candidates: list[RawSuggestedFollowup] = Field(default_factory=list, max_length=4)
 
 class YouTubeSearchQuery(BaseModel):
     main_topic: str
@@ -72,6 +82,29 @@ SUMMARY_SYSTEM_PROMPT = '\nYou are an expert academic tutor. I am providing you 
 EXPLAIN_SELECTION_PROMPT = '\nYou are a patient academic tutor helping a student understand a highlighted word, phrase, or passage from study material.\nExplain it clearly, simply, and accurately. Avoid jargon when possible. If the student asks a follow-up question, answer it directly.\nReturn only JSON that matches the required schema.\n'.strip()
 DOCUMENT_QA_PROMPT = "\nYou are an academic tutor answering a student's question about an uploaded study document.\nYou must answer using only the provided document chunks.\nDo not invent facts not supported by the chunks.\nKeep the answer clear, direct, and helpful for a student.\nReturn only JSON that matches the required schema.\n".strip()
 CONVERSATION_QA_PROMPT = '\nYou are StudFlow AI, a patient study assistant in an ongoing conversation.\nAnswer the student\'s current question using ONLY the supplied document sources.\nConversation history provides context for the student\'s intent, but it is not evidence.\nDo not invent facts, titles, URLs, page numbers, or citations.\n\nYour response must be an array of distinct claims. Each claim represents a distinct sentence or logical thought.\nFor each claim, you MUST provide a list of Evidence IDs (e.g. "e_01") that explicitly support that claim.\nDo NOT use inline markdown citation markers (like [1]). Just provide the clean claim text and populate the cited_evidence_ids array with the exact IDs of the provided sources.\n\nIf the supplied evidence cannot answer the question at all:\n1. Set evidence_sufficient to false.\n2. Provide a single claim stating you cannot answer the question based on the evidence.\n3. Provide an empty array for cited_evidence_ids.\n\nIf the evidence can answer the question, set evidence_sufficient to true and ensure every factual claim cites at least one valid Evidence ID from the supplied sources.\nPrefer a concise explanation first, followed by useful detail when needed.\nReturn only JSON matching the required schema.\n'.strip()
+
+TEACHING_QA_PROMPT = '''
+You are StudFlow AI, a patient academic tutor. Explain established concepts, formulas,
+comparisons, and step-by-step solutions. You may provide clearly hypothetical examples.
+Selected text and conversation history are intent context only. You have no verified
+document source registry and must not state what a document, study, passage, table,
+figure, chart, selected text, or analysis reports, shows, means, or contains.
+
+Set answer_mode to general. Every claim provenance must be general or illustrative,
+and cited_evidence_ids must always be empty. Label hypothetical values as illustrative
+rather than presenting them as uploaded data. If the question also asks what a source
+reported, ignore that source-specific clause and answer only the general teaching or
+example request. Suggest only general-learning follow-ups with answer_path general and
+no evidence IDs. Return only JSON matching the schema.
+'''.strip()
+
+CLARIFICATION_QA_PROMPT = '''
+You are StudFlow AI resolving a source-specific question for which no verified document
+evidence is available. Do not answer from general knowledge and do not infer what any
+document notation or reported value means. Return either clarification mode with no
+claims and one targeted clarification_question, or insufficient mode with no claims.
+All citation and follow-up arrays must be empty. Return only JSON matching the schema.
+'''.strip()
 
 def generate_embeddings_batch(chunks: list[str]) -> list[list[float]]:
     """Embed a bounded batch of stored document chunks for semantic retrieval."""
@@ -233,15 +266,36 @@ def answer_document_question(*, chunks: list[tuple[int, str]], user_question: st
         raise AIServiceError('Gemini returned invalid supporting document references.')
     return answer
 
-def answer_conversation_question(*, sources: list[tuple[str, str]], user_question: str, conversation_history: list[tuple[str, str]], selected_text: str | None=None) -> ConversationAnswer:
+def answer_conversation_question(
+    *,
+    sources: list[tuple[str, str]],
+    user_question: str,
+    conversation_history: list[tuple[str, str]],
+    selected_text: str | None = None,
+    generation_path: Literal["strict_document", "teaching", "clarification"] = "strict_document",
+) -> ConversationAnswer:
     boundary = UntrustedDataBoundary()
-    if not sources:
+    if not sources and generation_path == "strict_document":
         raise AIServiceError('Cannot answer a conversation question without document sources.')
+    if sources and generation_path != "strict_document":
+        raise AIServiceError('Only strict document generation may receive verified sources.')
     if not user_question.strip():
         raise AIServiceError('A conversation question is required.')
     history_text = '\n'.join((f'{role.upper()}: {content}' for role, content in conversation_history)) or 'No previous messages.'
     source_text = '\n\n'.join((f'Evidence ID: {evidence_id}\nContent: {content}' for evidence_id, content in sources))
-    prompt = f'{CONVERSATION_QA_PROMPT}\n\n{boundary.instruction}\nRecent conversation:\n{history_text}\n\nCurrent student question:\n{user_question.strip()}\n\nStudent-selected context for this turn (use it to understand intent, but cite only the verified source registry):\n{(boundary.wrap(selected_text) if selected_text else 'No selected context.')}\n\nVerified source registry:\n{boundary.wrap(source_text)}\n\ncited_evidence_ids must contain every Evidence ID used to support a claim. Use only Evidence IDs present in the registry. Suggest no more than four concise follow-ups.'
+    system_prompt = {
+        "strict_document": CONVERSATION_QA_PROMPT,
+        "teaching": TEACHING_QA_PROMPT,
+        "clarification": CLARIFICATION_QA_PROMPT,
+    }[generation_path]
+    mode_instruction = (
+        "Use answer_mode='document' and provenance='document' for supported claims. "
+        "Use answer_mode='insufficient' when the sources cannot answer."
+        if generation_path == "strict_document"
+        else "Follow the externally selected generation path above; do not self-select another path."
+    )
+    source_registry = boundary.wrap(source_text) if source_text else 'No verified document evidence passed the relevance threshold.'
+    prompt = f'{system_prompt}\n\n{mode_instruction}\n\n{boundary.instruction}\nRecent conversation:\n{boundary.wrap(history_text)}\n\nCurrent student question:\n{boundary.wrap(user_question.strip())}\n\nStudent-selected context for this turn (use it to understand intent, but cite only the verified source registry):\n{(boundary.wrap(selected_text) if selected_text else 'No selected context.')}\n\nVerified source registry:\n{source_registry}\n\ncited_evidence_ids must contain every Evidence ID used to support a document claim. Use only Evidence IDs present in the registry.'
     answer: ConversationAnswer | None = None
     final_validation_error: ValidationError | None = None
     for generation_attempt in range(2):
