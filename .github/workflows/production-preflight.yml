@@ -3,23 +3,32 @@ name: Production read-only preflight
 on:
   workflow_dispatch:
     inputs:
+      current_frontend_sha:
+        description: "Reviewed full source SHA expected to match the running frontend image"
+        required: true
+        type: string
+      current_backend_sha:
+        description: "Reviewed full source SHA expected to match the running backend/worker image"
+        required: true
+        type: string
       confirmation:
         description: "Type PREFLIGHT ONLY to authorize read-only production inspection"
         required: true
         type: string
 
-permissions: {}
+permissions:
+  contents: read
 
 concurrency:
-  group: production-read-only-preflight
+  group: production-application-operations
   cancel-in-progress: false
 
 jobs:
   preflight:
-    name: Verify production rollback readiness
+    name: Verify application rollback readiness
     if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     environment:
       name: production
       url: https://studflow.webcris.dev
@@ -27,13 +36,18 @@ jobs:
       - name: Validate preflight authorization
         env:
           PREFLIGHT_CONFIRMATION: ${{ inputs.confirmation }}
+          CURRENT_FRONTEND_SHA: ${{ inputs.current_frontend_sha }}
+          CURRENT_BACKEND_SHA: ${{ inputs.current_backend_sha }}
         shell: bash
         run: |
           set -euo pipefail
-          if [ "$PREFLIGHT_CONFIRMATION" != "PREFLIGHT ONLY" ]; then
-            echo "::error::The confirmation input must exactly match PREFLIGHT ONLY."
-            exit 1
-          fi
+          [ "$GITHUB_REF" = "refs/heads/main" ] || { echo "::error::Run this workflow from main."; exit 1; }
+          [ "$PREFLIGHT_CONFIRMATION" = "PREFLIGHT ONLY" ] || { echo "::error::Confirmation must exactly match PREFLIGHT ONLY."; exit 1; }
+          [[ "$CURRENT_FRONTEND_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::current_frontend_sha must be a lowercase full SHA."; exit 1; }
+          [[ "$CURRENT_BACKEND_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::current_backend_sha must be a lowercase full SHA."; exit 1; }
+
+      - name: Check out trusted preflight tooling
+        uses: actions/checkout@v4
 
       - name: Configure pinned SSH authentication
         env:
@@ -45,370 +59,183 @@ jobs:
         run: |
           set -euo pipefail
           port="${AZURE_VM_PORT:-22}"
-
-          if [[ ! "$port" =~ ^[0-9]+$ ]] || [ "$port" -lt 1 ] || [ "$port" -gt 65535 ]; then
-            echo "::error::AZURE_VM_PORT must be a valid TCP port."
-            exit 1
-          fi
-          if [[ ! "${AZURE_VM_HOST:-}" =~ ^[A-Za-z0-9.-]+$ ]]; then
-            echo "::error::AZURE_VM_HOST is missing or invalid."
-            exit 1
-          fi
-          for required_value in AZURE_VM_SSH_KEY AZURE_VM_KNOWN_HOSTS; do
-            if [ -z "${!required_value:-}" ]; then
-              echo "::error::${required_value} is required in the production environment."
-              exit 1
-            fi
-          done
-
-          ssh_key="$AZURE_VM_SSH_KEY"
-          known_hosts="$AZURE_VM_KNOWN_HOSTS"
-          unset AZURE_VM_SSH_KEY AZURE_VM_KNOWN_HOSTS
-
+          [[ "${AZURE_VM_HOST:-}" =~ ^[A-Za-z0-9.-]+$ ]] || { echo "::error::AZURE_VM_HOST is invalid."; exit 1; }
+          [[ "$port" =~ ^[0-9]+$ ]] && [ "$port" -ge 1 ] && [ "$port" -le 65535 ] || { echo "::error::AZURE_VM_PORT is invalid."; exit 1; }
+          [ -n "${AZURE_VM_SSH_KEY:-}" ] && [ -n "${AZURE_VM_KNOWN_HOSTS:-}" ] || { echo "::error::Pinned SSH credentials are incomplete."; exit 1; }
           ssh_dir="$RUNNER_TEMP/studflow-preflight-ssh"
           install -d -m 700 "$ssh_dir"
-          printf '%s' "$ssh_key" > "$ssh_dir/id_ed25519"
-          printf '%s\n' "$known_hosts" > "$ssh_dir/known_hosts"
-          unset ssh_key known_hosts
+          printf '%s' "$AZURE_VM_SSH_KEY" > "$ssh_dir/id_ed25519"
+          printf '%s\n' "$AZURE_VM_KNOWN_HOSTS" > "$ssh_dir/known_hosts"
           chmod 600 "$ssh_dir/id_ed25519" "$ssh_dir/known_hosts"
+          query="$AZURE_VM_HOST"; [ "$port" = 22 ] || query="[$AZURE_VM_HOST]:$port"
+          ssh-keygen -F "$query" -f "$ssh_dir/known_hosts" >/dev/null || { echo "::error::Pinned known-hosts entry does not match the target."; exit 1; }
 
-          known_host_query="$AZURE_VM_HOST"
-          if [ "$port" != "22" ]; then
-            known_host_query="[$AZURE_VM_HOST]:$port"
-          fi
-          if ! ssh-keygen -F "$known_host_query" -f "$ssh_dir/known_hosts" >/dev/null; then
-            echo "::error::AZURE_VM_KNOWN_HOSTS has no pinned key for the configured host and port."
-            exit 1
-          fi
+      - name: Create ephemeral remote inspection directory
+        id: remote
+        env:
+          AZURE_VM_HOST: ${{ secrets.AZURE_VM_HOST }}
+          AZURE_VM_PORT: ${{ secrets.AZURE_VM_PORT }}
+          AZURE_VM_USER: ${{ secrets.AZURE_VM_USER }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${AZURE_VM_USER:-}" =~ ^[A-Za-z_][A-Za-z0-9_-]*$ ]] || { echo "::error::AZURE_VM_USER is invalid."; exit 1; }
+          port="${AZURE_VM_PORT:-22}"
+          ssh_args=(-o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/studflow-preflight-ssh/known_hosts" -o ConnectTimeout=10 -o LogLevel=ERROR -i "$RUNNER_TEMP/studflow-preflight-ssh/id_ed25519" -p "$port")
+          target="${AZURE_VM_USER}@${AZURE_VM_HOST}"
+          remote_dir="$(ssh "${ssh_args[@]}" "$target" 'umask 077; mktemp -d /tmp/studflow-preflight.XXXXXX')"
+          [[ "$remote_dir" =~ ^/tmp/studflow-preflight\.[A-Za-z0-9]+$ ]] || { echo "::error::Unexpected remote temporary path."; exit 1; }
+          printf 'directory=%s\n' "$remote_dir" >> "$GITHUB_OUTPUT"
+          scp -q -P "$port" -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/studflow-preflight-ssh/known_hosts" -i "$RUNNER_TEMP/studflow-preflight-ssh/id_ed25519" scripts/celery-release-control.py "$target:$remote_dir/celery-release-control.py"
 
-      - name: Inspect running frontend without mutation
+      - name: Inspect production application without mutation
         id: inspection
         env:
           AZURE_VM_HOST: ${{ secrets.AZURE_VM_HOST }}
           AZURE_VM_PORT: ${{ secrets.AZURE_VM_PORT }}
           AZURE_VM_USER: ${{ secrets.AZURE_VM_USER }}
           AZURE_VM_APP_PATH: ${{ secrets.AZURE_VM_APP_PATH }}
+          REMOTE_DIR: ${{ steps.remote.outputs.directory }}
         shell: bash
         run: |
           set -euo pipefail
           port="${AZURE_VM_PORT:-22}"
-          app_path="${AZURE_VM_APP_PATH:-/home/${AZURE_VM_USER:-}/studflow}"
-
-          if [[ ! "${AZURE_VM_HOST:-}" =~ ^[A-Za-z0-9.-]+$ ]]; then
-            echo "::error::AZURE_VM_HOST is missing or invalid."
-            exit 1
-          fi
-          if [[ ! "${AZURE_VM_USER:-}" =~ ^[A-Za-z_][A-Za-z0-9_-]*$ ]]; then
-            echo "::error::AZURE_VM_USER is missing or invalid."
-            exit 1
-          fi
-          if [[ ! "$port" =~ ^[0-9]+$ ]] || [ "$port" -lt 1 ] || [ "$port" -gt 65535 ]; then
-            echo "::error::AZURE_VM_PORT must be a valid TCP port."
-            exit 1
-          fi
-          if [[ ! "$app_path" =~ ^/[A-Za-z0-9._/-]+$ ]]; then
-            echo "::error::AZURE_VM_APP_PATH must be an absolute path containing safe path characters."
-            exit 1
-          fi
-
-          ssh_dir="$RUNNER_TEMP/studflow-preflight-ssh"
-          ssh_args=(
-            -o BatchMode=yes
-            -o IdentitiesOnly=yes
-            -o StrictHostKeyChecking=yes
-            -o UserKnownHostsFile="$ssh_dir/known_hosts"
-            -o ConnectTimeout=10
-            -o ConnectionAttempts=2
-            -o LogLevel=ERROR
-            -i "$ssh_dir/id_ed25519"
-            -p "$port"
-          )
+          app_path="${AZURE_VM_APP_PATH:-/home/${AZURE_VM_USER}/studflow}"
+          [[ "$app_path" =~ ^/[A-Za-z0-9._/-]+$ ]] || { echo "::error::AZURE_VM_APP_PATH is invalid."; exit 1; }
+          ssh_args=(-o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/studflow-preflight-ssh/known_hosts" -o ConnectTimeout=10 -o LogLevel=ERROR -i "$RUNNER_TEMP/studflow-preflight-ssh/id_ed25519" -p "$port")
           target="${AZURE_VM_USER}@${AZURE_VM_HOST}"
-
-          inspection="$({
-            ssh "${ssh_args[@]}" "$target" bash -s -- "$app_path" <<'REMOTE_INSPECTION'
+          evidence="$(ssh "${ssh_args[@]}" "$target" bash -s -- "$app_path" "$REMOTE_DIR/celery-release-control.py" <<'REMOTE'
           set -euo pipefail
-
-          app_dir="$1"
-          env_path="$app_dir/.env.production"
-
-          [ -d "$app_dir" ] || { echo "Application directory is unavailable." >&2; exit 1; }
-          [ -f "$app_dir/docker-compose.yml" ] || { echo "docker-compose.yml is unavailable." >&2; exit 1; }
-          [ -f "$env_path" ] || { echo "Production environment file is unavailable." >&2; exit 1; }
-          command -v docker >/dev/null 2>&1 || { echo "Docker is unavailable." >&2; exit 1; }
-
-          remote_user="$(id -un)"
-          remote_hostname="$(hostname -f 2>/dev/null || hostname)"
-          docker_version="$(docker version --format '{{.Server.Version}}')"
-          compose_version="$(docker compose version --short)"
-
-          case "$remote_user" in *[!A-Za-z0-9_-]*|'') echo "Remote username is invalid." >&2; exit 1;; esac
-          case "$remote_hostname" in *[!A-Za-z0-9._-]*|'') echo "Remote hostname is invalid." >&2; exit 1;; esac
-          case "$docker_version" in *[!A-Za-z0-9._+~-]*|'') echo "Docker version is invalid." >&2; exit 1;; esac
-          case "$compose_version" in *[!A-Za-z0-9._+~-]*|'') echo "Compose version is invalid." >&2; exit 1;; esac
-
+          app_dir="$1"; celery_control="$2"; env_path="$app_dir/.env.production"
+          [ -f "$app_dir/docker-compose.yml" ] && [ -f "$env_path" ] || { echo "Production Compose inputs are missing." >&2; exit 1; }
+          command -v docker >/dev/null && command -v python3 >/dev/null || { echo "Required runtime tooling is missing." >&2; exit 1; }
           cd "$app_dir"
-          expected_working_dir="$(pwd -P)"
-          frontend_container="$(docker compose --env-file "$env_path" ps -q frontend)"
-          case "$frontend_container" in *[!0-9a-f]*|'') echo "Frontend container ID is invalid." >&2; exit 1;; esac
-
-          frontend_state="$(docker inspect --format '{{.State.Status}}' "$frontend_container")"
-          [ "$frontend_state" = "running" ] || { echo "Frontend container is not running." >&2; exit 1; }
-
-          configured_image="$(docker inspect --format '{{.Config.Image}}' "$frontend_container")"
-          image_id="$(docker inspect --format '{{.Image}}' "$frontend_container")"
-          compose_working_dir="$(docker inspect --format '{{ index .Config.Labels "com.docker.compose.project.working_dir" }}' "$frontend_container")"
-          compose_config_files="$(docker inspect --format '{{ index .Config.Labels "com.docker.compose.project.config_files" }}' "$frontend_container")"
-
-          case "$configured_image" in *[!A-Za-z0-9._:/@-]*|'') echo "Configured frontend image is invalid." >&2; exit 1;; esac
-          case "$image_id" in sha256:*) ;; *) echo "Frontend image ID is invalid." >&2; exit 1;; esac
-          image_hash="${image_id#sha256:}"
-          if [ "${#image_hash}" -ne 64 ]; then
-            echo "Frontend image ID has an invalid length." >&2
-            exit 1
-          fi
-          case "$image_hash" in *[!0-9a-f]*) echo "Frontend image ID is invalid." >&2; exit 1;; esac
-          [ "$compose_working_dir" = "$expected_working_dir" ] || {
-            echo "Compose working directory does not match the configured application directory." >&2
-            exit 1
-          }
-          case "$compose_config_files" in
-            *[!A-Za-z0-9_./,:-]*|'') echo "Compose config-file metadata is invalid." >&2; exit 1;;
+          compose() { docker compose --env-file "$env_path" "$@"; }
+          env_mode="$(stat -c '%a' "$env_path")"
+          case "$env_mode" in *[!0-7]*|'') echo "Production environment permissions are invalid." >&2; exit 1;; esac
+          [ $((10#$env_mode % 100)) -eq 0 ] || { echo "Production environment file must not be group/world accessible." >&2; exit 1; }
+          case "$(uname -m)" in
+            x86_64) host_platform=linux/amd64 ;;
+            aarch64|arm64) host_platform=linux/arm64 ;;
+            *) echo "Unsupported production host architecture." >&2; exit 1 ;;
           esac
-          case "$compose_config_files" in
-            *docker-compose.yml*) ;;
-            *) echo "Compose config-file metadata does not identify docker-compose.yml." >&2; exit 1;;
-          esac
-
-          repo_digest=""
-          while IFS= read -r candidate; do
-            case "$candidate" in
-              ghcr.io/kurisujon/studflow-frontend@sha256:*)
-                digest_hash="${candidate#ghcr.io/kurisujon/studflow-frontend@sha256:}"
-                if [ "${#digest_hash}" -eq 64 ]; then
-                  case "$digest_hash" in
-                    *[!0-9a-f]*) ;;
-                    *) repo_digest="$candidate"; break ;;
-                  esac
-                fi
-                ;;
-            esac
-          done < <(docker image inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "$image_id")
-
-          [ -n "$repo_digest" ] || {
-            echo "No immutable StudFlow frontend GHCR repository digest is associated with the running image." >&2
-            exit 1
+          expected_services="$(printf '%s\n' backend caddy frontend postgres redis worker)"
+          actual_services="$(compose config --services | LC_ALL=C sort)"
+          [ "$actual_services" = "$expected_services" ] || { echo "Compose service relationships are unexpected." >&2; exit 1; }
+          digest() {
+            service="$1"; repository="$2"; container="$(compose ps -q "$service")"
+            case "$container" in *[!0-9a-f]*|'') return 1;; esac
+            [ "$(docker inspect --format '{{.State.Status}}' "$container")" = running ] || return 1
+            image_id="$(docker inspect --format '{{.Image}}' "$container")"
+            docker image inspect "$image_id" >/dev/null
+            [ "$(docker image inspect --format '{{.Os}}/{{.Architecture}}' "$image_id")" = "$host_platform" ] || return 1
+            docker image inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "$image_id" |
+              awk -v prefix="$repository@sha256:" 'index($0,prefix)==1 && length($0)==length(prefix)+64 {print; exit}'
           }
-          docker image inspect "$repo_digest" >/dev/null
-
-          printf 'ssh_auth=ok\n'
-          printf 'remote_user=%s\n' "$remote_user"
-          printf 'remote_hostname=%s\n' "$remote_hostname"
-          printf 'docker_version=%s\n' "$docker_version"
-          printf 'compose_version=%s\n' "$compose_version"
-          printf 'compose_working_dir=%s\n' "$compose_working_dir"
-          printf 'compose_config_files=%s\n' "$compose_config_files"
-          printf 'frontend_state=%s\n' "$frontend_state"
-          printf 'frontend_configured_image=%s\n' "$configured_image"
-          printf 'frontend_image_id=%s\n' "$image_id"
-          printf 'frontend_repo_digest=%s\n' "$repo_digest"
-          printf 'local_rollback_image=ok\n'
-          REMOTE_INSPECTION
-          } 2>&1)" || {
-            echo "::error::Read-only production inspection failed."
-            exit 1
-          }
-
-          line_count="$(printf '%s\n' "$inspection" | wc -l | tr -d '[:space:]')"
-          if [ "$line_count" -ne 12 ]; then
-            echo "::error::Production inspection returned an unexpected number of evidence records."
-            exit 1
-          fi
-          while IFS= read -r evidence_line; do
-            case "$evidence_line" in
-              ssh_auth=ok|remote_user=*|remote_hostname=*|docker_version=*|compose_version=*|\
-              compose_working_dir=*|compose_config_files=*|frontend_state=running|\
-              frontend_configured_image=*|frontend_image_id=sha256:*|\
-              frontend_repo_digest=ghcr.io/kurisujon/studflow-frontend@sha256:*|\
-              local_rollback_image=ok) ;;
-              *)
-                echo "::error::Production inspection returned an unexpected evidence record."
-                exit 1
-                ;;
-            esac
-          done <<< "$inspection"
-
-          required_markers=(
-            ssh_auth
-            remote_user
-            remote_hostname
-            docker_version
-            compose_version
-            compose_working_dir
-            compose_config_files
-            frontend_state
-            frontend_configured_image
-            frontend_image_id
-            frontend_repo_digest
-            local_rollback_image
-          )
-          for marker in "${required_markers[@]}"; do
-            count="$(printf '%s\n' "$inspection" | grep -c "^${marker}=" || true)"
-            if [ "$count" -ne 1 ]; then
-              echo "::error::Production inspection returned invalid ${marker} evidence."
-              exit 1
-            fi
+          for service in frontend backend worker caddy postgres redis; do
+            container="$(compose ps -q "$service")"; case "$container" in *[!0-9a-f]*|'') echo "Missing service $service." >&2; exit 1;; esac
+            [ "$(docker inspect --format '{{.State.Status}}' "$container")" = running ] || { echo "Service $service is not running." >&2; exit 1; }
+            [ "$(docker inspect --format '{{ index .Config.Labels "com.docker.compose.project.working_dir" }}' "$container")" = "$(pwd -P)" ] || { echo "Compose project path mismatch." >&2; exit 1; }
+            [ "$(docker inspect --format '{{ index .Config.Labels "com.docker.compose.service" }}' "$container")" = "$service" ] || { echo "Compose service metadata mismatch." >&2; exit 1; }
           done
+          frontend_digest="$(digest frontend ghcr.io/kurisujon/studflow-frontend)"
+          backend_digest="$(digest backend ghcr.io/kurisujon/studflow-backend)"
+          worker_digest="$(digest worker ghcr.io/kurisujon/studflow-backend)"
+          [[ "$frontend_digest" =~ ^ghcr\.io/kurisujon/studflow-frontend@sha256:[0-9a-f]{64}$ ]] || { echo "Frontend rollback digest is invalid." >&2; exit 1; }
+          [[ "$backend_digest" =~ ^ghcr\.io/kurisujon/studflow-backend@sha256:[0-9a-f]{64}$ ]] || { echo "Backend rollback digest is invalid." >&2; exit 1; }
+          [ "$backend_digest" = "$worker_digest" ] || { echo "Backend and worker rollback digests differ." >&2; exit 1; }
+          frontend_container="$(compose ps -q frontend)"
+          case "$(docker inspect --format '{{ index .Config.Labels "com.docker.compose.project.config_files" }}' "$frontend_container")" in *docker-compose.yml*) ;; *) echo "Compose metadata mismatch." >&2; exit 1;; esac
+          required_keys='FRONTEND_IMAGE BACKEND_IMAGE POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD DATABASE_URL NEXT_PUBLIC_API_BASE_URL INTERNAL_API_BASE_URL NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY CLERK_SECRET_KEY GEMINI_API_KEY'
+          for key in $required_keys; do
+            awk -F= -v key="$key" '$1==key && length(substr($0,index($0,"=")+1))>0 {found=1} END {exit !found}' "$env_path" || { echo "Required production environment key is missing." >&2; exit 1; }
+          done
+          compose exec -T postgres sh -c 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"' >/dev/null
+          compose exec -T backend python -c 'from sqlalchemy import text; from core.database import engine; connection=engine.connect(); connection.execute(text("SELECT 1")).scalar_one(); role=connection.execute(text("SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname=current_user")).one_or_none(); connection.close(); assert role is not None and not bool(role[0]) and not bool(role[1])' >/dev/null
+          [ "$(compose exec -T redis redis-cli ping | tr -d '\r')" = PONG ] || { echo "Redis PING failed." >&2; exit 1; }
+          celery_json="$(STUDFLOW_COMPOSE_ENV_FILE="$env_path" python3 "$celery_control" inspect)"
+          python3 -c 'import json,sys; d=json.loads(sys.argv[1]); assert d["worker_nodes"]==1; print("celery_active="+str(d["active"])); print("celery_reserved="+str(d["reserved"])); print("celery_scheduled="+str(d["scheduled"])); print("repair_task_blockers="+str(d["repair_task_blockers"]))' "$celery_json"
+          available_kb="$(df -Pk "$app_dir" | awk 'NR==2 {print $4}')"; case "$available_kb" in *[!0-9]*|'') exit 1;; esac
+          [ "$available_kb" -ge 2097152 ] || { echo "Less than 2 GiB is available for release images." >&2; exit 1; }
+          printf 'host_architecture=%s\n' "$host_platform"
+          printf 'compose_project=ok\npostgres_ready=ok\ndatabase_role=ok\nredis_ping=ok\nenvironment_prerequisites=ok\n'
+          printf 'available_kb=%s\nfrontend_digest=%s\nbackend_digest=%s\nworker_digest=%s\nlocal_rollback_images=ok\n' "$available_kb" "$frontend_digest" "$backend_digest" "$worker_digest"
+          REMOTE
+          )" || { echo "::error::Production inspection failed closed."; exit 1; }
+          while IFS= read -r line; do
+            case "$line" in
+              host_architecture=*|compose_project=ok|postgres_ready=ok|database_role=ok|redis_ping=ok|environment_prerequisites=ok|available_kb=*|celery_active=*|celery_reserved=*|celery_scheduled=*|repair_task_blockers=*|frontend_digest=ghcr.io/kurisujon/studflow-frontend@sha256:*|backend_digest=ghcr.io/kurisujon/studflow-backend@sha256:*|worker_digest=ghcr.io/kurisujon/studflow-backend@sha256:*|local_rollback_images=ok) printf '%s\n' "$line" >> "$GITHUB_OUTPUT" ;;
+              *) echo "::error::Unexpected production evidence."; exit 1 ;;
+            esac
+          done <<< "$evidence"
+          [ "$(printf '%s\n' "$evidence" | wc -l)" -eq 15 ] || { echo "::error::Incomplete production evidence."; exit 1; }
 
-          repo_digest="$(printf '%s\n' "$inspection" | sed -n 's/^frontend_repo_digest=//p')"
-          if [[ ! "$repo_digest" =~ ^ghcr\.io/kurisujon/studflow-frontend@sha256:[0-9a-f]{64}$ ]]; then
-            echo "::error::Production inspection did not return a valid immutable frontend digest."
-            exit 1
-          fi
-          printf '%s\n' "$inspection"
-          printf '%s\n' "$inspection" >> "$GITHUB_OUTPUT"
-          printf 'repo_digest=%s\n' "$repo_digest" >> "$GITHUB_OUTPUT"
-
-      - name: Verify immutable image registry access
-        id: registry
+      - name: Verify rollback manifests with read-only registry access
         env:
           AZURE_VM_HOST: ${{ secrets.AZURE_VM_HOST }}
           AZURE_VM_PORT: ${{ secrets.AZURE_VM_PORT }}
           AZURE_VM_USER: ${{ secrets.AZURE_VM_USER }}
           GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
           GHCR_PAT: ${{ secrets.GHCR_PAT }}
-          FRONTEND_REPO_DIGEST: ${{ steps.inspection.outputs.repo_digest }}
+          FRONTEND_DIGEST: ${{ steps.inspection.outputs.frontend_digest }}
+          BACKEND_DIGEST: ${{ steps.inspection.outputs.backend_digest }}
+          CURRENT_FRONTEND_SHA: ${{ inputs.current_frontend_sha }}
+          CURRENT_BACKEND_SHA: ${{ inputs.current_backend_sha }}
         shell: bash
         run: |
           set -euo pipefail
+          [[ "${GHCR_USERNAME:-}" =~ ^[A-Za-z0-9][A-Za-z0-9_-]*$ ]] && [ -n "${GHCR_PAT:-}" ] || { echo "::error::Read-only GHCR credentials are incomplete."; exit 1; }
           port="${AZURE_VM_PORT:-22}"
-          if [[ ! "${AZURE_VM_HOST:-}" =~ ^[A-Za-z0-9.-]+$ ]]; then
-            echo "::error::AZURE_VM_HOST is missing or invalid."
-            exit 1
-          fi
-          if [[ ! "${AZURE_VM_USER:-}" =~ ^[A-Za-z_][A-Za-z0-9_-]*$ ]]; then
-            echo "::error::AZURE_VM_USER is missing or invalid."
-            exit 1
-          fi
-          if [[ ! "${GHCR_USERNAME:-}" =~ ^[A-Za-z0-9][A-Za-z0-9_-]*$ ]]; then
-            echo "::error::GHCR_USERNAME is missing or invalid."
-            exit 1
-          fi
-          if [ -z "${GHCR_PAT:-}" ]; then
-            echo "::error::GHCR_PAT is required in the production environment."
-            exit 1
-          fi
-          if [[ ! "$FRONTEND_REPO_DIGEST" =~ ^ghcr\.io/kurisujon/studflow-frontend@sha256:[0-9a-f]{64}$ ]]; then
-            echo "::error::The inspected frontend digest is invalid."
-            exit 1
-          fi
-
-          registry_token="$GHCR_PAT"
-          unset GHCR_PAT
-
-          printf -v remote_registry_script '%s\n' \
-            'set -euo pipefail' \
-            'ghcr_username="$1"' \
-            'repo_digest="$2"' \
-            'docker_config="$(mktemp -d "${TMPDIR:-/tmp}/studflow-preflight-docker.XXXXXX")"' \
-            'cleanup() { rm -rf -- "$docker_config"; }' \
-            'trap cleanup EXIT HUP INT TERM' \
-            'chmod 700 "$docker_config"' \
-            'if ! DOCKER_CONFIG="$docker_config" docker login ghcr.io -u "$ghcr_username" --password-stdin >/dev/null 2>&1; then' \
-            '  echo "Registry authentication failed." >&2' \
-            '  exit 1' \
-            'fi' \
-            'if ! DOCKER_CONFIG="$docker_config" docker manifest inspect "$repo_digest" >/dev/null 2>&1; then' \
-            '  echo "The immutable frontend manifest is not accessible." >&2' \
-            '  exit 1' \
-            'fi' \
-            'printf "registry_manifest_access=ok\\n"' \
-            'printf "rollback_ready=ok\\n"'
-
-          shell_quote() {
-            local value="$1"
-            printf "'%s'" "${value//\'/\'\\\'\'}"
-          }
-          quoted_script="$(shell_quote "$remote_registry_script")"
-          quoted_username="$(shell_quote "$GHCR_USERNAME")"
-          quoted_digest="$(shell_quote "$FRONTEND_REPO_DIGEST")"
-          remote_command="bash -c ${quoted_script} -- ${quoted_username} ${quoted_digest}"
-
-          ssh_dir="$RUNNER_TEMP/studflow-preflight-ssh"
-          ssh_args=(
-            -o BatchMode=yes
-            -o IdentitiesOnly=yes
-            -o StrictHostKeyChecking=yes
-            -o UserKnownHostsFile="$ssh_dir/known_hosts"
-            -o ConnectTimeout=10
-            -o ConnectionAttempts=2
-            -o LogLevel=ERROR
-            -i "$ssh_dir/id_ed25519"
-            -p "$port"
-          )
+          ssh_args=(-o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/studflow-preflight-ssh/known_hosts" -o ConnectTimeout=10 -o LogLevel=ERROR -i "$RUNNER_TEMP/studflow-preflight-ssh/id_ed25519" -p "$port")
           target="${AZURE_VM_USER}@${AZURE_VM_HOST}"
-
-          registry_result="$(printf '%s' "$registry_token" | ssh "${ssh_args[@]}" "$target" "$remote_command")" || {
-            unset registry_token
-            echo "::error::Immutable frontend registry verification failed."
-            exit 1
-          }
-          unset registry_token remote_registry_script remote_command
-
-          if [ "$registry_result" != $'registry_manifest_access=ok\nrollback_ready=ok' ]; then
-            echo "::error::Registry verification returned unexpected evidence."
-            exit 1
-          fi
-          printf '%s\n' "$registry_result"
-          printf 'registry_manifest_access=ok\n' >> "$GITHUB_OUTPUT"
-          printf 'rollback_ready=ok\n' >> "$GITHUB_OUTPUT"
+          remote='set -euo pipefail; config=$(mktemp -d /tmp/studflow-registry.XXXXXX); trap '\''rm -rf -- "$config"'\'' EXIT; chmod 700 "$config"; IFS= read -r token; printf %s "$token" | DOCKER_CONFIG="$config" docker login ghcr.io -u "$1" --password-stdin >/dev/null 2>&1; unset token; same(){ DOCKER_CONFIG="$config" docker manifest inspect "$1" > "$config/tag.json"; DOCKER_CONFIG="$config" docker manifest inspect "$2" > "$config/digest.json"; python3 -c '\''import json,sys; assert json.load(open(sys.argv[1])) == json.load(open(sys.argv[2]))'\'' "$config/tag.json" "$config/digest.json"; }; DOCKER_CONFIG="$config" docker manifest inspect "$2" >/dev/null; DOCKER_CONFIG="$config" docker manifest inspect "$3" >/dev/null; same ghcr.io/kurisujon/studflow-frontend:$4 "$2"; same ghcr.io/kurisujon/studflow-backend:$5 "$3"; printf "registry_manifests=ok\nsource_revisions=ok\n"'
+          shell_quote() { printf "'%s'" "${1//\'/\'\\\'\'}"; }
+          remote_command="bash -c $(shell_quote "$remote") -- $(shell_quote "$GHCR_USERNAME") $(shell_quote "$FRONTEND_DIGEST") $(shell_quote "$BACKEND_DIGEST") $(shell_quote "$CURRENT_FRONTEND_SHA") $(shell_quote "$CURRENT_BACKEND_SHA")"
+          result="$(printf '%s\n' "$GHCR_PAT" | ssh "${ssh_args[@]}" "$target" "$remote_command")" || { echo "::error::Rollback manifest verification failed."; exit 1; }
+          [ "$result" = $'registry_manifests=ok\nsource_revisions=ok' ] || { echo "::error::Unexpected registry evidence."; exit 1; }
+          printf '%s\n' "$result"
 
       - name: Write sanitized preflight summary
         env:
-          FRONTEND_REPO_DIGEST: ${{ steps.inspection.outputs.repo_digest }}
-          REMOTE_USER: ${{ steps.inspection.outputs.remote_user }}
-          REMOTE_HOSTNAME: ${{ steps.inspection.outputs.remote_hostname }}
-          DOCKER_VERSION: ${{ steps.inspection.outputs.docker_version }}
-          COMPOSE_VERSION: ${{ steps.inspection.outputs.compose_version }}
-          COMPOSE_WORKING_DIR: ${{ steps.inspection.outputs.compose_working_dir }}
-          FRONTEND_CONFIGURED_IMAGE: ${{ steps.inspection.outputs.frontend_configured_image }}
-          FRONTEND_IMAGE_ID: ${{ steps.inspection.outputs.frontend_image_id }}
-          REGISTRY_MANIFEST_ACCESS: ${{ steps.registry.outputs.registry_manifest_access }}
-          ROLLBACK_READY: ${{ steps.registry.outputs.rollback_ready }}
+          HOST_ARCH: ${{ steps.inspection.outputs.host_architecture }}
+          AVAILABLE_KB: ${{ steps.inspection.outputs.available_kb }}
+          ACTIVE: ${{ steps.inspection.outputs.celery_active }}
+          RESERVED: ${{ steps.inspection.outputs.celery_reserved }}
+          SCHEDULED: ${{ steps.inspection.outputs.celery_scheduled }}
+          REPAIR: ${{ steps.inspection.outputs.repair_task_blockers }}
+          FRONTEND_DIGEST: ${{ steps.inspection.outputs.frontend_digest }}
+          BACKEND_DIGEST: ${{ steps.inspection.outputs.backend_digest }}
+          CURRENT_FRONTEND_SHA: ${{ inputs.current_frontend_sha }}
+          CURRENT_BACKEND_SHA: ${{ inputs.current_backend_sha }}
         shell: bash
         run: |
           set -euo pipefail
-          if [ "$REGISTRY_MANIFEST_ACCESS" != "ok" ] || [ "$ROLLBACK_READY" != "ok" ]; then
-            echo "::error::Required rollback verification evidence is incomplete."
-            exit 1
-          fi
           {
-            echo "## Production read-only preflight"
-            echo
-            echo "- Protected environment approval: PASS"
-            echo "- Pinned SSH host verification: PASS"
-            echo "- SSH authentication and Docker inspection: PASS"
-            echo "- Remote identity: \`$REMOTE_USER@$REMOTE_HOSTNAME\`"
-            echo "- Docker / Compose: \`$DOCKER_VERSION\` / \`$COMPOSE_VERSION\`"
-            echo "- Compose project location: \`$COMPOSE_WORKING_DIR\`"
-            echo "- Running frontend state: PASS"
-            echo "- Configured frontend image: \`$FRONTEND_CONFIGURED_IMAGE\`"
-            echo "- Running frontend image ID: \`$FRONTEND_IMAGE_ID\`"
-            echo "- Local immutable rollback image: PASS"
-            echo "- Read-only GHCR manifest access: PASS"
-            echo "- Rollback readiness: GO"
-            echo "- Immutable rollback image: \`$FRONTEND_REPO_DIGEST\`"
-            echo
-            echo "No container, image, environment file, service, or database was changed."
+            echo "## Production application preflight"
+            echo "- Pinned SSH and protected environment: PASS"
+            echo "- Compose, environment prerequisites, PostgreSQL, Redis: PASS"
+            echo "- Host architecture: \`$HOST_ARCH\`; available KiB: \`$AVAILABLE_KB\`"
+            echo "- Celery tasks — active: \`$ACTIVE\`, reserved: \`$RESERVED\`, scheduled: \`$SCHEDULED\`, repair blockers: \`$REPAIR\`"
+            echo "- Local rollback images and read-only registry manifests: PASS"
+            echo "- Running image digests resolve from the reviewed source SHA tags: PASS"
+            echo "- Frontend source: \`$CURRENT_FRONTEND_SHA\`; backend source: \`$CURRENT_BACKEND_SHA\`"
+            echo "- Frontend rollback: \`$FRONTEND_DIGEST\`"
+            echo "- Backend/worker rollback: \`$BACKEND_DIGEST\`"
+            echo "- Production state changed: NO"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Remove ephemeral SSH material
+      - name: Remove ephemeral SSH and remote files
         if: ${{ always() }}
+        env:
+          AZURE_VM_HOST: ${{ secrets.AZURE_VM_HOST }}
+          AZURE_VM_PORT: ${{ secrets.AZURE_VM_PORT }}
+          AZURE_VM_USER: ${{ secrets.AZURE_VM_USER }}
+          REMOTE_DIR: ${{ steps.remote.outputs.directory }}
         shell: bash
         run: |
-          set -euo pipefail
-          ssh_dir="${RUNNER_TEMP:?}/studflow-preflight-ssh"
-          if [ -d "$ssh_dir" ]; then
-            find "$ssh_dir" -type f -exec chmod 600 {} +
-            rm -rf -- "$ssh_dir"
+          set +e
+          port="${AZURE_VM_PORT:-22}"
+          if [[ "${REMOTE_DIR:-}" =~ ^/tmp/studflow-preflight\.[A-Za-z0-9]+$ ]] && [ -f "$RUNNER_TEMP/studflow-preflight-ssh/id_ed25519" ]; then
+            ssh -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/studflow-preflight-ssh/known_hosts" -o LogLevel=ERROR -i "$RUNNER_TEMP/studflow-preflight-ssh/id_ed25519" -p "$port" "${AZURE_VM_USER}@${AZURE_VM_HOST}" rm -rf -- "$REMOTE_DIR"
           fi
+          rm -rf -- "$RUNNER_TEMP/studflow-preflight-ssh"

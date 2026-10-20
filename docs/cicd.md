@@ -1,126 +1,140 @@
-# StudFlow CI/CD and frontend releases
+# StudFlow CI/CD and controlled application releases
 
-StudFlow uses two separate GitHub Actions workflows:
+Ordinary pushes and pull requests run `.github/workflows/pipeline.yml`. That workflow validates release tooling, frontend, backend, and the frozen evaluation baseline. It cannot publish images or deploy production.
 
-- `.github/workflows/pipeline.yml` runs frontend and backend validation for every branch push and pull request. It never builds images or deploys production.
-- `.github/workflows/frontend-release.yml` is a manual, approval-gated frontend release. It builds one immutable frontend image and updates only the production `frontend` Compose service.
+Production has two manual workflows:
 
-Merging or pushing to `main` runs CI only. Production does not change until a maintainer manually dispatches the frontend release workflow and a required reviewer approves the `production` environment job.
+- `Production read-only preflight` proves the current host, service, queue, storage, and rollback state without changing application services.
+- `Application production release` builds immutable frontend/backend images and updates the named `backend`, `worker`, and `frontend` services after protected-environment approval. It also provides a compatible application rollback operation.
 
-## Production architecture
+The old frontend-only workflow and script are retired. `scripts/deploy.sh` is not part of this release path because it reconciles the wider stack, runs migrations, and performs cleanup.
 
-The production stack remains defined by `docker-compose.yml`:
+## Production service contract
 
-- `caddy`: public reverse proxy
-- `frontend`: Next.js on internal port 3000
-- `backend`: FastAPI on internal port 8000
-- `worker`: Celery worker
-- `postgres`: PostgreSQL with pgvector
-- `redis`: Celery broker and result backend
+`docker-compose.yml` defines six services. A release may replace only:
 
-The Compose frontend service selects its image through `FRONTEND_IMAGE`. A frontend-only release changes that one environment value and runs:
+- `backend`, selected by `BACKEND_IMAGE`
+- `worker`, selected by the same `BACKEND_IMAGE`
+- `frontend`, selected by `FRONTEND_IMAGE`
 
-```bash
-docker compose --env-file .env.production up -d --no-deps frontend
-```
+The release must preserve the container identities and mounts of `caddy`, `postgres`, and `redis`. It does not run migrations, change volumes, prune Docker data, recreate dependencies, or use a full-project Compose update.
 
-The release does not run migrations, reconcile the full Compose project, restart Caddy, or operate on backend, worker, PostgreSQL, or Redis.
+The API and worker must remain on the same immutable backend digest. A rollback always treats frontend plus the backend/worker pair as one compatible application set.
 
-## Required GitHub production environment
+## Protected production environment
 
-Create a GitHub environment named `production` and configure required reviewers. Disable self-review when the repository plan supports it. Restrict deployment branches to `main`.
+The GitHub environment named `production` must:
 
-Store these environment secrets:
+1. require a human reviewer and prevent self-review where the repository plan supports it;
+2. restrict deployments to `main`;
+3. store the existing SSH credentials and a host key verified through an independent administrator channel;
+4. store a GHCR credential limited to `read:packages` for the production host; and
+5. store `PRODUCTION_ENV_FILE` for the whitelisted frontend build arguments.
 
-- `PRODUCTION_ENV_FILE`: current production environment file used only to obtain frontend build arguments
-- `AZURE_VM_HOST`: production VM hostname or IP
-- `AZURE_VM_PORT`: SSH port, normally `22`
-- `AZURE_VM_USER`: SSH account used for deployment
-- `AZURE_VM_SSH_KEY`: private deployment key
-- `AZURE_VM_APP_PATH`: deployed Compose directory, such as `/home/azureuser/studflow`
-- `AZURE_VM_KNOWN_HOSTS`: pinned SSH host-key line for the exact host and port
-- `GHCR_USERNAME`: account permitted to pull the frontend package
-- `GHCR_PAT`: package token scoped to `read:packages` only
+Required environment secrets are:
 
-Generate the `AZURE_VM_KNOWN_HOSTS` value from a trusted host-key fingerprint obtained through the Azure portal, VM console, or an independently verified administrator channel. Compare the fingerprint before storing the OpenSSH known-hosts line. Do not populate this secret from an unverified `ssh-keyscan` during a release.
+- `PRODUCTION_ENV_FILE`
+- `AZURE_VM_HOST`, `AZURE_VM_PORT`, `AZURE_VM_USER`, `AZURE_VM_APP_PATH`
+- `AZURE_VM_SSH_KEY`, `AZURE_VM_KNOWN_HOSTS`
+- `GHCR_USERNAME`, `GHCR_PAT`
 
-For port 22 the line starts with the hostname or IP. For a nonstandard port it must use `[host]:port`. The workflow requires a matching pinned entry and enables strict host-key checking.
+The workflow's GitHub token receives `packages: write` only in the image build job. The VM receives only the separate read-only GHCR token over standard input. Both workflows use strict pinned SSH host verification. Temporary SSH and Docker credential directories are removed after each run.
 
-The workflow uses its short-lived GitHub token only to publish the repository's GHCR frontend image. The VM login uses `GHCR_USERNAME` and a separate `GHCR_PAT` environment secret that must have `read:packages` only. The packages-write workflow token is never sent to the VM.
+## Required read-only preflight
 
-## Frontend build-time configuration
+Run **Production read-only preflight** from `main` with the exact confirmation `PREFLIGHT ONLY` and the reviewed full source SHAs expected for the running frontend and backend/worker images. Approve the protected `production` environment only after confirming the workflow source is the reviewed main revision.
 
-The production frontend image requires these values from `PRODUCTION_ENV_FILE`:
+The preflight fails closed unless it verifies:
 
-- `NEXT_PUBLIC_API_BASE_URL`
-- `INTERNAL_API_BASE_URL`
-- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
-- `NEXT_PUBLIC_CLERK_SIGN_IN_URL` (defaults to `/sign-in`)
-- `NEXT_PUBLIC_CLERK_SIGN_UP_URL` (defaults to `/sign-up`)
-- `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL` (defaults to `/dashboard`)
-- `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL` (defaults to `/dashboard`)
+- exactly one running container for frontend, backend, worker, Caddy, PostgreSQL, and Redis;
+- Compose working-directory and configuration-file labels;
+- immutable local GHCR digests for frontend and the matching backend/worker pair;
+- read-only registry manifest access for both rollback images;
+- each reviewed source SHA tag resolves to the corresponding running repository digest;
+- production host architecture and at least 2 GiB of available filesystem space;
+- presence, without values, of required production environment keys;
+- PostgreSQL readiness and Redis `PONG`;
+- exactly one responding Celery worker; and
+- sanitized active, reserved, scheduled, and early-acknowledged repair-task counts.
 
-The runtime production environment file remains on the VM and is not replaced by the frontend release workflow. `CLERK_SECRET_KEY` continues to be supplied to the frontend container by Compose at runtime.
+The preflight writes only an ephemeral helper under `/tmp`, removes it on completion, and does not pull images, alter containers, inspect task arguments, query database contents, or print environment values.
 
-## Safe publication and release procedure
+## Worker drain policy
 
-1. Commit the V2.1 frontend changes separately from the CI/CD hardening changes.
-2. Push the feature branch. The corrected `Pipeline` workflow runs CI and cannot deploy.
-3. Open and review a pull request. Confirm both Frontend CI and Backend CI pass.
-4. Merge the approved commits into `main`. The merge runs CI only.
-5. Copy the full 40-character merge commit SHA from `main`.
-6. In GitHub Actions, open **Frontend production release**, choose **Run workflow** from `main`, enter that SHA, and enter `DEPLOY FRONTEND` as the confirmation.
-7. A required reviewer approves the `production` environment job.
-8. The workflow verifies the SHA is reachable from `origin/main`, confirms the existing public site is healthy, builds only `frontend/Dockerfile`, and publishes only `ghcr.io/<owner>/studflow-frontend:<40-character-sha>`.
-9. Deployment uses the registry digest returned by the build, in the form `ghcr.io/<owner>/studflow-frontend@sha256:<digest>`. The script refuses mutable tags.
-10. The workflow captures the actual running frontend image's GHCR repository digest, deploys the new digest with `--no-deps`, verifies Caddy, backend, worker, PostgreSQL, and Redis container IDs are unchanged, and checks the frontend from inside its container.
-11. The workflow checks the public home page and `/api/health` after deployment. A failure automatically runs the preserved rollback script, repeats the smoke checks, and leaves the workflow failed even when rollback succeeds.
+`scripts/celery-release-control.py` controls only the default `celery` queue and requires exactly one worker node.
 
-No `latest` tag is written. The commit tag identifies the source, while the resolved registry digest is the deployment and rollback identity.
+Before worker replacement it:
 
-## Frontend-only deployment script
+1. tells the worker to stop consuming new messages from the default queue;
+2. inspects active, reserved, and scheduled tasks without printing task payloads;
+3. requires all three counts to be zero for three consecutive samples; and
+4. treats `tasks.repair_document_index_task` as an explicit blocker because it is early acknowledged.
 
-The manual workflow uploads `scripts/deploy-frontend.sh` to a temporary VM path and executes it with the existing application directory and environment file. The script:
+Queued messages remain in Redis. No task is purged, revoked, terminated, or discarded. Once the safe drain is proved, the script stops the idle worker and starts the replacement worker from the same digest as the API.
 
-- refuses to deploy unless frontend, Caddy, backend, worker, PostgreSQL, and Redis are already running
-- resolves the running frontend container's image ID to an immutable GHCR repository digest and refuses deployment if it cannot establish that rollback identity
-- stores that value in `.frontend-release/previous-image` with restricted permissions
-- preserves the reviewed release script at `.frontend-release/deploy-frontend.sh`
-- changes only `FRONTEND_IMAGE` in `.env.production`
-- pulls only the requested frontend image when it is not already present
-- runs `docker compose up -d --no-deps frontend`
-- verifies Caddy, backend, worker, PostgreSQL, and Redis container IDs did not change
-- verifies the frontend responds over `127.0.0.1:3000` inside its container
-- restores the previous frontend image automatically if deployment validation fails
+If the bound expires or the worker identity changes, the helper attempts to restore queue consumption and aborts before replacement. If consumption cannot be restored, it fails with an operator-visible error and no force stop. An operator must restore the single known worker, verify `inspect ping`, and rerun the read-only preflight before another release attempt.
 
-It performs no Docker pruning or migration command.
+During automatic rollback, a busy replacement worker is never forced down. The script keeps the compatible new backend/worker pair and restores the previous frontend where safe, then fails the release for operator intervention.
 
-## Rollback prerequisites and procedure
+## Deploy procedure
 
-Before release approval, verify the currently running frontend image has a GHCR repository digest and is available locally or in GHCR. The deployment script derives that digest from the running container's image ID before replacement and refuses the release if it cannot preserve an immutable rollback target. Do not prune images before or immediately after a release.
+Human approval checkpoints are explicit:
 
-To roll back on the VM:
+1. Confirm CI passed for the full 40-character release SHA on `main`.
+2. Run and approve the read-only preflight. Record its attested frontend/backend source SHAs, frontend and backend/worker rollback digests, host architecture, queue counts, and disk result.
+3. Confirm both attested running source SHAs are ancestors of the release SHA. The workflow independently rejects incompatible frontend and backend contract changes from their respective running revisions.
+4. Open **Application production release** from `main`, choose `deploy`, select the preflight-confirmed platform, enter the release SHA plus both attested source SHAs and digest references, and type `DEPLOY APPLICATION`.
+5. Approve the build job in the protected environment. It checks out the exact release SHA and publishes frontend/backend images tagged with that SHA. Deployment uses the resulting repository digests, not the tag.
+6. Review the immutable digest outputs and approve the deployment job.
+
+The deployment script authenticates with a temporary Docker configuration, proves that the current digests still match the approved preflight evidence and source SHA tags, verifies old and new manifests, requires local rollback images, and rejects an architecture mismatch. It records the prior frontend and backend/worker digests and their source SHAs with mode `600`.
+
+Rollout order is:
+
+1. stop worker consumption and prove a stable idle state;
+2. replace only `backend` with `docker compose up -d --no-deps backend` and wait for its health check;
+3. request a warm shutdown from the drained worker without a timeout-based force kill, replace only `worker`, and require a Celery ping;
+4. replace only `frontend` and require an internal HTTP response; and
+5. prove Caddy, PostgreSQL, and Redis identities and mounts are unchanged.
+
+The workflow checks the public homepage and `/api/health` before and after the service update. If the post-release public smoke fails, it immediately invokes the preserved compatible rollback set and fails the workflow even when recovery succeeds. A single-instance API/frontend restart can briefly interrupt requests, so use an announced low-traffic maintenance window.
+
+## Rollback procedure
+
+The release script preserves the reviewed scripts and the prior immutable image set in `.application-release`. Do not prune those images after release.
+
+For a protected workflow rollback, choose `rollback`, supply the recorded preflight fields required by the workflow form, type `ROLLBACK APPLICATION`, and approve the production environment. The workflow invokes the preserved compatible rollback set; it does not build images and does not require the current frontend or backend to be healthy.
+
+The rollback uses the same drain rules and order: drain the current worker, restore backend, replace the worker with the matching backend digest, then restore frontend. A successful rollback preserves the known-good rollback record rather than replacing it with the displaced failed release.
+
+If GitHub Actions is unavailable, an authorized operator may invoke the preserved script on the VM only after a separate change approval:
 
 ```bash
 cd /home/azureuser/studflow
 APP_DIR=/home/azureuser/studflow \
 ENV_PATH=/home/azureuser/studflow/.env.production \
-bash .frontend-release/deploy-frontend.sh rollback
+STATE_DIR=/home/azureuser/studflow/.application-release \
+CELERY_CONTROL_PATH=/home/azureuser/studflow/.application-release/celery-release-control.py \
+GHCR_USERNAME='<read-only package account>' \
+bash .application-release/deploy-application.sh rollback
 ```
 
-The deploy operation preserves the exact reviewed script used for the release in `.frontend-release`, so rollback does not depend on the VM repository checkout being updated. Rollback updates only the frontend service, performs the same protected-service and internal-response checks, and records the displaced image as the next rollback target.
+Supply the read-only token on standard input when prompted by the approved operator procedure. Never place it in shell history or command arguments.
 
-After rollback, verify:
+## Acceptance checks
 
-```bash
-curl -fsSI https://studflow.webcris.dev/
-curl -fsS https://studflow.webcris.dev/api/health
-```
+After deployment or rollback, verify:
 
-## CI security notes
+- public homepage and `/api/health` responses;
+- backend health and the exact frontend/backend/worker digests;
+- one Celery worker responds and consumes the default queue;
+- Caddy, PostgreSQL, and Redis identities and persistent mounts match preflight; and
+- upload processing remains queued and completed normally.
 
-The CI workflow has global `contents: read` permission only. `packages: write` is granted only to the manual frontend release job. CI logs migration failures and RLS results inside GitHub Actions; it does not send diagnostics to third-party webhook endpoints.
+Authenticated AI acceptance uses a designated test account and controlled document. Verify a general formula explanation without citations, a mixed answer whose document claim has a real citation, and an explicit document-only missing fact that abstains. A live Gemini smoke test consumes provider calls and persists conversation records. It requires separate explicit authorization and is never run by either release workflow.
 
-Earlier workflow revisions posted test-database migration errors and RLS table flags to a fixed `webhook.site` URL. The RLS output contains schema security flags but no credential values. Migration errors can contain SQL and connection diagnostics, although the CI database used hardcoded test credentials. Review access logs for that webhook if they are available. Current repository evidence does not show production credentials being transmitted, so production credential rotation is not required solely because of those calls. Rotate a credential if a retained webhook payload or Actions log proves that credential was present.
+## Security notes
 
-The release workflow makes only these expected outbound connections: GitHub checkout and action dependencies, GHCR image publication and pull, the pinned production SSH endpoint, and public StudFlow smoke checks.
+Release logs contain only sanitized counts, image digests, service health, and infrastructure identifiers. They must never include production environment values, database contents, document identifiers, Celery task arguments, SSH keys, or package tokens.
+
+Earlier CI revisions sent diagnostics to `webhook.site`; current workflows contain no diagnostic webhooks or unexpected external transmission. Rotate credentials only if retained historical payloads prove that a credential was exposed.
