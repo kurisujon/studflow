@@ -32,8 +32,12 @@ valid_sha() {
 }
 
 [ "$MODE" = "deploy" ] || [ "$MODE" = "rollback" ] || fail "Usage: deploy-application.sh deploy FRONTEND_DIGEST BACKEND_DIGEST EXPECTED_FRONTEND EXPECTED_BACKEND CURRENT_FRONTEND_SHA CURRENT_BACKEND_SHA, or rollback."
-[ -n "$APP_DIR" ] && [ -d "$APP_DIR" ] || fail "APP_DIR must identify the deployed Compose directory."
-[ -n "$ENV_PATH" ] && [ -f "$ENV_PATH" ] || fail "ENV_PATH must identify the existing production environment file."
+if [ -z "$APP_DIR" ] || [ ! -d "$APP_DIR" ]; then
+  fail "APP_DIR must identify the deployed Compose directory."
+fi
+if [ -z "$ENV_PATH" ] || [ ! -f "$ENV_PATH" ]; then
+  fail "ENV_PATH must identify the existing production environment file."
+fi
 [ -f "$APP_DIR/docker-compose.yml" ] || fail "docker-compose.yml is unavailable."
 [ -x "$CELERY_CONTROL_PATH" ] || fail "The reviewed Celery release controller is unavailable."
 command -v docker >/dev/null 2>&1 || fail "Docker is unavailable."
@@ -144,6 +148,7 @@ stop_drained_worker() {
   docker update --restart=no "$identifier" >/dev/null
   docker kill --signal=TERM "$identifier" >/dev/null
   for attempt in $(seq 1 "$WAIT_ATTEMPTS"); do
+    : "$attempt"
     state="$(docker inspect --format '{{.State.Status}}' "$identifier")"
     if [ "$state" != "running" ]; then
       docker update --restart=unless-stopped "$identifier" >/dev/null
@@ -175,6 +180,8 @@ current_worker="$(immutable_digest worker "$BACKEND_REPOSITORY")"
 current_set_compatible=false
 [ "$current_backend" = "$current_worker" ] && current_set_compatible=true
 
+# PostgreSQL variables intentionally expand inside the container shell.
+# shellcheck disable=SC2016
 compose exec -T postgres sh -c 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"' >/dev/null || fail "Current PostgreSQL service is not ready."
 [ "$(compose exec -T redis redis-cli ping | tr -d '\r')" = PONG ] || fail "Current Redis service did not return PONG."
 celery_control inspect >/dev/null || fail "Current Celery worker is unavailable."
