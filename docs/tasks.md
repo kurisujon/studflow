@@ -199,6 +199,16 @@ Goal: Enforce strict semantic validation of AI citations against retrieved docum
 - [ ] Do not broaden upload contracts beyond PDF and DOCX without explicit approval
 - [ ] Do not introduce new dependencies or architecture layers without explicit approval
 
+## V2.1.1 Controlled Application Release Tooling
+
+- [x] Replace the retired frontend-only release path with a manual, protected frontend/backend/worker release workflow
+- [x] Bind release compatibility checks to preflight-attested running image digests and source SHAs
+- [x] Add a read-only production preflight for service, storage, queue, database, Redis, image, architecture, and rollback evidence
+- [x] Add bounded Celery drain, named-service rollout, compatible-set rollback, and protected-service preservation checks
+- [x] Add mocked failure coverage for worker drain, partial deploys, partial rollbacks, digest drift, source impersonation, and secret isolation
+- [ ] Run the protected read-only production preflight and approve a release only after its evidence is reviewed
+- [ ] Execute authenticated production smoke tests and the separately authorized live Gemini acceptance check after release
+
 ## Recent Frontend Enhancement
 
 ### Homepage and Dashboard Enhancement

@@ -1,0 +1,354 @@
+name: Application production release
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: "Deploy a reviewed release or restore the captured compatible rollback set"
+        required: true
+        type: choice
+        options: [deploy, rollback]
+      release_sha:
+        description: "Full 40-character source commit SHA reachable from main"
+        required: true
+        type: string
+      current_frontend_sha:
+        description: "Preflight-attested source SHA for the running frontend digest"
+        required: true
+        type: string
+      current_backend_sha:
+        description: "Preflight-attested source SHA for the running backend/worker digest"
+        required: true
+        type: string
+      expected_current_frontend_digest:
+        description: "Preflight-approved current frontend digest-qualified GHCR reference"
+        required: true
+        type: string
+      expected_current_backend_digest:
+        description: "Preflight-approved current backend/worker digest-qualified GHCR reference"
+        required: true
+        type: string
+      platform:
+        description: "Production platform verified by the read-only preflight"
+        required: true
+        type: choice
+        options: [linux/amd64, linux/arm64]
+      confirmation:
+        description: "Type DEPLOY APPLICATION or ROLLBACK APPLICATION"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-application-operations
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate release source and authorization
+    runs-on: ubuntu-latest
+    outputs:
+      release_sha: ${{ steps.validate.outputs.release_sha }}
+    steps:
+      - name: Check out trusted release tooling
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate main-only release inputs
+        id: validate
+        env:
+          OPERATION: ${{ inputs.operation }}
+          RELEASE_SHA: ${{ inputs.release_sha }}
+          CURRENT_FRONTEND_SHA: ${{ inputs.current_frontend_sha }}
+          CURRENT_BACKEND_SHA: ${{ inputs.current_backend_sha }}
+          EXPECTED_CURRENT_FRONTEND: ${{ inputs.expected_current_frontend_digest }}
+          EXPECTED_CURRENT_BACKEND: ${{ inputs.expected_current_backend_digest }}
+          RELEASE_CONFIRMATION: ${{ inputs.confirmation }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [ "$GITHUB_REF" = refs/heads/main ] || { echo "::error::Run this workflow from main."; exit 1; }
+          [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::release_sha must be a lowercase full SHA."; exit 1; }
+          [[ "$CURRENT_FRONTEND_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::current_frontend_sha must be a lowercase full SHA."; exit 1; }
+          [[ "$CURRENT_BACKEND_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::current_backend_sha must be a lowercase full SHA."; exit 1; }
+          [[ "$EXPECTED_CURRENT_FRONTEND" =~ ^ghcr\.io/kurisujon/studflow-frontend@sha256:[0-9a-f]{64}$ ]] || { echo "::error::Expected current frontend digest is invalid."; exit 1; }
+          [[ "$EXPECTED_CURRENT_BACKEND" =~ ^ghcr\.io/kurisujon/studflow-backend@sha256:[0-9a-f]{64}$ ]] || { echo "::error::Expected current backend digest is invalid."; exit 1; }
+          expected="DEPLOY APPLICATION"; [ "$OPERATION" = rollback ] && expected="ROLLBACK APPLICATION"
+          [ "$RELEASE_CONFIRMATION" = "$expected" ] || { echo "::error::Confirmation does not match the selected operation."; exit 1; }
+          git fetch --no-tags origin main
+          git cat-file -e "${RELEASE_SHA}^{commit}"
+          git cat-file -e "${CURRENT_FRONTEND_SHA}^{commit}"
+          git cat-file -e "${CURRENT_BACKEND_SHA}^{commit}"
+          git merge-base --is-ancestor "$RELEASE_SHA" origin/main || { echo "::error::Release SHA is not reachable from main."; exit 1; }
+          git merge-base --is-ancestor "$CURRENT_FRONTEND_SHA" "$RELEASE_SHA" || { echo "::error::Current frontend source is not an ancestor of the release."; exit 1; }
+          git merge-base --is-ancestor "$CURRENT_BACKEND_SHA" "$RELEASE_SHA" || { echo "::error::Current backend source is not an ancestor of the release."; exit 1; }
+          frontend_incompatible="$(git diff --name-only "$CURRENT_FRONTEND_SHA..$RELEASE_SHA" -- \
+              frontend/package.json \
+              frontend/package-lock.json \
+              frontend/Dockerfile \
+              docker-compose.yml \
+              .env.production.example)"
+          backend_incompatible="$(git diff --name-only "$CURRENT_BACKEND_SHA..$RELEASE_SHA" -- \
+              backend/alembic \
+              backend/models/tables.py \
+              backend/core/config.py \
+              backend/requirements.txt \
+              backend/Dockerfile \
+              backend/schemas/ai_chat.py \
+              docker-compose.yml \
+              .env.production.example)"
+          if [ -n "$frontend_incompatible" ] || [ -n "$backend_incompatible" ]; then
+            echo "::error::The migration-free application release path rejects schema, dependency, image-contract, Compose, or environment-contract changes."
+            exit 1
+          fi
+          printf 'release_sha=%s\n' "$RELEASE_SHA" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build immutable application images
+    if: ${{ inputs.operation == 'deploy' }}
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment:
+      name: production
+      url: https://studflow.webcris.dev
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      frontend_digest: ${{ steps.frontend.outputs.digest }}
+      backend_digest: ${{ steps.backend.outputs.digest }}
+    steps:
+      - name: Check out exact approved source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate.outputs.release_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify checked-out release identity
+        env:
+          RELEASE_SHA: ${{ needs.validate.outputs.release_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [ "$(git rev-parse HEAD)" = "$RELEASE_SHA" ] || { echo "::error::Checked-out source does not match release_sha."; exit 1; }
+
+      - name: Extract whitelisted frontend build configuration
+        env:
+          PRODUCTION_ENV_FILE: ${{ secrets.PRODUCTION_ENV_FILE }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          required = {
+              "NEXT_PUBLIC_API_BASE_URL",
+              "INTERNAL_API_BASE_URL",
+              "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
+          }
+          optional = {
+              "NEXT_PUBLIC_CLERK_SIGN_IN_URL": "/sign-in",
+              "NEXT_PUBLIC_CLERK_SIGN_UP_URL": "/sign-up",
+              "NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL": "/dashboard",
+              "NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL": "/dashboard",
+          }
+          values = {}
+          for raw_line in os.environ["PRODUCTION_ENV_FILE"].splitlines():
+              line = raw_line.strip()
+              if not line or line.startswith("#") or "=" not in line:
+                  continue
+              key, value = line.split("=", 1)
+              if key in required or key in optional:
+                  if "\n" in value or "\r" in value:
+                      raise SystemExit("Invalid multiline frontend build value.")
+                  values[key] = value
+          missing = sorted(key for key in required if not values.get(key))
+          if missing:
+              raise SystemExit("Required frontend build configuration is incomplete.")
+          values.update({key: values.get(key, default) for key, default in optional.items()})
+          env_path = Path(os.environ["GITHUB_ENV"])
+          with env_path.open("a", encoding="utf-8") as output:
+              for key in sorted(values):
+                  print(f"::add-mask::{values[key]}")
+                  output.write(f"{key}={values[key]}\n")
+          PY
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Authenticate publisher to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and publish frontend
+        id: frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: frontend
+          file: frontend/Dockerfile
+          platforms: ${{ inputs.platform }}
+          push: true
+          tags: ghcr.io/kurisujon/studflow-frontend:${{ needs.validate.outputs.release_sha }}
+          labels: org.opencontainers.image.revision=${{ needs.validate.outputs.release_sha }}
+          build-args: |
+            NEXT_PUBLIC_API_BASE_URL=${{ env.NEXT_PUBLIC_API_BASE_URL }}
+            INTERNAL_API_BASE_URL=${{ env.INTERNAL_API_BASE_URL }}
+            NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+            NEXT_PUBLIC_CLERK_SIGN_IN_URL=${{ env.NEXT_PUBLIC_CLERK_SIGN_IN_URL }}
+            NEXT_PUBLIC_CLERK_SIGN_UP_URL=${{ env.NEXT_PUBLIC_CLERK_SIGN_UP_URL }}
+            NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=${{ env.NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL }}
+            NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=${{ env.NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL }}
+
+      - name: Build and publish backend
+        id: backend
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          file: backend/Dockerfile
+          platforms: ${{ inputs.platform }}
+          push: true
+          tags: ghcr.io/kurisujon/studflow-backend:${{ needs.validate.outputs.release_sha }}
+          labels: org.opencontainers.image.revision=${{ needs.validate.outputs.release_sha }}
+
+  deploy:
+    name: Apply approved application image set
+    if: ${{ always() && needs.validate.result == 'success' && (needs.build.result == 'success' || needs.build.result == 'skipped') }}
+    needs: [validate, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment:
+      name: production
+      url: https://studflow.webcris.dev
+    permissions:
+      contents: read
+    steps:
+      - name: Check out trusted release tooling
+        uses: actions/checkout@v4
+
+      - name: Validate immutable build outputs
+        if: ${{ inputs.operation == 'deploy' }}
+        env:
+          FRONTEND_DIGEST: ${{ needs.build.outputs.frontend_digest }}
+          BACKEND_DIGEST: ${{ needs.build.outputs.backend_digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$FRONTEND_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::Invalid frontend build digest."; exit 1; }
+          [[ "$BACKEND_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::Invalid backend build digest."; exit 1; }
+
+      - name: Configure pinned SSH authentication
+        env:
+          AZURE_VM_HOST: ${{ secrets.AZURE_VM_HOST }}
+          AZURE_VM_PORT: ${{ secrets.AZURE_VM_PORT }}
+          AZURE_VM_SSH_KEY: ${{ secrets.AZURE_VM_SSH_KEY }}
+          AZURE_VM_KNOWN_HOSTS: ${{ secrets.AZURE_VM_KNOWN_HOSTS }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          port="${AZURE_VM_PORT:-22}"
+          [[ "${AZURE_VM_HOST:-}" =~ ^[A-Za-z0-9.-]+$ ]] || exit 1
+          [[ "$port" =~ ^[0-9]+$ ]] && [ "$port" -ge 1 ] && [ "$port" -le 65535 ] || exit 1
+          [ -n "${AZURE_VM_SSH_KEY:-}" ] && [ -n "${AZURE_VM_KNOWN_HOSTS:-}" ] || exit 1
+          ssh_dir="$RUNNER_TEMP/studflow-release-ssh"; install -d -m 700 "$ssh_dir"
+          printf '%s' "$AZURE_VM_SSH_KEY" > "$ssh_dir/id_ed25519"
+          printf '%s\n' "$AZURE_VM_KNOWN_HOSTS" > "$ssh_dir/known_hosts"
+          chmod 600 "$ssh_dir/id_ed25519" "$ssh_dir/known_hosts"
+          query="$AZURE_VM_HOST"; [ "$port" = 22 ] || query="[$AZURE_VM_HOST]:$port"
+          ssh-keygen -F "$query" -f "$ssh_dir/known_hosts" >/dev/null || { echo "::error::Pinned known-hosts entry is missing."; exit 1; }
+
+      - name: Verify current public health
+        if: ${{ inputs.operation == 'deploy' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --head --connect-timeout 10 --max-time 30 --retry 3 https://studflow.webcris.dev/ >/dev/null
+          health="$(curl --fail --silent --show-error --connect-timeout 10 --max-time 30 --retry 3 https://studflow.webcris.dev/api/health)"
+          printf '%s' "$health" | python3 -c 'import json,sys; data=json.load(sys.stdin); raise SystemExit(0 if data.get("status")=="ok" else 1)'
+
+      - name: Upload reviewed release tooling
+        id: remote
+        env:
+          AZURE_VM_HOST: ${{ secrets.AZURE_VM_HOST }}
+          AZURE_VM_PORT: ${{ secrets.AZURE_VM_PORT }}
+          AZURE_VM_USER: ${{ secrets.AZURE_VM_USER }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${AZURE_VM_USER:-}" =~ ^[A-Za-z_][A-Za-z0-9_-]*$ ]] || exit 1
+          port="${AZURE_VM_PORT:-22}"; target="${AZURE_VM_USER}@${AZURE_VM_HOST}"
+          common=(-o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/studflow-release-ssh/known_hosts" -o LogLevel=ERROR -i "$RUNNER_TEMP/studflow-release-ssh/id_ed25519")
+          remote_dir="$(ssh "${common[@]}" -p "$port" "$target" 'umask 077; mktemp -d /tmp/studflow-release.XXXXXX')"
+          [[ "$remote_dir" =~ ^/tmp/studflow-release\.[A-Za-z0-9]+$ ]] || exit 1
+          printf 'directory=%s\n' "$remote_dir" >> "$GITHUB_OUTPUT"
+          scp -q -P "$port" "${common[@]}" scripts/deploy-application.sh scripts/celery-release-control.py "$target:$remote_dir/"
+
+      - name: Deploy or roll back named application services
+        env:
+          OPERATION: ${{ inputs.operation }}
+          FRONTEND_DIGEST: ${{ needs.build.outputs.frontend_digest }}
+          BACKEND_DIGEST: ${{ needs.build.outputs.backend_digest }}
+          AZURE_VM_HOST: ${{ secrets.AZURE_VM_HOST }}
+          AZURE_VM_PORT: ${{ secrets.AZURE_VM_PORT }}
+          AZURE_VM_USER: ${{ secrets.AZURE_VM_USER }}
+          AZURE_VM_APP_PATH: ${{ secrets.AZURE_VM_APP_PATH }}
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          GHCR_PAT: ${{ secrets.GHCR_PAT }}
+          CURRENT_FRONTEND_SHA: ${{ inputs.current_frontend_sha }}
+          CURRENT_BACKEND_SHA: ${{ inputs.current_backend_sha }}
+          EXPECTED_CURRENT_FRONTEND: ${{ inputs.expected_current_frontend_digest }}
+          EXPECTED_CURRENT_BACKEND: ${{ inputs.expected_current_backend_digest }}
+          REMOTE_DIR: ${{ steps.remote.outputs.directory }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          app_path="${AZURE_VM_APP_PATH:-/home/${AZURE_VM_USER}/studflow}"
+          [[ "$app_path" =~ ^/[A-Za-z0-9._/-]+$ ]] && [[ "$GHCR_USERNAME" =~ ^[A-Za-z0-9][A-Za-z0-9_-]*$ ]] && [ -n "$GHCR_PAT" ] || exit 1
+          port="${AZURE_VM_PORT:-22}"; target="${AZURE_VM_USER}@${AZURE_VM_HOST}"
+          ssh_args=(-o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/studflow-release-ssh/known_hosts" -o ConnectTimeout=10 -o LogLevel=ERROR -i "$RUNNER_TEMP/studflow-release-ssh/id_ed25519" -p "$port")
+          if [ "$OPERATION" = deploy ]; then
+            frontend_ref="ghcr.io/kurisujon/studflow-frontend@$FRONTEND_DIGEST"
+            backend_ref="ghcr.io/kurisujon/studflow-backend@$BACKEND_DIGEST"
+            remote_args=(deploy "$frontend_ref" "$backend_ref" "$EXPECTED_CURRENT_FRONTEND" "$EXPECTED_CURRENT_BACKEND" "$CURRENT_FRONTEND_SHA" "$CURRENT_BACKEND_SHA")
+          else
+            remote_args=(rollback)
+          fi
+          remote_command="APP_DIR='$app_path' ENV_PATH='$app_path/.env.production' STATE_DIR='$app_path/.application-release' CELERY_CONTROL_PATH='$REMOTE_DIR/celery-release-control.py' GHCR_USERNAME='$GHCR_USERNAME' bash '$REMOTE_DIR/deploy-application.sh'"
+          printf '%s\n' "$GHCR_PAT" | ssh "${ssh_args[@]}" "$target" "$remote_command" "${remote_args[@]}"
+          smoke() {
+            curl --fail --silent --show-error --head --connect-timeout 10 --max-time 30 --retry 3 --retry-all-errors https://studflow.webcris.dev/ >/dev/null &&
+            health="$(curl --fail --silent --show-error --connect-timeout 10 --max-time 30 --retry 3 --retry-all-errors https://studflow.webcris.dev/api/health)" &&
+            printf '%s' "$health" | python3 -c 'import json,sys; data=json.load(sys.stdin); raise SystemExit(0 if data.get("status")=="ok" else 1)'
+          }
+          if ! smoke; then
+            [ "$OPERATION" = deploy ] || { echo "::error::Public health failed after rollback."; exit 1; }
+            echo "::warning::Public smoke failed; restoring the pre-release compatible application set."
+            printf '%s\n' "$GHCR_PAT" | ssh "${ssh_args[@]}" "$target" "$remote_command" rollback || { echo "::error::Automatic rollback failed after public smoke failure."; exit 1; }
+            smoke || { echo "::error::Rollback completed locally but public health is still failing."; exit 1; }
+            echo "::error::Release failed public smoke and was rolled back successfully."
+            exit 1
+          fi
+
+      - name: Remove ephemeral SSH and remote files
+        if: ${{ always() }}
+        env:
+          AZURE_VM_HOST: ${{ secrets.AZURE_VM_HOST }}
+          AZURE_VM_PORT: ${{ secrets.AZURE_VM_PORT }}
+          AZURE_VM_USER: ${{ secrets.AZURE_VM_USER }}
+          REMOTE_DIR: ${{ steps.remote.outputs.directory }}
+        shell: bash
+        run: |
+          set +e
+          port="${AZURE_VM_PORT:-22}"
+          if [[ "${REMOTE_DIR:-}" =~ ^/tmp/studflow-release\.[A-Za-z0-9]+$ ]] && [ -f "$RUNNER_TEMP/studflow-release-ssh/id_ed25519" ]; then
+            ssh -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/studflow-release-ssh/known_hosts" -o LogLevel=ERROR -i "$RUNNER_TEMP/studflow-release-ssh/id_ed25519" -p "$port" "${AZURE_VM_USER}@${AZURE_VM_HOST}" rm -rf -- "$REMOTE_DIR"
+          fi
+          rm -rf -- "$RUNNER_TEMP/studflow-release-ssh"

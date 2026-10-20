@@ -1147,3 +1147,22 @@ When a future agent completes a meaningful feature, they should update this file
 
 **What to do next:**
 - Publish `feature/ai-assistant-hybrid-tutoring` for human pull-request review after explicit push authorization; do not merge or deploy without separate approval.
+
+### Update: 2026-10-20 — Controlled V2.1.1 Application Release Tooling
+
+**What Changed:**
+- Replaced the retired frontend-only release workflow with a manual, protected application release for the named `backend`, `worker`, and `frontend` services.
+- Expanded the read-only production preflight to verify immutable rollback images, source SHA to digest binding, host and Compose contracts, PostgreSQL and Redis readiness, Celery task state, and available storage.
+- Added bounded worker drain, partial-operation recovery, post-release public smoke rollback, and preservation checks for Caddy, PostgreSQL, Redis, volumes, and environment configuration.
+- Added 34 mocked release tests covering deploy, rollback, worker, image provenance, credentials, workflow policy, and failure restoration behavior.
+
+**Contracts Changed:**
+- Release operations now use `.github/workflows/application-release.yml`, `scripts/deploy-application.sh`, and `scripts/celery-release-control.py`; the old frontend-only workflow and script are retired.
+- No application API, database schema, migration, runtime environment key, retrieval threshold, or frozen evaluation contract changed.
+
+**Docs Stale:**
+- No. `docs/cicd.md` and `docs/tasks.md` describe the controlled application release and remaining production approval gates.
+
+**What to do next:**
+- Review the local release-tooling commit, then authorize publication separately if accepted.
+- Before any production mutation, run the protected read-only preflight from `main`, review its source/digest and worker evidence, and obtain a separate deployment authorization.
