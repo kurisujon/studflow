@@ -181,6 +181,17 @@ class ReleaseWorkflowPolicyTests(unittest.TestCase):
         ):
             self.assertIn(required, text)
 
+    def test_preflight_separates_session_output_from_structured_evidence(self) -> None:
+        _, text = load_workflow("production-preflight.yml")
+        self.assertNotIn('evidence="$(ssh', text)
+        self.assertIn('remote_evidence="$REMOTE_DIR/inspection.evidence"', text)
+        self.assertIn('<<\'REMOTE\' >/dev/null', text)
+        self.assertIn('"$target:$remote_evidence" "$local_evidence"', text)
+        self.assertIn(
+            'python3 scripts/validate_preflight_evidence.py "$local_evidence" "$GITHUB_OUTPUT"',
+            text,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
