@@ -8,6 +8,7 @@ import unittest
 from collections import deque
 from pathlib import Path
 from typing import Sequence
+from unittest.mock import patch
 
 
 MODULE_PATH = Path(__file__).parents[1] / "celery-release-control.py"
@@ -50,6 +51,14 @@ def snapshot(
 
 
 class CeleryReleaseControlTests(unittest.TestCase):
+    def test_default_runner_and_compose_exec_do_not_inherit_stdin(self) -> None:
+        with patch.object(control.subprocess, "run") as run:
+            run.return_value = subprocess.CompletedProcess(["example"], 0, "", "")
+            control._default_runner(["example"])
+        self.assertIs(run.call_args.kwargs["stdin"], subprocess.DEVNULL)
+        command = control._celery_command("inspect", "ping", "--json")
+        self.assertIn("--interactive=false", command)
+
     def test_inspect_reports_counts_without_task_payloads(self) -> None:
         runner = FakeRunner(snapshot(task_name="tasks.process_document_task"))
         result = control.inspect_worker(runner)

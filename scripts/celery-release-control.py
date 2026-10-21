@@ -56,6 +56,7 @@ def _default_runner(command: Sequence[str]) -> subprocess.CompletedProcess[str]:
         check=False,
         capture_output=True,
         text=True,
+        stdin=subprocess.DEVNULL,
         timeout=30,
     )
 
@@ -71,6 +72,7 @@ def _celery_command(*arguments: str) -> list[str]:
     command.extend([
         "exec",
         "-T",
+        "--interactive=false",
         "worker",
         "celery",
         "-A",

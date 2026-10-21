@@ -116,7 +116,7 @@ jobs:
           [ -f "$app_dir/docker-compose.yml" ] && [ -f "$env_path" ] || { echo "Production Compose inputs are missing." >&2; exit 1; }
           command -v docker >/dev/null && command -v python3 >/dev/null || { echo "Required runtime tooling is missing." >&2; exit 1; }
           cd "$app_dir"
-          compose() { docker compose --env-file "$env_path" "$@"; }
+          compose() { docker compose --env-file "$env_path" "$@" < /dev/null; }
           env_mode="$(stat -c '%a' "$env_path")"
           case "$env_mode" in *[!0-7]*|'') echo "Production environment permissions are invalid." >&2; exit 1;; esac
           [ $((10#$env_mode % 100)) -eq 0 ] || { echo "Production environment file must not be group/world accessible." >&2; exit 1; }
@@ -156,10 +156,10 @@ jobs:
           for key in $required_keys; do
             awk -F= -v key="$key" '$1==key && length(substr($0,index($0,"=")+1))>0 {found=1} END {exit !found}' "$env_path" || { echo "Required production environment key is missing." >&2; exit 1; }
           done
-          compose exec -T postgres sh -c 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"' >/dev/null
-          compose exec -T backend python -c 'from sqlalchemy import text; from core.database import engine; connection=engine.connect(); connection.execute(text("SELECT 1")).scalar_one(); role=connection.execute(text("SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname=current_user")).one_or_none(); connection.close(); assert role is not None and not bool(role[0]) and not bool(role[1])' >/dev/null
-          [ "$(compose exec -T redis redis-cli ping | tr -d '\r')" = PONG ] || { echo "Redis PING failed." >&2; exit 1; }
-          celery_json="$(STUDFLOW_COMPOSE_ENV_FILE="$env_path" python3 "$celery_control" inspect)"
+          compose exec -T --interactive=false postgres sh -c 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"' >/dev/null < /dev/null
+          compose exec -T --interactive=false backend python -c 'from sqlalchemy import text; from core.database import engine; connection=engine.connect(); connection.execute(text("SELECT 1")).scalar_one(); role=connection.execute(text("SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname=current_user")).one_or_none(); connection.close(); assert role is not None and not bool(role[0]) and not bool(role[1])' >/dev/null < /dev/null
+          [ "$(compose exec -T --interactive=false redis redis-cli ping < /dev/null | tr -d '\r')" = PONG ] || { echo "Redis PING failed." >&2; exit 1; }
+          celery_json="$(STUDFLOW_COMPOSE_ENV_FILE="$env_path" python3 "$celery_control" inspect < /dev/null)"
           celery_evidence="$(python3 -c 'import json,sys; d=json.loads(sys.argv[1]); assert d["worker_nodes"]==1; print("celery_active="+str(d["active"])); print("celery_reserved="+str(d["reserved"])); print("celery_scheduled="+str(d["scheduled"])); print("repair_task_blockers="+str(d["repair_task_blockers"]))' "$celery_json")"
           available_kb="$(df -Pk "$app_dir" | awk 'NR==2 {print $4}')"; case "$available_kb" in *[!0-9]*|'') exit 1;; esac
           [ "$available_kb" -ge 2097152 ] || { echo "Less than 2 GiB is available for release images." >&2; exit 1; }
@@ -176,6 +176,7 @@ jobs:
           mv -f -- "$evidence_temp" "$evidence_path"
           trap - EXIT
           REMOTE
+          ssh "${ssh_args[@]}" "$target" test -f "$remote_evidence" </dev/null || { echo "::error::Production evidence file was not created."; exit 1; }
           scp -q -P "$port" -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/studflow-preflight-ssh/known_hosts" -o ConnectTimeout=10 -i "$RUNNER_TEMP/studflow-preflight-ssh/id_ed25519" "$target:$remote_evidence" "$local_evidence" || { echo "::error::Production evidence transfer failed closed."; exit 1; }
           chmod 600 "$local_evidence"
           python3 scripts/validate_preflight_evidence.py "$local_evidence" "$GITHUB_OUTPUT" || { echo "::error::Production evidence validation failed closed."; exit 1; }
