@@ -33,7 +33,7 @@ jobs:
         run: |
           set -euo pipefail
           bash -n scripts/deploy-application.sh
-          python -m py_compile scripts/celery-release-control.py scripts/tests/test_*.py
+          python -m py_compile scripts/celery-release-control.py scripts/validate_preflight_evidence.py scripts/tests/test_*.py
           python -m unittest discover -s scripts/tests -p 'test_*.py' -v
 
       - name: Run optional workflow linters
