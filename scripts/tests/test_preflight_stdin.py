@@ -70,7 +70,7 @@ class PreflightStdinTests(unittest.TestCase):
             'compose() { docker compose --env-file "$env_path" "$@" < /dev/null; }',
             workflow,
         )
-        self.assertEqual(workflow.count("compose exec -T --interactive=false"), 3)
+        self.assertEqual(workflow.count("compose exec -T --interactive=false"), 4)
         self.assertIn(
             'test -f "$remote_evidence" </dev/null || { echo "::error::Production evidence file was not created."',
             workflow,

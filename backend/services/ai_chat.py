@@ -9,10 +9,9 @@ from datetime import datetime, timezone
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
-from core.database import commit_and_reassert_rls
+from core.database import commit_and_reassert_rls, tenant_session
 
 from core.config import settings
-from core.database import engine
 from models.tables import (
     AIConversation,
     AIMessage,
@@ -88,16 +87,8 @@ class RetrievedChatChunk:
     index_generation: int
 
 
-from sqlalchemy import text
-
 def _open_session(clerk_user_id: str) -> Session:
-    assert clerk_user_id, "clerk_user_id required to open a tenant-scoped session"
-    session = Session(engine)
-    session.execute(
-        text("SELECT set_config('app.current_user_id', :uid, true)"),
-        {"uid": clerk_user_id}
-    )
-    return session
+    return tenant_session(clerk_user_id)
 
 
 def _conversation_response(conversation: AIConversation) -> ConversationResponse:

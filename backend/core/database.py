@@ -1,6 +1,9 @@
 from typing import Generator
+
+from sqlalchemy import event, text
+from sqlalchemy.engine import Connection
+from sqlalchemy.orm import SessionTransaction
 from sqlmodel import Session, create_engine
-from sqlalchemy import text
 from fastapi import Depends
 
 from core.config import settings
@@ -15,14 +18,48 @@ engine = create_engine(
     connect_args={"prepare_threshold": None},
 )
 
-def get_session(current_user: CurrentUser = Depends(get_current_user)) -> Generator[Session, None, None]:
-    """FastAPI dependency that yields a DB session per request, with RLS context set."""
-    session = Session(engine)
-    try:
-        session.execute(
+_TENANT_INFO_KEY = "studflow.clerk_user_id"
+
+class TenantSession(Session):
+    """Session whose immutable tenant identity is restored for every transaction."""
+
+    def __init__(self, *args: object, clerk_user_id: str, **kwargs: object) -> None:
+        tenant_id = clerk_user_id.strip()
+        if not tenant_id or len(tenant_id) > 255 or any(
+            character in tenant_id for character in ("\x00", "\r", "\n")
+        ):
+            raise ValueError("A valid tenant identity is required.")
+        super().__init__(*args, **kwargs)
+        self.info[_TENANT_INFO_KEY] = tenant_id
+
+    @property
+    def clerk_user_id(self) -> str:
+        return str(self.info[_TENANT_INFO_KEY])
+
+
+@event.listens_for(TenantSession, "after_begin")
+def _set_tenant_context(
+    session: TenantSession,
+    transaction: SessionTransaction,
+    connection: Connection,
+) -> None:
+    """Apply transaction-local RLS context after begin, commit, and rollback."""
+    del transaction
+    if connection.dialect.name == "postgresql":
+        connection.execute(
             text("SELECT set_config('app.current_user_id', :uid, true)"),
-            {"uid": current_user.clerk_user_id}
+            {"uid": session.clerk_user_id},
         )
+
+
+def tenant_session(clerk_user_id: str) -> TenantSession:
+    return TenantSession(engine, clerk_user_id=clerk_user_id)
+
+
+def get_session(current_user: CurrentUser = Depends(get_current_user)) -> Generator[Session, None, None]:
+    """Yield a request session that restores RLS context on each transaction."""
+    session = tenant_session(current_user.clerk_user_id)
+    try:
         yield session
         session.commit()
     except Exception:
@@ -57,8 +94,13 @@ def commit_and_reassert_rls(session: Session, clerk_user_id: str) -> None:
     Use this helper instead of session.commit() inside request-scoped logic to 
     prevent subsequent DB queries from silently failing due to lost identity.
     """
+    if isinstance(session, TenantSession) and session.clerk_user_id != clerk_user_id:
+        raise ValueError("Session tenant identity cannot be changed.")
     session.commit()
-    session.execute(
-        text("SELECT set_config('app.current_user_id', :uid, true)"),
-        {"uid": clerk_user_id}
-    )
+    # Legacy plain sessions still need an explicit context for their next
+    # transaction. TenantSession reapplies it in the after_begin hook.
+    if not isinstance(session, TenantSession):
+        session.execute(
+            text("SELECT set_config('app.current_user_id', :uid, true)"),
+            {"uid": clerk_user_id},
+        )

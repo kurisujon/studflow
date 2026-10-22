@@ -33,7 +33,7 @@ jobs:
         run: |
           set -euo pipefail
           bash -n scripts/deploy-application.sh
-          python -m py_compile scripts/celery-release-control.py scripts/validate_preflight_evidence.py scripts/tests/test_*.py
+          python -m py_compile scripts/celery-release-control.py scripts/check_runtime_database.py scripts/validate_preflight_evidence.py scripts/tests/test_*.py
           python -m unittest discover -s scripts/tests -p 'test_*.py' -v
 
       - name: Run optional workflow linters
@@ -133,9 +133,7 @@ jobs:
           PGPASSWORD=testpass psql -h localhost -U postgres -d studflow_test -c \
             "CREATE ROLE app_role LOGIN NOSUPERUSER NOBYPASSRLS PASSWORD 'app_pw';"
           PGPASSWORD=testpass psql -h localhost -U postgres -d studflow_test -c \
-            "GRANT ALL ON SCHEMA public TO app_role;"
-          PGPASSWORD=testpass psql -h localhost -U postgres -d studflow_test -c \
-            "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO app_role;"
+            "GRANT USAGE ON SCHEMA public TO app_role;"
       - name: Run Alembic migrations
         env:
           DATABASE_URL: postgresql+psycopg://postgres:testpass@localhost:5432/studflow_test
@@ -145,6 +143,12 @@ jobs:
             printf '%s\n' "$OUTPUT"
             exit 1
           fi
+
+      - name: Grant least-privilege runtime access
+        run: |
+          RUNTIME_TABLES="documents,user_preferences,ai_conversations,summaries,flashcards,document_chunks,quizzes,quiz_attempts,related_videos,study_annotations,ai_history,ai_messages,quiz_questions,ai_message_citations"
+          PGPASSWORD=testpass psql -h localhost -U postgres -d studflow_test -v ON_ERROR_STOP=1 -c \
+            "GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE $RUNTIME_TABLES TO app_role;"
 
       - name: Verify RLS is enabled and forced
         env:
@@ -182,7 +186,7 @@ jobs:
       - name: Run pytest suite (RLS + prompt injection)
         env:
           DATABASE_URL: postgresql+psycopg://app_role:app_pw@localhost:5432/studflow_test
-        run: PYTHONPATH=. pytest eval/ -v
+        run: PYTHONPATH=. pytest --import-mode=importlib eval/ -v
 
       - name: Verify Phase C evaluation baseline integrity (C6/C7)
         run: python eval/run_c6.py --baseline eval/results/c3_baseline_v2 --integrity-only

@@ -433,9 +433,9 @@ class ReindexRouteTests(unittest.TestCase):
                 return_value=(1, 2, lease_token),
             ) as claim,
             patch(
-                "api.routes.documents.reindex_document_task.delay",
+                "api.routes.documents.reindex_document_task.apply_async",
                 return_value=SimpleNamespace(id=task_id),
-            ) as delay,
+            ) as enqueue,
         ):
             response = reindex_document(self.document.id, self.user, session=self.session)
 
@@ -444,7 +444,12 @@ class ReindexRouteTests(unittest.TestCase):
             document_id=self.document.id,
             lease_seconds=900,
         )
-        delay.assert_called_once_with(str(self.document.id), 2, str(lease_token))
+        enqueue.assert_called_once()
+        self.assertEqual(
+            enqueue.call_args.kwargs["args"],
+            (str(self.document.id), 2, str(lease_token)),
+        )
+        self.assertEqual(enqueue.call_args.kwargs["headers"]["studflow-tenant-id"], "owner")
         self.assertEqual(response.task_id, str(task_id))
         self.assertEqual(response.pending_index_generation, 2)
 
@@ -459,7 +464,7 @@ class ReindexRouteTests(unittest.TestCase):
                 return_value=(1, 2, lease_token),
             ),
             patch(
-                "api.routes.documents.reindex_document_task.delay",
+                "api.routes.documents.reindex_document_task.apply_async",
                 side_effect=RuntimeError("redis unavailable"),
             ),
             patch("api.routes.documents.release_document_reindex_claim") as release,
@@ -505,7 +510,7 @@ class ReindexRouteTests(unittest.TestCase):
                 return_value=self.document,
             ),
             patch("api.routes.documents.settings.document_reindex_enabled", True),
-            patch("api.routes.documents.reindex_document_task.delay") as delay,
+            patch("api.routes.documents.reindex_document_task.apply_async") as enqueue,
         ):
             with self.assertRaises(HTTPException) as raised:
                 reindex_document(self.document.id, self.user, session=self.session)
@@ -513,7 +518,7 @@ class ReindexRouteTests(unittest.TestCase):
         self.assertEqual(raised.exception.status_code, 409)
         self.assertEqual(raised.exception.detail, "The active PDF index is already page-aware.")
         self.assertIsNone(locked_document.pending_index_generation)
-        delay.assert_not_called()
+        enqueue.assert_not_called()
 
     def test_activation_swaps_generation_only_after_complete_counts(self) -> None:
         lease_token = uuid.uuid4()
@@ -732,6 +737,8 @@ class ReindexCheckpointTests(unittest.TestCase):
                 side_effect=RuntimeError("retry scheduled"),
             ) as retry,
             patch("tasks.document_processing.release_document_reindex_claim") as release,
+            patch("tasks.document_processing.verify_task_headers", return_value="owner"),
+            patch("tasks.document_processing.retry_headers", return_value={}),
         ):
             with self.assertRaisesRegex(RuntimeError, "retry scheduled"):
                 reindex_document_task.run(str(document_id), 2, str(lease_token))
@@ -749,8 +756,9 @@ class ReindexCheckpointTests(unittest.TestCase):
                 side_effect=RuntimeError("terminal failure"),
             ),
             patch.object(reindex_document_task, "max_retries", 0),
-            patch("tasks.document_processing.Session", return_value=manager),
+            patch("tasks.document_processing.tenant_session", return_value=manager),
             patch("tasks.document_processing.release_document_reindex_claim") as release,
+            patch("tasks.document_processing.verify_task_headers", return_value="owner"),
         ):
             with self.assertRaisesRegex(RuntimeError, "terminal failure"):
                 reindex_document_task.run(str(document_id), 2, str(lease_token))
@@ -862,7 +870,7 @@ class ReindexCheckpointTests(unittest.TestCase):
             raise RuntimeError("worker interrupted")
 
         with (
-            patch("tasks.document_processing.Session", return_value=manager),
+            patch("tasks.document_processing.tenant_session", return_value=manager),
             patch("tasks.document_processing._get_document", return_value=document),
             patch("tasks.document_processing.renew_document_reindex_lease", return_value=0),
             patch("tasks.document_processing.download_file_from_storage", return_value=b"pdf"),
@@ -872,7 +880,7 @@ class ReindexCheckpointTests(unittest.TestCase):
             patch("tasks.document_processing.activate_document_index_generation") as activate,
         ):
             with self.assertRaisesRegex(RuntimeError, "interrupted"):
-                _reindex_completed_pdf(str(document.id), 2, lease_token)
+                _reindex_completed_pdf(str(document.id), 2, lease_token, "owner")
 
         checkpoint.assert_called_once()
         self.assertEqual(checkpoint.call_args.kwargs["page_number"], 1)
@@ -880,7 +888,7 @@ class ReindexCheckpointTests(unittest.TestCase):
         self.assertEqual(document.active_index_generation, 1)
 
         with (
-            patch("tasks.document_processing.Session", return_value=manager),
+            patch("tasks.document_processing.tenant_session", return_value=manager),
             patch("tasks.document_processing._get_document", return_value=document),
             patch("tasks.document_processing.renew_document_reindex_lease", return_value=1),
             patch("tasks.document_processing.download_file_from_storage", return_value=b"pdf"),
@@ -894,7 +902,7 @@ class ReindexCheckpointTests(unittest.TestCase):
             patch("tasks.document_processing.get_document_chunks", return_value=[MagicMock()]),
             patch("tasks.document_processing.activate_document_index_generation") as activate,
         ):
-            _reindex_completed_pdf(str(document.id), 2, lease_token)
+            _reindex_completed_pdf(str(document.id), 2, lease_token, "owner")
 
         self.assertEqual(pages.call_args.kwargs["start_page"], 2)
         self.assertEqual(

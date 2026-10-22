@@ -54,8 +54,10 @@ The preflight fails closed unless it verifies:
 - production host architecture and at least 2 GiB of available filesystem space;
 - presence, without values, of required production environment keys;
 - PostgreSQL readiness and Redis `PONG`;
+- independent backend and worker database connections using non-superuser, `NOBYPASSRLS` roles;
+- schema usage, CRUD privileges on the 14 runtime tables, and required runtime sequence privileges;
 - exactly one responding Celery worker; and
-- sanitized active, reserved, scheduled, and early-acknowledged repair-task counts.
+- sanitized active, reserved, scheduled, broker-queued, and early-acknowledged repair-task counts.
 
 The preflight writes only an ephemeral helper under `/tmp`, removes it on completion, and does not pull images, alter containers, inspect task arguments, query database contents, or print environment values.
 
@@ -66,11 +68,44 @@ The preflight writes only an ephemeral helper under `/tmp`, removes it on comple
 Before worker replacement it:
 
 1. tells the worker to stop consuming new messages from the default queue;
-2. inspects active, reserved, and scheduled tasks without printing task payloads;
-3. requires all three counts to be zero for three consecutive samples; and
+2. inspects active, reserved, scheduled, and default-broker-queue counts without printing task payloads;
+3. requires all four counts to be zero for three consecutive samples; and
 4. treats `tasks.repair_document_index_task` as an explicit blocker because it is early acknowledged.
 
-Queued messages remain in Redis. No task is purged, revoked, terminated, or discarded. Once the safe drain is proved, the script stops the idle worker and starts the replacement worker from the same digest as the API.
+No task is purged, revoked, terminated, or discarded. A nonzero broker queue blocks replacement and consumption is restored. Once the safe drain is proved, the script stops the idle worker and starts the replacement worker from the same digest as the API.
+
+## Supabase runtime RLS connection
+
+Both `backend` and `worker` must use the Supabase pooler connection for the same dedicated `app_user` role. Configure `DATABASE_URL` with TLS and PgBouncer-compatible settings through the protected production environment; never commit or print the password. Use the pooler hostname, region, port, and custom-role username shown by the project's Supabase dashboard; a non-secret shape is `postgresql+psycopg://app_user.<project-ref>:<url-encoded-password>@<pooler-host>:6543/postgres?sslmode=require`. The role must have `LOGIN NOSUPERUSER NOBYPASSRLS`, no role memberships, `USAGE` on `public`, and CRUD only on the 14 application runtime tables. The checked schema is UUID-only and needs no sequences, so preflight rejects a runtime-table sequence dependency until its minimum privilege receives separate review.
+
+Apply grants only through a separately approved privileged connection. The intended grant shape is:
+
+```sql
+REVOKE CREATE ON SCHEMA public FROM app_user;
+REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM app_user;
+REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM app_user;
+GRANT CONNECT ON DATABASE postgres TO app_user;
+GRANT USAGE ON SCHEMA public TO app_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE
+  documents, user_preferences, ai_conversations, summaries, flashcards,
+  document_chunks, quizzes, quiz_attempts, related_videos, study_annotations,
+  ai_history, ai_messages, quiz_questions, ai_message_citations
+TO app_user;
+```
+
+Replace the database name if production does not use `postgres`. Do not grant runtime access to `users` or `alembic_version`.
+
+Alembic uses a separate, short-lived privileged `MIGRATION_DATABASE_URL` supplied only to an explicitly approved migration operation. The application and worker must never receive it. `users` is legacy and `alembic_version` is migration-owned; runtime deny-all behavior on RLS-enabled copies is acceptable because current Clerk flows do not query either table.
+
+Before changing runtime credentials:
+
+1. prove there are no null/blank `documents.clerk_user_id` values using the privileged read-only operator connection;
+2. prove active, reserved, scheduled, and broker-queued Celery counts are all zero and pause consumption;
+3. record the current immutable frontend/backend/worker images and current protected environment version;
+4. verify `app_user` with read-only role, membership, grant, policy, and sequence queries; and
+5. retain the prior protected `DATABASE_URL` value for immediate credential rollback without logging it.
+
+Update backend and worker to the tenant-aware image before or atomically with switching both services to `app_user`; never run a mixed API/worker credential state. Resume consumption only after both services attest `NOBYPASSRLS`, health checks pass, and an owner/cross-tenant acceptance probe succeeds. On failure, pause consumption, restore the previous compatible backend/worker image pair and protected environment version, recreate only those named services, verify health, then resume. Do not disable RLS, grant `BYPASSRLS`, purge Redis, or run migrations as a workaround.
 
 If the bound expires or the worker identity changes, the helper attempts to restore queue consumption and aborts before replacement. If consumption cannot be restored, it fails with an operator-visible error and no force stop. An operator must restore the single known worker, verify `inspect ping`, and rerun the read-only preflight before another release attempt.
 

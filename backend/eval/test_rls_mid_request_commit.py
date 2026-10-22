@@ -1,50 +1,30 @@
-import pytest
-from sqlalchemy import text
-from sqlmodel import Session, select
-import uuid
-import json
+from __future__ import annotations
 
-from core.database import engine, commit_and_reassert_rls
+import json
+import uuid
+
+from sqlmodel import select
+
+from core.database import tenant_session
 from models.tables import Document, DocumentStatus, QuizAttempt
 
-@pytest.fixture
-def db_session():
-    with Session(engine) as session:
-        yield session
 
-def test_rls_persists_after_intermediate_commit(db_session):
-    user_a_id = f"user_a_{uuid.uuid4()}"
-    user_b_id = f"user_b_{uuid.uuid4()}"
-    
-    doc_a_id = uuid.uuid4()
-    doc_b_id = uuid.uuid4()
-    
-    # 1. Setup users and docs properly by context-switching to owner for insert
-    db_session.execute(text("SELECT set_config('app.current_user_id', :uid, true)"), {"uid": user_a_id})
-    db_session.add(Document(id=doc_a_id, clerk_user_id=user_a_id, filename="A.pdf", file_url="uploads/A.pdf", status=DocumentStatus.COMPLETED))
-    db_session.flush()
-
-    db_session.execute(text("SELECT set_config('app.current_user_id', :uid, true)"), {"uid": user_b_id})
-    db_session.add(Document(id=doc_b_id, clerk_user_id=user_b_id, filename="B.pdf", file_url="uploads/B.pdf", status=DocumentStatus.COMPLETED))
-    db_session.commit()
-    
-    # 2. Enter User A's context
-    db_session.execute(text("SELECT set_config('app.current_user_id', :uid, true)"), {"uid": user_a_id})
-    
-    # 3. Perform a write and intermediate commit USING THE FIX
-    attempt_a = QuizAttempt(
-        document_id=doc_a_id,
-        score=100,
-        total_questions=5,
-        incorrect_question_ids=json.dumps([])
-    )
-    db_session.add(attempt_a)
-    commit_and_reassert_rls(db_session, user_a_id)
-    
-    # 4. Perform a read for User B's document WITHOUT any app-layer filter
-    result_b = db_session.exec(select(Document).where(Document.id == doc_b_id)).first()
-    assert result_b is None, "RLS context was lost! Cross-tenant read succeeded."
-    
-    # 5. Sanity check: Read User A's own document
-    result_a = db_session.exec(select(Document).where(Document.id == doc_a_id)).first()
-    assert result_a is not None, "RLS denied own tenant access. Policy or context is broken."
+def test_tenant_context_survives_commit_rollback_and_new_transactions() -> None:
+    owner = f"user_a_{uuid.uuid4()}"
+    other = f"user_b_{uuid.uuid4()}"
+    owner_document_id, other_document_id = uuid.uuid4(), uuid.uuid4()
+    with tenant_session(owner) as session:
+        session.add(Document(id=owner_document_id, clerk_user_id=owner, filename="owner.pdf", file_url="uploads/owner.pdf", status=DocumentStatus.COMPLETED))
+        session.commit()
+        session.add(QuizAttempt(document_id=owner_document_id, score=5, total_questions=5, incorrect_question_ids=json.dumps([])))
+        session.commit()
+        assert session.get(Document, owner_document_id) is not None
+        session.rollback()
+        assert session.get(Document, owner_document_id) is not None
+    with tenant_session(other) as session:
+        session.add(Document(id=other_document_id, clerk_user_id=other, filename="other.pdf", file_url="uploads/other.pdf", status=DocumentStatus.COMPLETED))
+        session.commit()
+    with tenant_session(owner) as session:
+        assert session.exec(select(Document).where(Document.id == other_document_id)).first() is None
+        session.commit()
+        assert session.exec(select(Document).where(Document.id == other_document_id)).first() is None

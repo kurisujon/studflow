@@ -158,7 +158,7 @@ class DocumentRetryEndpointTests(unittest.TestCase):
                 "api.routes.documents.claim_failed_document_for_retry",
                 return_value=True,
             ) as claim,
-            patch("api.routes.documents.process_document_task.delay") as delay,
+            patch("api.routes.documents.process_document_task.apply_async") as enqueue,
         ):
             response = retry_document_processing(self.document.id, self.current_user, session=self.session)
 
@@ -168,7 +168,9 @@ class DocumentRetryEndpointTests(unittest.TestCase):
             session=self.session,
             document_id=self.document.id,
         )
-        delay.assert_called_once_with(str(self.document.id))
+        enqueue.assert_called_once()
+        self.assertEqual(enqueue.call_args.kwargs["args"], (str(self.document.id),))
+        self.assertEqual(enqueue.call_args.kwargs["headers"]["studflow-tenant-id"], "user_owner")
 
     def test_missing_or_non_owner_document_returns_not_found(self) -> None:
         not_found = HTTPException(status_code=404, detail="Document not found.")
@@ -220,13 +222,13 @@ class DocumentRetryEndpointTests(unittest.TestCase):
                 "api.routes.documents.claim_failed_document_for_retry",
                 return_value=False,
             ),
-            patch("api.routes.documents.process_document_task.delay") as delay,
+            patch("api.routes.documents.process_document_task.apply_async") as enqueue,
         ):
             with self.assertRaises(HTTPException) as raised:
                 retry_document_processing(self.document.id, self.current_user, session=self.session)
 
         self.assertEqual(raised.exception.status_code, 409)
-        delay.assert_not_called()
+        enqueue.assert_not_called()
 
     def test_enqueue_failure_restores_failed_status(self) -> None:
         with (
@@ -240,7 +242,7 @@ class DocumentRetryEndpointTests(unittest.TestCase):
                 return_value=True,
             ),
             patch(
-                "api.routes.documents.process_document_task.delay",
+                "api.routes.documents.process_document_task.apply_async",
                 side_effect=RuntimeError("redis unavailable"),
             ),
             patch("api.routes.documents.update_document_status") as update_status,

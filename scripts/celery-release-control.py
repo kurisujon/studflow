@@ -16,6 +16,18 @@ from typing import Any
 
 DEFAULT_QUEUE = "celery"
 REPAIR_TASK = "tasks.repair_document_index_task"
+BROKER_QUEUE_DEPTH_SCRIPT = (
+    "local cursor='0'; local total=0; repeat "
+    "local result=redis.call('SCAN',cursor,'MATCH','celery*','COUNT',100); "
+    "cursor=result[1]; for _,key in ipairs(result[2]) do "
+    "if redis.call('TYPE',key).ok=='list' then total=total+redis.call('LLEN',key); end; "
+    "end; until cursor=='0'; "
+    "local unacked=0; if redis.call('TYPE','unacked').ok=='hash' then "
+    "unacked=redis.call('HLEN','unacked'); end; "
+    "local indexed=0; if redis.call('TYPE','unacked_index').ok=='zset' then "
+    "indexed=redis.call('ZCARD','unacked_index'); end; "
+    "return total+math.max(unacked,indexed)"
+)
 
 
 class ReleaseControlError(RuntimeError):
@@ -28,12 +40,13 @@ class WorkerSnapshot:
     active: int
     reserved: int
     scheduled: int
+    broker_queued: int
     repair_tasks: int
     default_queue_active: bool
 
     @property
     def idle(self) -> bool:
-        return self.active == self.reserved == self.scheduled == 0
+        return self.active == self.reserved == self.scheduled == self.broker_queued == 0
 
     def evidence(self) -> dict[str, int | str]:
         return {
@@ -41,6 +54,7 @@ class WorkerSnapshot:
             "active": self.active,
             "reserved": self.reserved,
             "scheduled": self.scheduled,
+            "broker_queued": self.broker_queued,
             "repair_task_blockers": self.repair_tasks,
             "default_queue": "active" if self.default_queue_active else "paused",
             "status": "idle" if self.idle else "busy",
@@ -79,6 +93,17 @@ def _celery_command(*arguments: str) -> list[str]:
         "core.celery_app.celery_app",
         *arguments,
     ])
+    return command
+
+
+def _redis_command(*arguments: str) -> list[str]:
+    command = ["docker", "compose"]
+    env_path = os.environ.get("STUDFLOW_COMPOSE_ENV_FILE")
+    if env_path:
+        command.extend(("--env-file", env_path))
+    command.extend(
+        ["exec", "-T", "--interactive=false", "redis", "redis-cli", "--raw", *arguments]
+    )
     return command
 
 
@@ -165,11 +190,18 @@ def inspect_worker(
             and task["request"].get("name") == REPAIR_TASK
         )
     )
+    queued_value = _run(
+        _redis_command("EVAL", BROKER_QUEUE_DEPTH_SCRIPT, "0"),
+        runner,
+    )
+    if not queued_value.isdigit():
+        raise ReleaseControlError("Redis returned an invalid default queue depth.")
     return WorkerSnapshot(
         node=ping_node,
         active=len(task_sets["active"]),
         reserved=len(task_sets["reserved"]),
         scheduled=len(task_sets["scheduled"]),
+        broker_queued=int(queued_value),
         repair_tasks=repair_count,
         default_queue_active=default_queue_active,
     )
