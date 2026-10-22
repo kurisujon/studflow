@@ -234,7 +234,7 @@ class Phase4RagTests(unittest.TestCase):
         context.__exit__.return_value = False
 
         with (
-            patch("tasks.document_processing.Session", return_value=context),
+            patch("tasks.document_processing.tenant_session", return_value=context),
             patch("tasks.document_processing._get_document", return_value=document),
             patch(
                 "tasks.document_processing.claim_unembedded_document_chunks",
@@ -251,7 +251,7 @@ class Phase4RagTests(unittest.TestCase):
             ),
             patch("tasks.document_processing.update_document_status") as update_status,
         ):
-            result = _repair_completed_document_index(str(document.id))
+            result = _repair_completed_document_index(str(document.id), "user_owner")
 
         generate.assert_called_once_with(["missing embedding"])
         save.assert_called_once_with(
@@ -276,7 +276,7 @@ class Phase4RagTests(unittest.TestCase):
         context.__exit__.return_value = False
 
         with (
-            patch("tasks.document_processing.Session", return_value=context),
+            patch("tasks.document_processing.tenant_session", return_value=context),
             patch("tasks.document_processing._get_document", return_value=document),
             patch("tasks.document_processing.claim_unembedded_document_chunks", return_value=[]),
             patch("tasks.document_processing.generate_embeddings_batch") as generate,
@@ -286,7 +286,7 @@ class Phase4RagTests(unittest.TestCase):
                 return_value=DocumentIndexReadiness(2, 2),
             ),
         ):
-            result = _repair_completed_document_index(str(document.id))
+            result = _repair_completed_document_index(str(document.id), "user_owner")
 
         generate.assert_not_called()
         save.assert_not_called()
@@ -311,7 +311,7 @@ class Phase4RagTests(unittest.TestCase):
         context.__exit__.return_value = False
 
         with (
-            patch("tasks.document_processing.Session", return_value=context),
+            patch("tasks.document_processing.tenant_session", return_value=context),
             patch("tasks.document_processing._get_document", return_value=document),
             patch(
                 "tasks.document_processing.claim_unembedded_document_chunks",
@@ -325,7 +325,7 @@ class Phase4RagTests(unittest.TestCase):
             patch("tasks.document_processing.update_document_status") as update_status,
         ):
             with self.assertRaises(RuntimeError):
-                _repair_completed_document_index(str(document.id))
+                _repair_completed_document_index(str(document.id), "user_owner")
 
         save.assert_not_called()
         update_status.assert_not_called()

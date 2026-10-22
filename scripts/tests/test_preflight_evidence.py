@@ -24,13 +24,17 @@ def valid_lines() -> list[str]:
         "host_architecture=linux/amd64",
         "compose_project=ok",
         "postgres_ready=ok",
-        "database_role=ok",
+        "backend_database_role=ok",
+        "worker_database_role=ok",
+        "runtime_grants=ok",
+        "runtime_sequences=ok",
         "redis_ping=ok",
         "environment_prerequisites=ok",
         "available_kb=4194304",
         "celery_active=0",
         "celery_reserved=0",
         "celery_scheduled=0",
+        "celery_queued=0",
         "repair_task_blockers=0",
         f"frontend_digest={FRONTEND_DIGEST}",
         f"backend_digest={BACKEND_DIGEST}",
@@ -88,13 +92,15 @@ class PreflightEvidenceTests(unittest.TestCase):
 
     def test_malformed_value_is_rejected(self) -> None:
         lines = valid_lines()
-        lines[7] = "celery_active=-1"
+        index = next(i for i, line in enumerate(lines) if line.startswith("celery_active="))
+        lines[index] = "celery_active=-1"
         with self.assertRaisesRegex(validator.EvidenceError, "malformed-value"):
             validator.validate_lines(lines)
 
     def test_oversized_integer_is_rejected_without_traceback(self) -> None:
         lines = valid_lines()
-        lines[6] = "available_kb=" + "9" * 5000
+        index = next(i for i, line in enumerate(lines) if line.startswith("available_kb="))
+        lines[index] = "available_kb=" + "9" * 5000
         with tempfile.TemporaryDirectory() as directory:
             evidence = Path(directory) / "evidence"
             output = Path(directory) / "github-output"
@@ -106,12 +112,13 @@ class PreflightEvidenceTests(unittest.TestCase):
                 check=False,
             )
         self.assertEqual(result.returncode, 1)
-        self.assertIn("line 7: malformed-value", result.stderr)
+        self.assertIn(f"line {index + 1}: malformed-value", result.stderr)
         self.assertNotIn("Traceback", result.stderr)
 
     def test_inconsistent_backend_worker_digest_is_rejected(self) -> None:
         lines = valid_lines()
-        lines[13] = (
+        index = next(i for i, line in enumerate(lines) if line.startswith("worker_digest="))
+        lines[index] = (
             "worker_digest=ghcr.io/kurisujon/studflow-backend@sha256:" + "3" * 64
         )
         with self.assertRaisesRegex(

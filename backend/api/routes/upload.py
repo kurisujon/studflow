@@ -19,6 +19,7 @@ from services.storage import (
     upload_file_to_storage,
 )
 from tasks.document_processing import process_document_task
+from core.task_provenance import build_task_headers
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -124,7 +125,15 @@ async def upload_document(
             ) from exc
 
         try:
-            process_document_task.delay(str(document.id))
+            task_arguments = (str(document.id),)
+            process_document_task.apply_async(
+                args=task_arguments,
+                headers=build_task_headers(
+                    "process_document",
+                    current_user.clerk_user_id,
+                    task_arguments,
+                ),
+            )
         except Exception as exc:
             logger.exception(
                 "Upload queue failure for document '%s' and user '%s'.",

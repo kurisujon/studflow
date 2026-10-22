@@ -1676,7 +1676,6 @@ class AIChatRealSessionRegressionTests(unittest.TestCase):
 
         try:
             with (
-                patch("services.ai_chat.engine", test_engine),
                 patch("services.ai_chat._open_session", side_effect=_sqlite_open_session),
                 patch("services.ai_chat.commit_and_reassert_rls", side_effect=_sqlite_commit_and_reassert_rls),
                 patch(
@@ -1748,7 +1747,7 @@ class AIChatIndexRepairRouteTests(unittest.TestCase):
                     self.current_user,
                 )
 
-        dispatch.assert_called_once_with(self.document_id)
+        dispatch.assert_called_once_with(self.document_id, "user_owner")
         self.assertEqual(raised.exception.status_code, 409)
         self.assertEqual(
             raised.exception.detail,

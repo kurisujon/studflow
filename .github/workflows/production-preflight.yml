@@ -86,7 +86,7 @@ jobs:
           remote_dir="$(ssh "${ssh_args[@]}" "$target" 'umask 077; mktemp -d /tmp/studflow-preflight.XXXXXX')"
           [[ "$remote_dir" =~ ^/tmp/studflow-preflight\.[A-Za-z0-9]+$ ]] || { echo "::error::Unexpected remote temporary path."; exit 1; }
           printf 'directory=%s\n' "$remote_dir" >> "$GITHUB_OUTPUT"
-          scp -q -P "$port" -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/studflow-preflight-ssh/known_hosts" -i "$RUNNER_TEMP/studflow-preflight-ssh/id_ed25519" scripts/celery-release-control.py "$target:$remote_dir/celery-release-control.py"
+          scp -q -P "$port" -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/studflow-preflight-ssh/known_hosts" -i "$RUNNER_TEMP/studflow-preflight-ssh/id_ed25519" scripts/celery-release-control.py scripts/check_runtime_database.py "$target:$remote_dir/"
 
       - name: Inspect production application without mutation
         id: inspection
@@ -108,10 +108,11 @@ jobs:
           remote_evidence="$REMOTE_DIR/inspection.evidence"
           local_evidence="$RUNNER_TEMP/studflow-production-evidence"
           rm -f -- "$local_evidence"
-          ssh "${ssh_args[@]}" "$target" bash -s -- "$app_path" "$REMOTE_DIR/celery-release-control.py" "$remote_evidence" <<'REMOTE' >/dev/null
+          ssh "${ssh_args[@]}" "$target" bash -s -- "$app_path" "$REMOTE_DIR/celery-release-control.py" "$remote_evidence" "$REMOTE_DIR/check_runtime_database.py" <<'REMOTE' >/dev/null
           set -euo pipefail
-          app_dir="$1"; celery_control="$2"; evidence_path="$3"; env_path="$app_dir/.env.production"
+          app_dir="$1"; celery_control="$2"; evidence_path="$3"; database_check_path="$4"; env_path="$app_dir/.env.production"
           case "$evidence_path" in /tmp/studflow-preflight.*\/inspection.evidence) ;; *) echo "Remote evidence path is invalid." >&2; exit 1;; esac
+          case "$database_check_path" in /tmp/studflow-preflight.*\/check_runtime_database.py) ;; *) echo "Remote database check path is invalid." >&2; exit 1;; esac
           umask 077
           [ -f "$app_dir/docker-compose.yml" ] && [ -f "$env_path" ] || { echo "Production Compose inputs are missing." >&2; exit 1; }
           command -v docker >/dev/null && command -v python3 >/dev/null || { echo "Required runtime tooling is missing." >&2; exit 1; }
@@ -157,17 +158,19 @@ jobs:
             awk -F= -v key="$key" '$1==key && length(substr($0,index($0,"=")+1))>0 {found=1} END {exit !found}' "$env_path" || { echo "Required production environment key is missing." >&2; exit 1; }
           done
           compose exec -T --interactive=false postgres sh -c 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"' >/dev/null < /dev/null
-          compose exec -T --interactive=false backend python -c 'from sqlalchemy import text; from core.database import engine; connection=engine.connect(); connection.execute(text("SELECT 1")).scalar_one(); role=connection.execute(text("SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname=current_user")).one_or_none(); connection.close(); assert role is not None and not bool(role[0]) and not bool(role[1])' >/dev/null < /dev/null
+          database_check="$(cat "$database_check_path")"
+          compose exec -T --interactive=false backend python -c "$database_check" >/dev/null < /dev/null
+          compose exec -T --interactive=false worker python -c "$database_check" >/dev/null < /dev/null
           [ "$(compose exec -T --interactive=false redis redis-cli ping < /dev/null | tr -d '\r')" = PONG ] || { echo "Redis PING failed." >&2; exit 1; }
           celery_json="$(STUDFLOW_COMPOSE_ENV_FILE="$env_path" python3 "$celery_control" inspect < /dev/null)"
-          celery_evidence="$(python3 -c 'import json,sys; d=json.loads(sys.argv[1]); assert d["worker_nodes"]==1; print("celery_active="+str(d["active"])); print("celery_reserved="+str(d["reserved"])); print("celery_scheduled="+str(d["scheduled"])); print("repair_task_blockers="+str(d["repair_task_blockers"]))' "$celery_json")"
+          celery_evidence="$(python3 -c 'import json,sys; d=json.loads(sys.argv[1]); keys=("active","reserved","scheduled","broker_queued","repair_task_blockers"); (d.get("worker_nodes")==1 and all(d.get(key)==0 for key in keys)) or sys.exit("Unsafe Celery task state."); print("celery_active="+str(d["active"])); print("celery_reserved="+str(d["reserved"])); print("celery_scheduled="+str(d["scheduled"])); print("celery_queued="+str(d["broker_queued"])); print("repair_task_blockers="+str(d["repair_task_blockers"]))' "$celery_json")"
           available_kb="$(df -Pk "$app_dir" | awk 'NR==2 {print $4}')"; case "$available_kb" in *[!0-9]*|'') exit 1;; esac
           [ "$available_kb" -ge 2097152 ] || { echo "Less than 2 GiB is available for release images." >&2; exit 1; }
           evidence_temp="$(mktemp "$evidence_path.XXXXXX")"
           trap 'rm -f -- "$evidence_temp"' EXIT
           {
             printf 'host_architecture=%s\n' "$host_platform"
-            printf 'compose_project=ok\npostgres_ready=ok\ndatabase_role=ok\nredis_ping=ok\nenvironment_prerequisites=ok\n'
+            printf 'compose_project=ok\npostgres_ready=ok\nbackend_database_role=ok\nworker_database_role=ok\nruntime_grants=ok\nruntime_sequences=ok\nredis_ping=ok\nenvironment_prerequisites=ok\n'
             printf 'available_kb=%s\n' "$available_kb"
             printf '%s\n' "$celery_evidence"
             printf 'frontend_digest=%s\nbackend_digest=%s\nworker_digest=%s\nlocal_rollback_images=ok\n' "$frontend_digest" "$backend_digest" "$worker_digest"
@@ -213,6 +216,7 @@ jobs:
           ACTIVE: ${{ steps.inspection.outputs.celery_active }}
           RESERVED: ${{ steps.inspection.outputs.celery_reserved }}
           SCHEDULED: ${{ steps.inspection.outputs.celery_scheduled }}
+          QUEUED: ${{ steps.inspection.outputs.celery_queued }}
           REPAIR: ${{ steps.inspection.outputs.repair_task_blockers }}
           FRONTEND_DIGEST: ${{ steps.inspection.outputs.frontend_digest }}
           BACKEND_DIGEST: ${{ steps.inspection.outputs.backend_digest }}
@@ -226,7 +230,8 @@ jobs:
             echo "- Pinned SSH and protected environment: PASS"
             echo "- Compose, environment prerequisites, PostgreSQL, Redis: PASS"
             echo "- Host architecture: \`$HOST_ARCH\`; available KiB: \`$AVAILABLE_KB\`"
-            echo "- Celery tasks — active: \`$ACTIVE\`, reserved: \`$RESERVED\`, scheduled: \`$SCHEDULED\`, repair blockers: \`$REPAIR\`"
+            echo "- Backend and worker database roles, runtime grants, and sequences: PASS"
+            echo "- Celery tasks — active: \`$ACTIVE\`, reserved: \`$RESERVED\`, scheduled: \`$SCHEDULED\`, broker queued: \`$QUEUED\`, repair blockers: \`$REPAIR\`"
             echo "- Local rollback images and read-only registry manifests: PASS"
             echo "- Running image digests resolve from the reviewed source SHA tags: PASS"
             echo "- Frontend source: \`$CURRENT_FRONTEND_SHA\`; backend source: \`$CURRENT_BACKEND_SHA\`"

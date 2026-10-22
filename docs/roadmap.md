@@ -1166,3 +1166,19 @@ When a future agent completes a meaningful feature, they should update this file
 **What to do next:**
 - Review the local release-tooling commit, then authorize publication separately if accepted.
 - Before any production mutation, run the protected read-only preflight from `main`, review its source/digest and worker evidence, and obtain a separate deployment authorization.
+
+### Update: 2026-10-22 — Non-BYPASSRLS Runtime Hardening
+
+**What Changed:**
+- Added immutable tenant-bound database sessions that restore transaction-local RLS context after every begin, commit, and rollback.
+- Added versioned HMAC provenance to document-processing, repair, and reindex tasks; missing legacy and forged messages fail before database access while retries retain validated provenance.
+- Extended production preflight and worker drain evidence with independent backend/worker role checks, runtime table and sequence privileges, and Redis broker queue depth.
+- Added unit and PostgreSQL integration coverage for owner access, cross-tenant reads and writes, transaction resets, background task ownership, forged provenance, and legacy task rejection.
+- Documented the Supabase pooler runtime role, separate migration connection, cutover gates, and compatible rollback.
+
+**Contracts Changed:**
+- Celery task names and positional arguments remain unchanged, but runtime document tasks now require authenticated provenance headers. Existing queued legacy messages are deliberately rejected and the rollout therefore requires an empty queue.
+- No public API, database schema, migration, Compose service, dependency, retrieval threshold, or frozen evaluation artifact changed.
+
+**What to do next:**
+- Complete independent security review and CI. Before production cutover, verify zero null document owners, zero task backlog, protected credential rollback, and the read-only production preflight.

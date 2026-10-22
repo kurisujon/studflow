@@ -231,7 +231,10 @@ def send_ai_conversation_message(
                 detail="The document has no extracted text to prepare for search.",
             ) from exc
         try:
-            dispatch_document_index_repair(exc.document_id)
+            dispatch_document_index_repair(
+                exc.document_id,
+                current_user.clerk_user_id,
+            )
         except Exception as queue_error:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

@@ -9,7 +9,12 @@ from sqlmodel import Session, select
 
 from core.celery_app import celery_app
 from core.config import settings
-from core.database import engine
+from core.database import tenant_session
+from core.task_provenance import (
+    build_task_headers,
+    retry_headers,
+    verify_task_headers,
+)
 from models.tables import Document, DocumentChunk, DocumentStatus, Flashcard, Quiz, Summary
 from services.domain_validation import validate_summary, validate_flashcards, validate_quiz
 from services.ai_service import (
@@ -295,9 +300,9 @@ def _save_optional_related_videos(
         logger.warning("Skipping YouTube related videos for document %s: %s", document.id, exc)
 
 
-def _run_pipeline(document_id: str) -> dict[str, int | str]:
+def _run_pipeline(document_id: str, clerk_user_id: str) -> dict[str, int | str]:
     """Advance the durable document workflow from its last completed checkpoint."""
-    with Session(engine) as session:
+    with tenant_session(clerk_user_id) as session:
         document = _get_document(session, document_id)
         if document.status == DocumentStatus.COMPLETED:
             chunks = get_document_chunks(session=session, document_id=document.id)
@@ -349,8 +354,13 @@ def _run_pipeline(document_id: str) -> dict[str, int | str]:
     reject_on_worker_lost=True,
 )
 def process_document_task(self: Task, document_id: str) -> dict[str, int | str]:
+    clerk_user_id = verify_task_headers(
+        self.request.headers,
+        "process_document",
+        (document_id,),
+    )
     try:
-        return _run_pipeline(document_id)
+        return _run_pipeline(document_id, clerk_user_id)
     except Exception as exc:
         logger.exception(
             "Document processing attempt %s failed for document %s.",
@@ -359,24 +369,34 @@ def process_document_task(self: Task, document_id: str) -> dict[str, int | str]:
         )
 
         if self.request.retries < self.max_retries:
-            raise self.retry(exc=exc, countdown=min(60, 2 ** self.request.retries)) from exc
+            raise self.retry(
+                exc=exc,
+                countdown=min(60, 2 ** self.request.retries),
+                headers=retry_headers(self.request.headers),
+            ) from exc
 
-        with Session(engine) as session:
-            document = _get_document(session, document_id)
-            update_document_status(
-                session=session,
-                document=document,
-                status=DocumentStatus.FAILED,
-            )
+        try:
+            with tenant_session(clerk_user_id) as session:
+                document = _get_document(session, document_id)
+                update_document_status(
+                    session=session,
+                    document=document,
+                    status=DocumentStatus.FAILED,
+                )
+        except Exception:
+            logger.exception("Document failure-state cleanup did not complete.")
         raise
 
 
-def _repair_completed_document_index(document_id: str) -> dict[str, int | str]:
+def _repair_completed_document_index(
+    document_id: str,
+    clerk_user_id: str,
+) -> dict[str, int | str]:
     """Embed only missing chunks without changing completed study artifacts or status."""
     parsed_document_id = uuid.UUID(document_id)
     embedded_during_repair = 0
 
-    with Session(engine) as session:
+    with tenant_session(clerk_user_id) as session:
         document = _get_document(session, document_id)
         if document.status != DocumentStatus.COMPLETED:
             raise ValueError("Only completed documents are eligible for index repair.")
@@ -413,8 +433,13 @@ def _repair_completed_document_index(document_id: str) -> dict[str, int | str]:
     max_retries=settings.document_processing_max_retries,
 )
 def repair_document_index_task(self: Task, document_id: str) -> dict[str, int | str]:
+    clerk_user_id = verify_task_headers(
+        self.request.headers,
+        "repair_document_index",
+        (document_id,),
+    )
     try:
-        return _repair_completed_document_index(document_id)
+        return _repair_completed_document_index(document_id, clerk_user_id)
     except Exception as exc:
         logger.exception(
             "Document index repair attempt %s failed for document %s.",
@@ -422,13 +447,20 @@ def repair_document_index_task(self: Task, document_id: str) -> dict[str, int | 
             document_id,
         )
         if self.request.retries < self.max_retries:
-            raise self.retry(exc=exc, countdown=min(60, 2 ** self.request.retries)) from exc
+            raise self.retry(
+                exc=exc,
+                countdown=min(60, 2 ** self.request.retries),
+                headers=retry_headers(self.request.headers),
+            ) from exc
         raise
 
 
-def dispatch_document_index_repair(document_id: uuid.UUID) -> bool:
+def dispatch_document_index_repair(
+    document_id: uuid.UUID,
+    clerk_user_id: str,
+) -> bool:
     """Queue repair only for a completed document with repairable stored chunks."""
-    with Session(engine) as session:
+    with tenant_session(clerk_user_id) as session:
         document = _get_document(session, str(document_id))
         readiness = get_document_index_readiness(
             session=session,
@@ -438,7 +470,15 @@ def dispatch_document_index_repair(document_id: uuid.UUID) -> bool:
         if document.status != DocumentStatus.COMPLETED or not readiness.is_repairable:
             return False
 
-    repair_document_index_task.delay(str(document_id))
+    arguments = (str(document_id),)
+    repair_document_index_task.apply_async(
+        args=arguments,
+        headers=build_task_headers(
+            "repair_document_index",
+            clerk_user_id,
+            arguments,
+        ),
+    )
     return True
 
 
@@ -446,9 +486,10 @@ def _reindex_completed_pdf(
     document_id: str,
     index_generation: int,
     lease_token: uuid.UUID,
+    clerk_user_id: str,
 ) -> dict[str, int | str]:
     """Build a staged page-aware generation and activate it only when complete."""
-    with Session(engine) as session:
+    with tenant_session(clerk_user_id) as session:
         document = _get_document(session, document_id)
         if document.status != DocumentStatus.COMPLETED:
             raise ValueError("Only completed documents are eligible for reindexing.")
@@ -536,12 +577,19 @@ def reindex_document_task(
     index_generation: int,
     lease_token: str,
 ) -> dict[str, int | str]:
+    task_arguments = (document_id, index_generation, lease_token)
+    clerk_user_id = verify_task_headers(
+        self.request.headers,
+        "reindex_document",
+        task_arguments,
+    )
     parsed_lease_token = uuid.UUID(lease_token)
     try:
         return _reindex_completed_pdf(
             document_id,
             index_generation,
             parsed_lease_token,
+            clerk_user_id,
         )
     except Exception as exc:
         logger.exception(
@@ -554,13 +602,17 @@ def reindex_document_task(
             raise self.retry(
                 exc=exc,
                 countdown=min(60, 2 ** self.request.retries),
+                headers=retry_headers(self.request.headers),
             ) from exc
-        with Session(engine) as session:
-            release_document_reindex_claim(
-                session=session,
-                document_id=uuid.UUID(document_id),
-                index_generation=index_generation,
-                lease_token=parsed_lease_token,
-                clean_staged=True,
-            )
+        try:
+            with tenant_session(clerk_user_id) as session:
+                release_document_reindex_claim(
+                    session=session,
+                    document_id=uuid.UUID(document_id),
+                    index_generation=index_generation,
+                    lease_token=parsed_lease_token,
+                    clean_staged=True,
+                )
+        except Exception:
+            logger.exception("Document reindex cleanup did not complete.")
         raise

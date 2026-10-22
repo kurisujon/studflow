@@ -209,6 +209,16 @@ Goal: Enforce strict semantic validation of AI citations against retrieved docum
 - [ ] Run the protected read-only production preflight and approve a release only after its evidence is reviewed
 - [ ] Execute authenticated production smoke tests and the separately authorized live Gemini acceptance check after release
 
+## V2.1.1 Non-BYPASSRLS Runtime Hardening
+
+- [x] Restore immutable tenant RLS context at every request and worker transaction boundary
+- [x] Authenticate Celery tenant provenance while preserving task names and positional arguments
+- [x] Reject forged and legacy document jobs before database access and preserve provenance on retries
+- [x] Verify backend and worker roles, runtime grants, sequences, and broker backlog during preflight
+- [x] Add positive and negative PostgreSQL isolation coverage for transactions and background jobs
+- [x] Document Supabase pooler, separate migration credentials, controlled cutover, and rollback
+- [ ] Run protected production data/queue/role preflight before changing runtime credentials
+
 ## Recent Frontend Enhancement
 
 ### Homepage and Dashboard Enhancement

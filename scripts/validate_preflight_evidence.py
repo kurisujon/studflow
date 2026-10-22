@@ -13,13 +13,17 @@ EXPECTED_FIELDS = (
     "host_architecture",
     "compose_project",
     "postgres_ready",
-    "database_role",
+    "backend_database_role",
+    "worker_database_role",
+    "runtime_grants",
+    "runtime_sequences",
     "redis_ping",
     "environment_prerequisites",
     "available_kb",
     "celery_active",
     "celery_reserved",
     "celery_scheduled",
+    "celery_queued",
     "repair_task_blockers",
     "frontend_digest",
     "backend_digest",
@@ -31,14 +35,23 @@ OK_FIELDS = frozenset(
     {
         "compose_project",
         "postgres_ready",
-        "database_role",
+        "backend_database_role",
+        "worker_database_role",
+        "runtime_grants",
+        "runtime_sequences",
         "redis_ping",
         "environment_prerequisites",
         "local_rollback_images",
     }
 )
 COUNTER_FIELDS = frozenset(
-    {"celery_active", "celery_reserved", "celery_scheduled", "repair_task_blockers"}
+    {
+        "celery_active",
+        "celery_reserved",
+        "celery_scheduled",
+        "celery_queued",
+        "repair_task_blockers",
+    }
 )
 FRONTEND_DIGEST = re.compile(
     r"ghcr\.io/kurisujon/studflow-frontend@sha256:[0-9a-f]{64}"
