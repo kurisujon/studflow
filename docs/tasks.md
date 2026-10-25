@@ -322,3 +322,16 @@ Goal: Begin systematic chunking experiments and threshold tuning evaluating cand
 - [x] Replace legacy gradients and inline layout CSS in `frontend/app/(app)/dashboard/settings/page.tsx` with the `DashboardFeatureShell` component
 - [x] Add a `"settings"` tone to `DashboardFeatureShell` and flatten its main header to use `shadow-sm` and `rounded-xl`
 - [x] Strip inline styles from `frontend/components/settings-form.tsx` and migrate to Tailwind CSS with clean borders, backgrounds, and hover states
+
+## V2.1.1 RLS Runtime Transition Tooling
+
+- [x] Preserve the strict post-cutover production preflight contract
+- [x] Add protected manual S0 legacy → S1 hardened/legacy DB → S2 hardened/app_user → S3 frontend transition tooling
+- [x] Require immutable current and target source-to-digest attestation
+- [x] Verify candidate pooler authentication and zero null/blank document owners before service mutation
+- [x] Reconcile `app_user` to exact runtime CRUD while denying `users`, `alembic_version`, and public sequences
+- [x] Stop API producers and prove stable visible/unacknowledged queue drain before each worker boundary
+- [x] Restore legacy credentials before any legacy image during automatic rollback
+- [x] Add symbolic success, audit failure, drain failure, role failure, and rollback-order tests
+- [ ] Run the protected transition in an approved production maintenance window
+- [ ] Rerun the unchanged strict production preflight after cutover

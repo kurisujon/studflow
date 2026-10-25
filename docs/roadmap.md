@@ -1182,3 +1182,19 @@ When a future agent completes a meaningful feature, they should update this file
 
 **What to do next:**
 - Complete independent security review and CI. Before production cutover, verify zero null document owners, zero task backlog, protected credential rollback, and the read-only production preflight.
+
+### Update: 2026-10-23 — Protected RLS Runtime Transition Tooling
+
+**What Changed:**
+- Added a protected, manual transition workflow that bridges the legacy `postgres/BYPASSRLS` deployment to the strict `app_user/NOBYPASSRLS` runtime without weakening the final preflight.
+- Added source/digest attestation, candidate pooler and operator checks, zero-null-owner gating, exact runtime grant reconciliation, two bounded producer/worker drain boundaries, and frontend-last rollout.
+- Added credential-aware automatic rollback that restores the legacy environment before any legacy image, never force-stops a busy worker, and invalidates the unsafe image-only rollback record after cutover.
+- Added local unit, workflow-policy, and symbolic transition simulations. No production workflow was dispatched and no production service, credential, schema, policy, or row was changed.
+
+**Contracts Changed:**
+- Production gains a one-time `.github/workflows/rls-runtime-transition.yml` operator path. The unchanged production preflight remains the strict post-cutover gate.
+- Protected production configuration must provide separate `SUPABASE_APP_DATABASE_URL` and `MIGRATION_DATABASE_URL` secrets before an authorized transition.
+
+**What to do next:**
+- Complete independent security review and CI for the transition tooling.
+- During an approved maintenance window, review the attested legacy and target digests, execute the protected transition, then rerun the unchanged strict preflight before normal releases resume.

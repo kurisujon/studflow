@@ -33,7 +33,8 @@ jobs:
         run: |
           set -euo pipefail
           bash -n scripts/deploy-application.sh
-          python -m py_compile scripts/celery-release-control.py scripts/check_runtime_database.py scripts/validate_preflight_evidence.py scripts/tests/test_*.py
+          bash -n scripts/transition-rls-runtime.sh
+          python -m py_compile scripts/celery-release-control.py scripts/check_runtime_database.py scripts/runtime_database_transition.py scripts/validate_preflight_evidence.py scripts/tests/test_*.py
           python -m unittest discover -s scripts/tests -p 'test_*.py' -v
 
       - name: Run optional workflow linters
@@ -46,7 +47,7 @@ jobs:
             echo "::notice::actionlint is unavailable; YAML policy tests remain enforced."
           fi
           if command -v shellcheck >/dev/null 2>&1; then
-            shellcheck scripts/deploy-application.sh
+            shellcheck scripts/deploy-application.sh scripts/transition-rls-runtime.sh
           else
             echo "::notice::shellcheck is unavailable."
           fi

@@ -111,6 +111,23 @@ If the bound expires or the worker identity changes, the helper attempts to rest
 
 During automatic rollback, a busy replacement worker is never forced down. The script keeps the compatible new backend/worker pair and restores the previous frontend where safe, then fails the release for operator intervention.
 
+## One-time legacy-to-RLS runtime transition
+
+The strict production preflight intentionally accepts only the final `NOBYPASSRLS` runtime. It is not a cutover tool and must not be weakened to admit the legacy `postgres/BYPASSRLS` state. Use the manual **RLS runtime protected transition** workflow once, from reviewed `main`, under the protected `production` environment.
+
+Before approval, independently verify the submitted current source SHAs and immutable digests, target SHA, host platform, rollback images, and both protected database secrets. The workflow fails before service mutation unless the candidate pooler credential authenticates, the privileged operator connection is separate and authorized, the document null/blank-owner aggregate is zero, and the app role reconciles to the exact runtime contract. Reconciliation revokes broad table and sequence privileges, denies `users` and `alembic_version`, and grants CRUD only on the 14 runtime tables. It does not modify policies, schemas, rows, or migrations.
+
+The controlled states are:
+
+1. **S0 — legacy image plus legacy credential.** Record mode-600 environment and immutable image evidence. Stop the backend producer, pause the default queue, and prove active, reserved, scheduled, visible broker, and unacknowledged counts remain zero.
+2. **S1 — hardened image plus legacy credential.** Warm-stop the drained legacy worker. Start the hardened worker, then the hardened backend, while retaining the legacy credential. Verify the shared backend digest, worker availability, and API health.
+3. **S2 — hardened image plus `app_user`.** Stop the hardened producer and repeat the stable drain. Warm-stop the worker, atomically replace only `DATABASE_URL`, start the same hardened worker and backend, and run the strict runtime checker independently inside each container.
+4. **S3 — complete hardened application set.** Replace the frontend last, verify internal and public health, recheck protected service identities and mounts, and invalidate the old image-only rollback record.
+
+Any failure after mutation invokes compatible rollback. When the legacy worker is still running and its initial drain aborted safely, the workflow verifies consumer restoration and restarts only the legacy backend. Otherwise it drains the current worker without a forced stop, restores the legacy environment **before** selecting or starting a legacy image, then restores worker, backend, and frontend in that order. Mode-600 legacy and pre-app-user environment snapshots remain in the protected transition state directory for an explicitly reviewed credential rollback; they are not copied into GitHub logs or artifacts. If a safe drain cannot be established, rollback stops and requires operator intervention; it never discards tasks or force-stops a busy worker. Normal application releases resume only after the unchanged strict preflight passes and a new app-user-compatible rollback set is recorded.
+
+This one-time workflow additionally requires `SUPABASE_APP_DATABASE_URL`, the TLS-enabled pooler URL for `app_user`, and `MIGRATION_DATABASE_URL`, the separately privileged operator URL. Both are streamed through pinned SSH over standard input, stored only in mode-600 temporary files, never placed in command arguments or summaries, and removed by cleanup. Do not dispatch the transition without an approved maintenance window and an available operator.
+
 ## Deploy procedure
 
 Human approval checkpoints are explicit:

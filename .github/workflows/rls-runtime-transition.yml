@@ -1,0 +1,232 @@
+name: RLS runtime protected transition
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_sha:
+        description: "Reviewed hardened release SHA reachable from main"
+        required: true
+        type: string
+      current_frontend_sha:
+        description: "Attested source SHA for the running frontend"
+        required: true
+        type: string
+      current_backend_sha:
+        description: "Attested source SHA for the running legacy backend/worker"
+        required: true
+        type: string
+      expected_current_frontend_digest:
+        description: "Attested current frontend digest reference"
+        required: true
+        type: string
+      expected_current_backend_digest:
+        description: "Attested current backend/worker digest reference"
+        required: true
+        type: string
+      platform:
+        description: "Production platform"
+        required: true
+        type: choice
+        options: [linux/amd64, linux/arm64]
+      confirmation:
+        description: "Type TRANSITION RLS RUNTIME"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-application-operations
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate transition source and authorization
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    outputs:
+      release_sha: ${{ steps.validate.outputs.release_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: validate
+        env:
+          RELEASE_SHA: ${{ inputs.release_sha }}
+          CURRENT_FRONTEND_SHA: ${{ inputs.current_frontend_sha }}
+          CURRENT_BACKEND_SHA: ${{ inputs.current_backend_sha }}
+          CURRENT_FRONTEND: ${{ inputs.expected_current_frontend_digest }}
+          CURRENT_BACKEND: ${{ inputs.expected_current_backend_digest }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [ "$GITHUB_REF" = refs/heads/main ] || { echo "::error::Transition is main-only."; exit 1; }
+          [ "$CONFIRMATION" = "TRANSITION RLS RUNTIME" ] || { echo "::error::Confirmation is invalid."; exit 1; }
+          for sha in "$RELEASE_SHA" "$CURRENT_FRONTEND_SHA" "$CURRENT_BACKEND_SHA"; do
+            [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::All source identities must be lowercase full SHAs."; exit 1; }
+          done
+          [[ "$CURRENT_FRONTEND" =~ ^ghcr\.io/kurisujon/studflow-frontend@sha256:[0-9a-f]{64}$ ]] || exit 1
+          [[ "$CURRENT_BACKEND" =~ ^ghcr\.io/kurisujon/studflow-backend@sha256:[0-9a-f]{64}$ ]] || exit 1
+          git fetch --no-tags origin main
+          for sha in "$RELEASE_SHA" "$CURRENT_FRONTEND_SHA" "$CURRENT_BACKEND_SHA"; do git cat-file -e "${sha}^{commit}"; done
+          git merge-base --is-ancestor "$RELEASE_SHA" origin/main || { echo "::error::Release is not reachable from main."; exit 1; }
+          git merge-base --is-ancestor "$CURRENT_FRONTEND_SHA" "$RELEASE_SHA" || exit 1
+          git merge-base --is-ancestor "$CURRENT_BACKEND_SHA" "$RELEASE_SHA" || exit 1
+          incompatible="$(git diff --name-only "$CURRENT_BACKEND_SHA..$RELEASE_SHA" -- backend/alembic backend/models/tables.py backend/requirements.txt backend/Dockerfile docker-compose.yml frontend/Dockerfile frontend/package-lock.json)"
+          [ -z "$incompatible" ] || { echo "::error::Transition rejects schema, dependency, image-contract, Compose, and frontend dependency changes."; exit 1; }
+          printf 'release_sha=%s\n' "$RELEASE_SHA" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build immutable hardened images
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment:
+      name: production
+      url: https://studflow.webcris.dev
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      frontend_digest: ${{ steps.frontend.outputs.digest }}
+      backend_digest: ${{ steps.backend.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate.outputs.release_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify exact source
+        env:
+          RELEASE_SHA: ${{ needs.validate.outputs.release_sha }}
+        run: '[ "$(git rev-parse HEAD)" = "$RELEASE_SHA" ]'
+      - name: Extract whitelisted frontend build configuration
+        env:
+          PRODUCTION_ENV_FILE: ${{ secrets.PRODUCTION_ENV_FILE }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          required={"NEXT_PUBLIC_API_BASE_URL","INTERNAL_API_BASE_URL","NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"}
+          optional={"NEXT_PUBLIC_CLERK_SIGN_IN_URL":"/sign-in","NEXT_PUBLIC_CLERK_SIGN_UP_URL":"/sign-up","NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL":"/dashboard","NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL":"/dashboard"}
+          values={}
+          for raw in os.environ["PRODUCTION_ENV_FILE"].splitlines():
+              if "=" in raw and not raw.lstrip().startswith("#"):
+                  key,value=raw.split("=",1)
+                  if key in required|optional.keys(): values[key]=value
+          if any(not values.get(key) for key in required): raise SystemExit("Frontend build configuration is incomplete.")
+          for key,default in optional.items(): values.setdefault(key,default)
+          with open(os.environ["GITHUB_ENV"],"a",encoding="utf-8") as output:
+              for key,value in sorted(values.items()):
+                  if "\n" in value or "\r" in value: raise SystemExit("Invalid build value.")
+                  print(f"::add-mask::{value}"); output.write(f"{key}={value}\n")
+          PY
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: frontend
+          file: frontend/Dockerfile
+          platforms: ${{ inputs.platform }}
+          push: true
+          tags: ghcr.io/kurisujon/studflow-frontend:${{ needs.validate.outputs.release_sha }}
+          labels: org.opencontainers.image.revision=${{ needs.validate.outputs.release_sha }}
+          build-args: |
+            NEXT_PUBLIC_API_BASE_URL=${{ env.NEXT_PUBLIC_API_BASE_URL }}
+            INTERNAL_API_BASE_URL=${{ env.INTERNAL_API_BASE_URL }}
+            NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+            NEXT_PUBLIC_CLERK_SIGN_IN_URL=${{ env.NEXT_PUBLIC_CLERK_SIGN_IN_URL }}
+            NEXT_PUBLIC_CLERK_SIGN_UP_URL=${{ env.NEXT_PUBLIC_CLERK_SIGN_UP_URL }}
+            NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=${{ env.NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL }}
+            NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=${{ env.NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL }}
+      - id: backend
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          file: backend/Dockerfile
+          platforms: ${{ inputs.platform }}
+          push: true
+          tags: ghcr.io/kurisujon/studflow-backend:${{ needs.validate.outputs.release_sha }}
+          labels: org.opencontainers.image.revision=${{ needs.validate.outputs.release_sha }}
+
+  transition:
+    name: Apply S0 to S3 protected transition
+    needs: [validate, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    environment:
+      name: production
+      url: https://studflow.webcris.dev
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate immutable build outputs
+        env:
+          FRONTEND_DIGEST: ${{ needs.build.outputs.frontend_digest }}
+          BACKEND_DIGEST: ${{ needs.build.outputs.backend_digest }}
+        run: |
+          [[ "$FRONTEND_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$BACKEND_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+      - name: Configure pinned SSH
+        env:
+          HOST: ${{ secrets.AZURE_VM_HOST }}
+          PORT: ${{ secrets.AZURE_VM_PORT }}
+          KEY: ${{ secrets.AZURE_VM_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.AZURE_VM_KNOWN_HOSTS }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          port="${PORT:-22}"; [[ "$HOST" =~ ^[A-Za-z0-9.-]+$ ]] && [[ "$port" =~ ^[0-9]+$ ]] || exit 1
+          dir="$RUNNER_TEMP/rls-transition-ssh"; install -d -m 700 "$dir"
+          printf '%s' "$KEY" > "$dir/key"; printf '%s\n' "$KNOWN_HOSTS" > "$dir/known_hosts"; chmod 600 "$dir/key" "$dir/known_hosts"
+          query="$HOST"; [ "$port" = 22 ] || query="[$HOST]:$port"
+          ssh-keygen -F "$query" -f "$dir/known_hosts" >/dev/null
+      - name: Upload and execute reviewed transition
+        env:
+          HOST: ${{ secrets.AZURE_VM_HOST }}
+          PORT: ${{ secrets.AZURE_VM_PORT }}
+          USER: ${{ secrets.AZURE_VM_USER }}
+          APP_PATH: ${{ secrets.AZURE_VM_APP_PATH }}
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          GHCR_TOKEN: ${{ secrets.GHCR_PAT }}
+          APP_DATABASE_URL: ${{ secrets.SUPABASE_APP_DATABASE_URL }}
+          MIGRATION_DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
+          FRONTEND_DIGEST: ${{ needs.build.outputs.frontend_digest }}
+          BACKEND_DIGEST: ${{ needs.build.outputs.backend_digest }}
+          RELEASE_SHA: ${{ needs.validate.outputs.release_sha }}
+          CURRENT_FRONTEND_SHA: ${{ inputs.current_frontend_sha }}
+          CURRENT_BACKEND_SHA: ${{ inputs.current_backend_sha }}
+          CURRENT_FRONTEND: ${{ inputs.expected_current_frontend_digest }}
+          CURRENT_BACKEND: ${{ inputs.expected_current_backend_digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$USER" =~ ^[A-Za-z_][A-Za-z0-9_-]*$ ]] && [[ "$APP_PATH" =~ ^/[A-Za-z0-9._/-]+$ ]] || exit 1
+          [ -n "$GHCR_TOKEN" ] && [ -n "$APP_DATABASE_URL" ] && [ -n "$MIGRATION_DATABASE_URL" ] || exit 1
+          port="${PORT:-22}"; target="$USER@$HOST"
+          common=(-o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/rls-transition-ssh/known_hosts" -o LogLevel=ERROR -i "$RUNNER_TEMP/rls-transition-ssh/key")
+          remote_dir="$(ssh "${common[@]}" -p "$port" "$target" 'umask 077; mktemp -d /tmp/studflow-rls-transition.XXXXXX')"
+          [[ "$remote_dir" =~ ^/tmp/studflow-rls-transition\.[A-Za-z0-9]+$ ]] || exit 1
+          trap 'ssh "${common[@]}" -p "$port" "$target" rm -rf -- "$remote_dir" >/dev/null 2>&1 || true; rm -rf -- "$RUNNER_TEMP/rls-transition-ssh"' EXIT
+          scp -q -P "$port" "${common[@]}" scripts/transition-rls-runtime.sh scripts/runtime_database_transition.py scripts/celery-release-control.py scripts/check_runtime_database.py "$target:$remote_dir/"
+          remote="APP_DIR='$APP_PATH' ENV_PATH='$APP_PATH/.env.production' STATE_DIR='$APP_PATH/.rls-runtime-transition' CELERY_CONTROL_PATH='$remote_dir/celery-release-control.py' DATABASE_HELPER_PATH='$remote_dir/runtime_database_transition.py' DATABASE_CHECK_PATH='$remote_dir/check_runtime_database.py' GHCR_USERNAME='$GHCR_USERNAME' bash '$remote_dir/transition-rls-runtime.sh'"
+          TARGET_FRONTEND="ghcr.io/kurisujon/studflow-frontend@$FRONTEND_DIGEST"
+          TARGET_BACKEND="ghcr.io/kurisujon/studflow-backend@$BACKEND_DIGEST"
+          APP_DATABASE_URL="$APP_DATABASE_URL" MIGRATION_DATABASE_URL="$MIGRATION_DATABASE_URL" GHCR_TOKEN="$GHCR_TOKEN" python3 -c 'import json,os,sys; json.dump({"app_database_url":os.environ["APP_DATABASE_URL"],"migration_database_url":os.environ["MIGRATION_DATABASE_URL"],"ghcr_token":os.environ["GHCR_TOKEN"]},sys.stdout)' |
+            ssh "${common[@]}" -p "$port" "$target" "$remote" "$TARGET_FRONTEND" "$TARGET_BACKEND" "$CURRENT_FRONTEND" "$CURRENT_BACKEND" "$CURRENT_FRONTEND_SHA" "$CURRENT_BACKEND_SHA" "$RELEASE_SHA"
+      - name: Public smoke after transition
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --head --connect-timeout 10 --max-time 30 --retry 3 https://studflow.webcris.dev/ >/dev/null
+          curl --fail --silent --show-error --connect-timeout 10 --max-time 30 --retry 3 https://studflow.webcris.dev/api/health |
+            python3 -c 'import json,sys; raise SystemExit(0 if json.load(sys.stdin).get("status")=="ok" else 1)'
