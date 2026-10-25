@@ -32,7 +32,7 @@ def load_workflow(name: str) -> tuple[dict, str]:
 
 class ReleaseWorkflowPolicyTests(unittest.TestCase):
     def test_release_and_preflight_are_manual_main_only(self) -> None:
-        for name in ("application-release.yml", "production-preflight.yml"):
+        for name in ("application-release.yml", "production-preflight.yml", "rls-runtime-transition.yml"):
             workflow, text = load_workflow(name)
             self.assertEqual(set(workflow["on"]), {"workflow_dispatch"})
             self.assertIn("refs/heads/main", text)
@@ -52,6 +52,17 @@ class ReleaseWorkflowPolicyTests(unittest.TestCase):
         for name, job in workflow["jobs"].items():
             if name != "build":
                 self.assertNotEqual(job.get("permissions", {}).get("packages"), "write")
+
+    def test_rls_transition_is_a_distinct_one_time_cutover(self) -> None:
+        workflow, text = load_workflow("rls-runtime-transition.yml")
+        inputs = workflow["on"]["workflow_dispatch"]["inputs"]
+        self.assertTrue(inputs["release_sha"]["required"])
+        self.assertIn("TRANSITION RLS RUNTIME", text)
+        self.assertIn("SUPABASE_APP_DATABASE_URL", text)
+        self.assertIn("MIGRATION_DATABASE_URL", text)
+        self.assertNotIn("scripts/deploy.sh", text)
+        self.assertNotIn("alembic upgrade", text)
+        self.assertIn("check_runtime_database.py", text)
 
     def test_release_binds_compatibility_to_preflight_attested_images(self) -> None:
         workflow, text = load_workflow("application-release.yml")
@@ -126,6 +137,7 @@ class ReleaseWorkflowPolicyTests(unittest.TestCase):
                 WORKFLOWS / "pipeline.yml",
                 WORKFLOWS / "production-preflight.yml",
                 WORKFLOWS / "application-release.yml",
+                WORKFLOWS / "rls-runtime-transition.yml",
             ]
         )
         self.assertNotIn("webhook.site", texts)
@@ -143,6 +155,7 @@ class ReleaseWorkflowPolicyTests(unittest.TestCase):
             "pipeline.yml",
             "production-preflight.yml",
             "application-release.yml",
+            "rls-runtime-transition.yml",
         ):
             workflow, _ = load_workflow(workflow_name)
             for job_name, job in workflow.get("jobs", {}).items():
