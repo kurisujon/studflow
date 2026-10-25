@@ -24,15 +24,15 @@ fail() { printf 'ERROR: %s\n' "$1" >&2; exit 1; }
 valid_ref() { [[ "$1" =~ ^${2}@sha256:[0-9a-f]{64}$ ]]; }
 valid_sha() { [[ "$1" =~ ^[0-9a-f]{40}$ ]]; }
 
-[ -d "$APP_DIR" ] && [ -f "$APP_DIR/docker-compose.yml" ] || fail "APP_DIR is invalid."
+if [ ! -d "$APP_DIR" ] || [ ! -f "$APP_DIR/docker-compose.yml" ]; then fail "APP_DIR is invalid."; fi
 [ -f "$ENV_PATH" ] || fail "ENV_PATH is invalid."
 [ "$(stat -c '%a' "$ENV_PATH")" = 600 ] || fail "Production environment file must have mode 600."
-[ -x "$CELERY_CONTROL_PATH" ] && [ -f "$DATABASE_HELPER_PATH" ] && [ -f "$DATABASE_CHECK_PATH" ] || fail "Reviewed transition helpers are unavailable."
+if [ ! -x "$CELERY_CONTROL_PATH" ] || [ ! -f "$DATABASE_HELPER_PATH" ] || [ ! -f "$DATABASE_CHECK_PATH" ]; then fail "Reviewed transition helpers are unavailable."; fi
 valid_ref "$TARGET_FRONTEND" "$FRONTEND_REPOSITORY" || fail "Target frontend reference is invalid."
 valid_ref "$TARGET_BACKEND" "$BACKEND_REPOSITORY" || fail "Target backend reference is invalid."
 valid_ref "$EXPECTED_CURRENT_FRONTEND" "$FRONTEND_REPOSITORY" || fail "Current frontend evidence is invalid."
 valid_ref "$EXPECTED_CURRENT_BACKEND" "$BACKEND_REPOSITORY" || fail "Current backend evidence is invalid."
-valid_sha "$CURRENT_FRONTEND_SHA" && valid_sha "$CURRENT_BACKEND_SHA" && valid_sha "$TARGET_SHA" || fail "Source SHA evidence is invalid."
+if ! valid_sha "$CURRENT_FRONTEND_SHA" || ! valid_sha "$CURRENT_BACKEND_SHA" || ! valid_sha "$TARGET_SHA"; then fail "Source SHA evidence is invalid."; fi
 [[ "$GHCR_USERNAME" =~ ^[A-Za-z0-9][A-Za-z0-9_-]*$ ]] || fail "GHCR username is invalid."
 
 umask 077
@@ -166,7 +166,7 @@ current_frontend="$(immutable_digest frontend "$FRONTEND_REPOSITORY")"
 current_backend="$(immutable_digest backend "$BACKEND_REPOSITORY")"
 current_worker="$(immutable_digest worker "$BACKEND_REPOSITORY")"
 [ "$current_frontend" = "$EXPECTED_CURRENT_FRONTEND" ] || fail "Frontend digest no longer matches approved evidence."
-[ "$current_backend" = "$EXPECTED_CURRENT_BACKEND" ] && [ "$current_worker" = "$current_backend" ] || fail "Backend/worker digest no longer matches approved evidence."
+if [ "$current_backend" != "$EXPECTED_CURRENT_BACKEND" ] || [ "$current_worker" != "$current_backend" ]; then fail "Backend/worker digest no longer matches approved evidence."; fi
 
 docker_config="$(mktemp -d "${TMPDIR:-/tmp}/studflow-transition-docker.XXXXXX")"
 export DOCKER_CONFIG="$docker_config"
@@ -258,7 +258,7 @@ compose up -d --no-deps worker
 celery_control inspect >/dev/null
 compose up -d --no-deps backend
 wait_backend || fail "Hardened backend failed with the legacy credential."
-[ "$(immutable_digest worker "$BACKEND_REPOSITORY")" = "$TARGET_BACKEND" ] && [ "$(immutable_digest backend "$BACKEND_REPOSITORY")" = "$TARGET_BACKEND" ] || fail "S1 image verification failed."
+if [ "$(immutable_digest worker "$BACKEND_REPOSITORY")" != "$TARGET_BACKEND" ] || [ "$(immutable_digest backend "$BACKEND_REPOSITORY")" != "$TARGET_BACKEND" ]; then fail "S1 image verification failed."; fi
 
 # S1 -> S2: freeze the hardened producer, drain again, switch only DATABASE_URL, then attest both roles.
 compose stop backend >/dev/null
