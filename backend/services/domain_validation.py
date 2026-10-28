@@ -130,12 +130,21 @@ _SOURCE_SPECIFIC_QUESTION_PATTERNS = (
 )
 
 _MODEL_CITATION_MARKER = re.compile(
-    r"(?:\[\s*(?:e_)?\d+(?:\s*,\s*(?:e_)?\d+)*\s*\]|"
-    r"\[(?=[^\]\n]{0,50}\d)(?=[^\]\n]{0,50}(?:source|citation|evidence|reference|ref|e_))[^\]\n]+\]|"
-    r"\((?=[^)\n]{0,50}\d)(?=[^)\n]{0,50}(?:source|citation|evidence|reference|ref|e_))[^)\n]+\)|"
+    r"(?:\[\s*(?:[ew]_)?\d+(?:\s*,\s*(?:[ew]_)?\d+)*\s*\]|"
+    r"\[(?=[^\]\n]{0,50}\d)(?=[^\]\n]{0,50}(?:source|citation|evidence|reference|ref|[ew]_))[^\]\n]+\]|"
+    r"\((?=[^)\n]{0,50}\d)(?=[^)\n]{0,50}(?:source|citation|evidence|reference|ref|[ew]_))[^)\n]+\)|"
     r"【[^】\n]*\d+[^】\n]*】)",
     re.IGNORECASE,
 )
+_MARKDOWN_LINK_RE = re.compile(
+    r"\[([^\]\n]+)\]\(\s*(?:https?://|www\.)[^)\s]+\s*\)",
+    re.IGNORECASE,
+)
+_BARE_URL_RE = re.compile(
+    r"(?:https?://[^\s<>)\]]+|(?<!\w)www\.[A-Za-z0-9.-]+\.[A-Za-z]{2,}[^\s<>)\]]*)",
+    re.IGNORECASE,
+)
+_EMPTY_PARENS_RE = re.compile(r"\(\s*(?:see\s*|source\s*:?\s*|link\s*:?\s*)?\)", re.IGNORECASE)
 _CURRENT_SOURCE_ATTRIBUTION = re.compile(
     r"\b(?:uploaded|selected|highlighted|provided)\b|"
     r"\b(?:the|this|that|our|your|my)\s+(?:document|paper|file|upload|source|passage|table|figure|chart|study|report|article|chapter|section|page)\b",
@@ -162,6 +171,21 @@ def question_requires_document_evidence(question: str) -> bool:
 def _strip_model_citation_markers(claim_text: str) -> str:
     """Keep visible citation markers under deterministic renderer control."""
     cleaned = _MODEL_CITATION_MARKER.sub("", claim_text)
+    return re.sub(r"\s+([.,;:!?])", r"\1", cleaned).strip()
+
+
+def _strip_model_urls_and_links(claim_text: str) -> str:
+    """Strip any URL or markdown link written by the model so links come solely from tool metadata."""
+    def _replace_markdown_link(match: re.Match[str]) -> str:
+        label = match.group(1).strip()
+        if _BARE_URL_RE.fullmatch(label):
+            return ""
+        return label
+
+    cleaned = _MARKDOWN_LINK_RE.sub(_replace_markdown_link, claim_text)
+    cleaned = _BARE_URL_RE.sub("", cleaned)
+    cleaned = _EMPTY_PARENS_RE.sub("", cleaned)
+    cleaned = re.sub(r"\s{2,}", " ", cleaned)
     return re.sub(r"\s+([.,;:!?])", r"\1", cleaned).strip()
 
 def _validated_hybrid_followups(
@@ -207,15 +231,27 @@ def validate_conversation_answer(
     has_citations = False
 
     for raw_claim in raw.claims:
+        cleaned_claim_text = _strip_model_citation_markers(raw_claim.claim_text)
+        if generation_path == ConversationGenerationPath.WEB or raw_claim.provenance == ClaimProvenance.WEB.value:
+            cleaned_claim_text = _strip_model_urls_and_links(cleaned_claim_text)
         try:
             domain_claim = DomainGroundedClaim(
-                claim_text=_strip_model_citation_markers(raw_claim.claim_text),
+                claim_text=cleaned_claim_text,
                 cited_evidence_ids=raw_claim.cited_evidence_ids,
                 provenance=raw_claim.provenance,
             )
         except ValueError:
             # Skip claims that fail structural validation (e.g. empty strings)
             continue
+
+        if generation_path == ConversationGenerationPath.STRICT_DOCUMENT:
+            for eid in domain_claim.cited_evidence_ids:
+                if not eid.startswith("e_"):
+                    raise ValueError(f"Cross-provenance Evidence ID reference: {eid}")
+        elif generation_path == ConversationGenerationPath.WEB:
+            for eid in domain_claim.cited_evidence_ids:
+                if not eid.startswith("w_"):
+                    raise ValueError(f"Cross-provenance Evidence ID reference: {eid}")
 
         # Basic B1/B2 check: were these IDs even supplied?
         for eid in domain_claim.cited_evidence_ids:
@@ -263,6 +299,36 @@ def validate_conversation_answer(
         # Preserve the legacy strict-validator contract. The conversation
         # orchestrator clears these untyped suggestions before persistence.
         suggested_followups = raw.suggested_followups
+    elif generation_path == ConversationGenerationPath.WEB:
+        if (
+            answer_mode == ConversationAnswerMode.WEB
+            and not raw.evidence_sufficient
+            and not has_citations
+        ):
+            answer_mode = ConversationAnswerMode.INSUFFICIENT
+            valid_claims = []
+        if answer_mode == ConversationAnswerMode.INSUFFICIENT:
+            if raw.evidence_sufficient or clarification_question:
+                raise ValueError("Insufficient web answers cannot be complete or ask a clarification.")
+            return DomainConversationAnswer(
+                claims=[],
+                evidence_sufficient=False,
+                suggested_followups=[],
+                answer_mode=answer_mode,
+                generation_path=generation_path,
+            )
+        if answer_mode != ConversationAnswerMode.WEB or not raw.evidence_sufficient:
+            raise ValueError("Web generation requires web answer mode.")
+        if clarification_question:
+            raise ValueError("Web answers cannot include a clarification question.")
+        if not valid_claims or any(
+            claim.provenance != ClaimProvenance.WEB
+            for claim in valid_claims
+        ):
+            raise ValueError("Web generation permits only web claims.")
+        if any(not claim.cited_evidence_ids for claim in valid_claims):
+            raise ValueError("Web claims require at least one web source reference.")
+        suggested_followups = _validated_hybrid_followups(raw, set())
     elif generation_path == ConversationGenerationPath.TEACHING:
         if answer_mode != ConversationAnswerMode.GENERAL or not raw.evidence_sufficient:
             raise ValueError("Teaching generation requires a complete general answer.")

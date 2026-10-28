@@ -32,6 +32,7 @@ from services.ai_chat import (
     SearchIndexNotReadyError,
     _bounded_history,
     _get_owned_document,
+    _is_conversational_turn,
     _is_document_only_turn,
     _recent_selected_context,
     _render_hybrid_answer,
@@ -1849,9 +1850,6 @@ class AIChatIndexRepairRouteTests(unittest.TestCase):
             "ValidationError",
         )
 
-if __name__ == "__main__":
-    unittest.main()
-
 class RenderGroundedAnswerTests(unittest.TestCase):
     def test_deterministic_markdown_output_ordering_and_spacing(self) -> None:
         from services.ai_chat import _render_grounded_answer
@@ -1924,4 +1922,191 @@ class RenderGroundedAnswerTests(unittest.TestCase):
         self.assertIn("The uploaded table reports a mean of 18.2. [1]", markdown)
         self.assertIn("**General explanation**", markdown)
         self.assertEqual(cited_eids, {"e_01"})
+
+
+class ConversationalTurnTests(unittest.TestCase):
+    def test_matches_greetings_gratitude_and_acknowledgements(self) -> None:
+        for phrase in (
+            "that was good thanks",
+            "That was really helpful, thank you!",
+            "thanks",
+            "thank you!",
+            "got it",
+            "ok cool",
+            "makes sense, thanks",
+            "hi",
+            "hello there",
+            "all good",
+            "that's all thanks",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertTrue(_is_conversational_turn(phrase))
+
+    def test_excludes_questions_and_study_requests(self) -> None:
+        for phrase in (
+            "what is that?",
+            "what was that?",
+            "what was the sample syntax for the parameters?",
+            "how does it work?",
+            "thanks, can you give another example?",
+            "that was good, why does it work",
+            "ok explain routing",
+            "why?",
+            "explain",
+            "elaborate",
+            "continue",
+            "hi, what is Laravel?",
+            "",
+            "   ",
+            "thanks " * 20,
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertFalse(_is_conversational_turn(phrase))
+
+    def test_does_not_inherit_source_specific_scope_or_erase_prior_study_scope(self) -> None:
+        history = [
+            ("user", "What was the sample syntax for the parameters in this document?"),
+            ("assistant", 'A sample syntax for route parameters is "/user/{id}". [1]'),
+        ]
+        self.assertEqual(
+            _request_scope("that was good thanks", history),
+            ConversationRequestScope.HYBRID,
+        )
+
+        extended_history = [
+            *history,
+            ("user", "that was good thanks"),
+            ("assistant", "You're welcome! Ask me anything else about this material whenever you're ready."),
+        ]
+        self.assertEqual(
+            _request_scope("How was it defined?", extended_history),
+            ConversationRequestScope.SOURCE_SPECIFIC,
+        )
+        query = _retrieval_query("How was it defined?", None, extended_history)
+        self.assertIn("What was the sample syntax for the parameters in this document?", query)
+        self.assertNotIn("that was good thanks", query)
+
+    def test_conversational_turn_skips_embedding_and_gemini_and_persists_atomically(self) -> None:
+        test_engine = create_engine(
+            "sqlite://",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        SQLModel.metadata.create_all(
+            test_engine,
+            tables=[
+                Document.__table__,
+                DocumentChunk.__table__,
+                AIConversation.__table__,
+                AIMessage.__table__,
+                AIMessageCitation.__table__,
+            ],
+        )
+
+        document_id = uuid.uuid4()
+        conversation_id = uuid.uuid4()
+        now = datetime.now(timezone.utc)
+        with Session(test_engine) as session:
+            session.add(
+                Document(
+                    id=document_id,
+                    clerk_user_id="user_owner",
+                    filename="Laravel-Routes.pdf",
+                    file_url="uploads/Laravel-Routes.pdf",
+                    status=DocumentStatus.COMPLETED,
+                )
+            )
+            session.add(
+                AIConversation(
+                    id=conversation_id,
+                    clerk_user_id="user_owner",
+                    document_id=document_id,
+                    title="Laravel-Routes",
+                    created_at=now,
+                    updated_at=now,
+                )
+            )
+            session.add(
+                AIMessage(
+                    conversation_id=conversation_id,
+                    sequence_number=1,
+                    role="user",
+                    content="what was the sample syntax for the parameters?",
+                    retrieval_mode="document",
+                    status="ANSWERED",
+                    suggested_followups=[],
+                    created_at=now,
+                )
+            )
+            session.add(
+                AIMessage(
+                    conversation_id=conversation_id,
+                    sequence_number=2,
+                    role="assistant",
+                    content='A sample syntax for route parameters is "/user/{id}". [1]',
+                    retrieval_mode="document",
+                    status="ANSWERED",
+                    suggested_followups=[],
+                    created_at=now,
+                )
+            )
+            session.commit()
+
+        def _sqlite_open_session(_clerk_user_id: str) -> Session:
+            return Session(test_engine)
+
+        def _sqlite_commit_and_reassert_rls(session: Session, _clerk_user_id: str) -> None:
+            session.commit()
+
+        try:
+            with (
+                patch("services.ai_chat._open_session", side_effect=_sqlite_open_session),
+                patch("services.ai_chat.commit_and_reassert_rls", side_effect=_sqlite_commit_and_reassert_rls),
+                patch(
+                    "services.ai_chat.get_document_index_readiness",
+                    return_value=SimpleNamespace(is_ready=True, is_repairable=False),
+                ),
+                patch("services.ai_chat.generate_query_embedding") as embedding_mock,
+                patch("services.ai_chat.search_owned_similar_chunks") as search_mock,
+                patch("services.ai_chat.answer_conversation_question") as generate_mock,
+                patch("services.ai_chat.evaluate_citations") as eval_mock,
+            ):
+                answer = send_conversation_message(
+                    conversation_id=conversation_id,
+                    clerk_user_id="user_owner",
+                    question="that was good thanks",
+                )
+
+            embedding_mock.assert_not_called()
+            search_mock.assert_not_called()
+            generate_mock.assert_not_called()
+            eval_mock.assert_not_called()
+
+            self.assertEqual(answer.status.value, "ANSWERED")
+            self.assertEqual(answer.citations, [])
+            self.assertEqual(answer.suggested_followups, [])
+            self.assertNotIn(INSUFFICIENT_EVIDENCE_ANSWER, answer.answer_markdown)
+            self.assertIn("welcome", answer.answer_markdown.lower())
+
+            with Session(test_engine) as session:
+                stored_messages = session.exec(
+                    select(AIMessage)
+                    .where(AIMessage.conversation_id == conversation_id)
+                    .order_by(AIMessage.sequence_number.asc())
+                ).all()
+                stored_citations = session.exec(select(AIMessageCitation)).all()
+
+            self.assertEqual(len(stored_messages), 4)
+            self.assertEqual(stored_messages[2].role, "user")
+            self.assertEqual(stored_messages[2].content, "that was good thanks")
+            self.assertEqual(stored_messages[3].role, "assistant")
+            self.assertEqual(stored_messages[3].id, answer.message_id)
+            self.assertEqual(stored_messages[3].status, "ANSWERED")
+            self.assertEqual(stored_citations, [])
+        finally:
+            test_engine.dispose()
+
+
+if __name__ == "__main__":
+    unittest.main()
 

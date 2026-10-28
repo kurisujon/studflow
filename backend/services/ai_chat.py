@@ -6,7 +6,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
-from sqlalchemy import func
+from sqlalchemy import func, text
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 from core.database import commit_and_reassert_rls, tenant_session
@@ -40,6 +40,7 @@ from services.domain_validation import (
 )
 from services.documents import get_document_index_readiness, search_owned_similar_chunks
 from services.retrieval_quality import evaluate_retrieval_quality
+from services.web_grounding import WebSource, retrieve_verified_web_sources
 
 
 logger = logging.getLogger(__name__)
@@ -75,6 +76,14 @@ class ConcurrentConversationUpdateError(Exception):
 
 class UnsupportedRetrievalModeError(Exception):
     """Raised before generation when an unavailable retrieval mode is requested."""
+
+
+class WebGroundingDisabledError(UnsupportedRetrievalModeError):
+    """Raised when Web or Hybrid retrieval is requested while feature flag is disabled."""
+
+
+class WebGroundingRateLimitedError(Exception):
+    """Raised when the caller exceeds the daily Web/Hybrid search turn limit."""
 
 
 @dataclass(frozen=True)
@@ -406,6 +415,86 @@ _TEACHING_REQUEST_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+_CONVERSATIONAL_EXCLUDED_TOKENS = {
+    "what", "whats", "what's", "why", "how", "when", "where", "who", "which", "whose", "whom",
+    "explain", "define", "summarize", "summary", "compare", "contrast", "describe", "elaborate",
+    "clarify", "example", "examples", "sample", "syntax", "code", "formula", "equation",
+    "calculate", "compute", "solve", "derive", "prove", "list", "show", "give", "tell",
+    "write", "draft", "translate", "analyze", "mean", "means", "meaning", "difference",
+    "between", "document", "pdf", "page", "pages", "section", "chapter", "slide", "slides",
+    "table", "figure", "chart", "paper", "study", "article", "report", "source", "sources",
+    "quiz", "flashcard", "flashcards", "more", "another", "next", "continue", "repeat", "again",
+}
+
+_CONV_GREETING_RE = re.compile(
+    r"(?:hi|hello|hey|yo|good (?:morning|afternoon|evening)|greetings)"
+    r"(?: there)?(?: studflow(?: ai)?)?"
+)
+_CONV_THANKS_PHRASE = (
+    r"(?:thanks|thank you|thx|ty|many thanks|thanks a lot|thank you so much|"
+    r"thanks so much|much appreciated|appreciate (?:it|that|this)|i appreciate (?:it|that|this))"
+)
+_CONV_EVAL_PREFIX = (
+    r"(?:(?:that|this|it|that's|thats|it's|its)\s+(?:was|is)\s+"
+    r"(?:(?:very|really|super|so|pretty|quite)\s+)?"
+    r"(?:good|great|helpful|clear|useful|awesome|nice|perfect|amazing|excellent|cool|neat|sweet|wonderful|fantastic|spot on)"
+    r"|(?:(?:very|really|super|so|pretty|quite)\s+)?"
+    r"(?:good|great|helpful|clear|useful|awesome|nice|perfect|amazing|excellent|cool|spot on)"
+    r"|(?:that|this|it)\s+(?:helped|helps)(?:\s+(?:me\s+)?a\s+lot)?"
+    r"|(?:(?:that|this|it)\s+)?makes(?:\s+total)?\s+sense"
+    r"|that's all|thats all|that is all|nothing else|all set|i'm good|im good|all good|sounds good"
+    r"|ok|okay|alright|got it|i got it|i see|understood)"
+)
+_CONV_GRATITUDE_RE = re.compile(
+    rf"(?:{_CONV_EVAL_PREFIX}\s+)?{_CONV_THANKS_PHRASE}"
+    r"(?:\s+(?:for (?:the|your|that) (?:help|explanation|answer|info)|studflow(?: ai)?|ai))?"
+)
+_CONV_ACK_CLOSING_RE = re.compile(
+    r"(?:got it|i got it|i see|oh i see|makes(?:\s+total)?\s+sense|"
+    r"(?:that|it) makes(?:\s+total)?\s+sense|understood|i understand(?: now)?|"
+    r"(?:(?:ok|okay|alright)\s+)?(?:cool|great|awesome|nice|perfect|got it|understood|makes sense)|"
+    r"ok|okay|alright|sounds good|all good|good to know|noted|clear now|that's clear|thats clear|"
+    r"bye|goodbye|see ya|see you(?: later)?|have a (?:good|great|nice) (?:day|one|night)|"
+    r"that's all|thats all|that is all|nothing else|all set|i'm good|im good)(?:\s+now)?"
+)
+
+
+def _normalize_conversational_text(question: str) -> str | None:
+    stripped = question.strip()
+    if not stripped or len(stripped) > 80 or "\n" in stripped or "?" in stripped:
+        return None
+    cleaned = re.sub(r"[^\w\s']", " ", stripped.lower())
+    normalized = " ".join(cleaned.split())
+    if not normalized:
+        return None
+    words = normalized.split()
+    if len(words) > 10:
+        return None
+    if any(word in _CONVERSATIONAL_EXCLUDED_TOKENS for word in words):
+        return None
+    return normalized
+
+
+def _is_conversational_turn(question: str) -> bool:
+    """Return True only for short, pure greetings, thanks, acknowledgements, or closings."""
+    normalized = _normalize_conversational_text(question)
+    if normalized is None:
+        return False
+    return bool(
+        _CONV_GREETING_RE.fullmatch(normalized)
+        or _CONV_GRATITUDE_RE.fullmatch(normalized)
+        or _CONV_ACK_CLOSING_RE.fullmatch(normalized)
+    )
+
+
+def _conversational_reply(question: str) -> str:
+    normalized = _normalize_conversational_text(question) or ""
+    if _CONV_GREETING_RE.fullmatch(normalized):
+        return "Hello! Ask me anything about this study material whenever you're ready."
+    if _CONV_GRATITUDE_RE.fullmatch(normalized):
+        return "You're welcome! Ask me anything else about this material whenever you're ready."
+    return "Glad that helped! Ask me anything else about this material whenever you're ready."
+
 
 def _is_explicit_document_only(question: str) -> bool:
     return any(pattern.search(question) for pattern in _EXPLICIT_DOCUMENT_ONLY_PATTERNS)
@@ -419,6 +508,8 @@ def _request_scope(
     question: str,
     history: list[tuple[str, str]],
 ) -> ConversationRequestScope:
+    if _is_conversational_turn(question):
+        return ConversationRequestScope.HYBRID
     if _is_explicit_document_only(question):
         return ConversationRequestScope.DOCUMENT_ONLY
     source_specific = _is_source_specific(question)
@@ -433,7 +524,11 @@ def _request_scope(
     if _TEACHING_REQUEST_PATTERN.search(question):
         return ConversationRequestScope.HYBRID
     previous_user_question = next(
-        (content for role, content in reversed(history) if role == "user"),
+        (
+            content
+            for role, content in reversed(history)
+            if role == "user" and not _is_conversational_turn(content)
+        ),
         None,
     )
     if previous_user_question and _is_explicit_document_only(previous_user_question):
@@ -469,14 +564,46 @@ def _retrieval_query(
                 else f"{content.strip()[:1_000]}\n…\n{content.strip()[-1_000:]}"
             )
             for role, content in history
-            if role == "user" and content.strip()
+            if role == "user" and content.strip() and not _is_conversational_turn(content)
         ][-2:]
         if recent_user_questions:
             parts.append("Recent student context:\n" + "\n".join(recent_user_questions))
     return "\n\n".join(parts)
 
 
-def _render_grounded_answer(claims: list[SemanticallyValidatedClaim]) -> tuple[str, set[str]]:
+def _citation_number_for_eid(eid: str, *, web_index_offset: int = 0) -> int | None:
+    if eid.startswith("e_"):
+        try:
+            return int(eid.removeprefix("e_"))
+        except ValueError:
+            return None
+    if eid.startswith("w_"):
+        try:
+            return web_index_offset + int(eid.removeprefix("w_"))
+        except ValueError:
+            return None
+    return None
+
+
+def _max_cited_document_index(claims: list[SemanticallyValidatedClaim]) -> int:
+    max_index = 0
+    for claim in claims:
+        if claim.provenance != ClaimProvenance.DOCUMENT:
+            continue
+        for citation in claim.citations:
+            if citation.support_level == "UNSUPPORTED":
+                continue
+            num = _citation_number_for_eid(citation.evidence_id)
+            if num is not None and citation.evidence_id.startswith("e_") and num > max_index:
+                max_index = num
+    return max_index
+
+
+def _render_grounded_answer(
+    claims: list[SemanticallyValidatedClaim],
+    *,
+    web_index_offset: int = 0,
+) -> tuple[str, set[str]]:
     """Deterministically render grounded claims to a Markdown string with inline citation markers."""
     paragraphs = []
     cited_eids = set()
@@ -488,11 +615,9 @@ def _render_grounded_answer(claims: list[SemanticallyValidatedClaim]) -> tuple[s
                 continue
             eid = citation.evidence_id
             cited_eids.add(eid)
-            try:
-                num = int(eid.replace("e_", ""))
+            num = _citation_number_for_eid(eid, web_index_offset=web_index_offset)
+            if num is not None:
                 marker_numbers.append(num)
-            except ValueError:
-                pass
 
         # Sort the markers for a clean UI like [1][2]
         marker_numbers.sort()
@@ -510,15 +635,30 @@ def _render_grounded_answer(claims: list[SemanticallyValidatedClaim]) -> tuple[s
 def _render_hybrid_answer(
     claims: list[SemanticallyValidatedClaim],
 ) -> tuple[str, set[str]]:
-    """Render validated claims while making non-document teaching explicit."""
+    """Render validated claims while making non-document provenance explicit."""
     paragraphs: list[str] = []
     cited_eids: set[str] = set()
+    introduced_web = False
     introduced_general = False
     introduced_example = False
+    web_index_offset = _max_cited_document_index(claims)
 
     for claim in claims:
         if claim.provenance == ClaimProvenance.DOCUMENT:
             rendered, claim_eids = _render_grounded_answer([claim])
+            if rendered:
+                paragraphs.append(rendered)
+                cited_eids.update(claim_eids)
+            continue
+
+        if claim.provenance == ClaimProvenance.WEB:
+            if not introduced_web:
+                paragraphs.append("**From the web**")
+                introduced_web = True
+            rendered, claim_eids = _render_grounded_answer(
+                [claim],
+                web_index_offset=web_index_offset,
+            )
             if rendered:
                 paragraphs.append(rendered)
                 cited_eids.update(claim_eids)
@@ -596,73 +736,147 @@ def _generate_validated_path(
     return filter_unsupported_claims(generated)
 
 
-def send_conversation_message(
+def _generate_validated_web_path(
     *,
-    conversation_id: uuid.UUID,
-    clerk_user_id: str,
+    web_registry: dict[str, WebSource],
     question: str,
-    selected_text: str | None = None,
-    retrieval_mode: RetrievalMode = "document",
-) -> ChatAnswer:
-    if retrieval_mode != "document":
-        raise UnsupportedRetrievalModeError
+    history: list[tuple[str, str]],
+):
+    path_sources = [
+        (eid, f"Title: {src.title}\nDomain: {src.domain}\nExcerpt:\n{src.excerpt}")
+        for eid, src in web_registry.items()
+    ]
+    user_only_history = [(role, content) for role, content in history if role == "user"]
+    raw_generated = answer_conversation_question(
+        sources=path_sources,
+        user_question=question,
+        conversation_history=user_only_history,
+        selected_text=None,
+        generation_path=ConversationGenerationPath.WEB.value,
+    )
+    try:
+        generated = validate_conversation_answer(
+            raw_generated,
+            set(web_registry),
+            generation_path=ConversationGenerationPath.WEB,
+        )
+    except ValueError as exc:
+        raise AIServiceError(str(exc)) from exc
 
-    with _open_session(clerk_user_id) as session:
-        conversation = get_owned_conversation(
-            session,
-            conversation_id=conversation_id,
-            clerk_user_id=clerk_user_id,
-        )
-        if conversation.document_id is None:
-            raise DocumentNotReadyError
-        document = _get_owned_document(
-            session,
-            document_id=conversation.document_id,
-            clerk_user_id=clerk_user_id,
-        )
-        if document.status != DocumentStatus.COMPLETED:
-            raise DocumentNotReadyError
-        index_readiness = get_document_index_readiness(
-            session=session,
-            document_id=document.id,
-            index_generation=document.active_index_generation,
-        )
-        if not index_readiness.is_ready:
-            raise SearchIndexNotReadyError(
-                document_id=document.id,
-                repairable=index_readiness.is_repairable,
+    if generated.evidence_sufficient and generated.claims:
+        evaluations = evaluate_citations([
+            (claim.claim_text, eid, web_registry[eid].excerpt)
+            for claim in generated.claims
+            for eid in claim.cited_evidence_ids
+        ])
+        generated = apply_semantic_validation(generated, evaluations)
+    else:
+        generated = apply_semantic_validation(generated, [])
+
+    from services.domain_validation import filter_unsupported_claims
+    return filter_unsupported_claims(generated)
+
+
+def _enforce_web_grounding_daily_limit(
+    session: Session,
+    *,
+    clerk_user_id: str,
+) -> None:
+    limit = settings.web_grounding_daily_limit
+    if limit <= 0:
+        raise WebGroundingRateLimitedError
+    start_of_utc_day = datetime.now(timezone.utc).replace(
+        hour=0,
+        minute=0,
+        second=0,
+        microsecond=0,
+    )
+    rows = session.exec(
+        select(AIMessage.content)
+        .join(AIConversation, AIMessage.conversation_id == AIConversation.id)
+        .where(AIConversation.clerk_user_id == clerk_user_id)
+        .where(AIMessage.role == "user")
+        .where(AIMessage.retrieval_mode.in_(["web", "hybrid"]))
+        .where(AIMessage.created_at >= start_of_utc_day)
+    ).all()
+    used_turns = sum(
+        1
+        for content in rows
+        if not _is_conversational_turn(content) and not _is_explicit_document_only(content)
+    )
+    if used_turns >= limit:
+        raise WebGroundingRateLimitedError
+
+
+def _build_citation_payloads(
+    *,
+    cited_eids: set[str],
+    source_registry: dict[str, RetrievedChatChunk],
+    web_registry: dict[str, WebSource],
+    document_id: uuid.UUID,
+    document_title: str,
+) -> list[CitationResponse]:
+    web_index_offset = max(
+        (
+            num
+            for eid in cited_eids
+            if eid.startswith("e_")
+            for num in [_citation_number_for_eid(eid)]
+            if num is not None
+        ),
+        default=0,
+    )
+    payloads: list[CitationResponse] = []
+
+    for eid in sorted(cited_eids):
+        if eid.startswith("e_") and eid in source_registry:
+            index = _citation_number_for_eid(eid)
+            if index is None:
+                continue
+            chunk = source_registry[eid]
+            payloads.append(
+                CitationResponse(
+                    index=index,
+                    source_type="document",
+                    title=document_title,
+                    url=None,
+                    document_id=document_id,
+                    chunk_id=chunk.id,
+                    page_number=chunk.page_number,
+                    excerpt=chunk.content.strip()[:500] or None,
+                )
             )
-        recent_messages = session.exec(
-            select(AIMessage)
-            .where(AIMessage.conversation_id == conversation.id)
-            .order_by(AIMessage.sequence_number.desc())
-            .limit(12)
-        ).all()
-        history = _bounded_history(recent_messages)
-        prior_selected_text = _recent_selected_context(recent_messages)
-        snapshot_updated_at = conversation.updated_at
-        document_id = document.id
-        document_title = document.filename
-        index_generation = document.active_index_generation
+        elif eid.startswith("w_") and eid in web_registry:
+            index = _citation_number_for_eid(eid, web_index_offset=web_index_offset)
+            if index is None:
+                continue
+            web_src = web_registry[eid]
+            payloads.append(
+                CitationResponse(
+                    index=index,
+                    source_type="web",
+                    title=web_src.title,
+                    url=web_src.url,
+                    document_id=None,
+                    chunk_id=None,
+                    page_number=None,
+                    excerpt=web_src.excerpt.strip()[:500] or None,
+                )
+            )
 
-    request_scope = _request_scope(question, history)
-    document_only = request_scope == ConversationRequestScope.DOCUMENT_ONLY
-    retrieval_query = _retrieval_query(
-        question,
-        selected_text,
-        history,
-        prior_selected_text,
-    )
-    teaching_context = _teaching_topic_keywords(
-        selected_text
-        or (
-            prior_selected_text
-            if _REFERENTIAL_FOLLOWUP.search(question.strip())
-            else None
-        )
-    )
+    payloads.sort(key=lambda item: item.index)
+    return payloads
+
+
+def _retrieve_document_chunks_for_turn(
+    *,
+    clerk_user_id: str,
+    conversation_id: uuid.UUID,
+    document_id: uuid.UUID,
+    index_generation: int,
+    retrieval_query: str,
+) -> tuple[list[RetrievedChatChunk], bool]:
     query_embedding = generate_query_embedding(retrieval_query)
-
     with _open_session(clerk_user_id) as session:
         conversation = get_owned_conversation(
             session,
@@ -688,11 +902,8 @@ def send_conversation_message(
         )
         evidence_set = evaluate_retrieval_quality(
             chunks,
-            threshold=settings.retrieval_min_score_threshold
+            threshold=settings.retrieval_min_score_threshold,
         )
-
-        # We still need the original retrieved_chunks format for now
-        # but in a real B4/B5 we'd branch here if not evidence_set.quality.threshold_passed
         retrieved_chunks = [
             RetrievedChatChunk(
                 id=chunk.id,
@@ -702,166 +913,31 @@ def send_conversation_message(
                 page_number=chunk.page_number,
                 index_generation=chunk.index_generation,
             )
-            for chunk, distance in chunks
+            for chunk, _distance in chunks
         ]
-
     retrieval_passed = bool(
         evidence_set.evidence and evidence_set.quality.threshold_passed
     )
-
-    requires_source = request_scope in {
-        ConversationRequestScope.DOCUMENT_ONLY,
-        ConversationRequestScope.SOURCE_SPECIFIC,
-        ConversationRequestScope.MIXED,
-    }
-    mixed_source_unverified = False
-
-    # Phase B5 remains the deterministic fast path for explicit source-only turns.
-    if document_only and not retrieval_passed:
-        answer_markdown = INSUFFICIENT_EVIDENCE_ANSWER
-        cited_eids: set[str] = set()
-        effective_followups: list[str] = []
-        message_status = ChatAnswerStatus.INSUFFICIENT_EVIDENCE
-        source_registry = {}
-    else:
-        source_registry: dict[str, RetrievedChatChunk] = (
-            {
-                f"e_{index:02d}": chunk
-                for index, chunk in enumerate(retrieved_chunks, start=1)
-            }
-            if retrieval_passed
-            else {}
-        )
-        if request_scope == ConversationRequestScope.MIXED and not retrieval_passed:
-            mixed_source_unverified = True
-            paths = [ConversationGenerationPath.TEACHING]
-        elif requires_source and not retrieval_passed:
-            paths = [ConversationGenerationPath.CLARIFICATION]
-        elif request_scope == ConversationRequestScope.MIXED:
-            paths = [
-                ConversationGenerationPath.STRICT_DOCUMENT,
-                ConversationGenerationPath.TEACHING,
-            ]
-        elif requires_source:
-            paths = [ConversationGenerationPath.STRICT_DOCUMENT]
-        else:
-            paths = [ConversationGenerationPath.TEACHING]
-
-        path_results = [
-            _generate_validated_path(
-                generation_path=path,
-                source_registry=source_registry,
-                question=question,
-                history=history,
-                selected_text=selected_text,
-                teaching_context=teaching_context,
-            )
-            for path in paths
-        ]
-
-        if (
-            request_scope == ConversationRequestScope.SOURCE_SPECIFIC
-            and paths == [ConversationGenerationPath.STRICT_DOCUMENT]
-            and path_results[0][1] == ChatAnswerStatus.INSUFFICIENT_EVIDENCE
-        ):
-            paths = [ConversationGenerationPath.CLARIFICATION]
-            path_results = [
-                _generate_validated_path(
-                    generation_path=ConversationGenerationPath.CLARIFICATION,
-                    source_registry=source_registry,
-                    question=question,
-                    history=history,
-                    selected_text=selected_text,
-                    teaching_context=teaching_context,
-                )
-            ]
-
-        if len(path_results) == 2:
-            strict_answer, strict_status = path_results[0]
-            teaching_answer, teaching_status = path_results[1]
-            if strict_status == ChatAnswerStatus.INSUFFICIENT_EVIDENCE:
-                mixed_source_unverified = True
-                generated = teaching_answer.model_copy(update={
-                    "answer_mode": ConversationAnswerMode.MIXED,
-                    "generation_path": ConversationGenerationPath.COMPOSITE,
-                    "suggested_followups": [],
-                })
-                b6_status = ChatAnswerStatus.PARTIALLY_ANSWERED
-            else:
-                generated = strict_answer.model_copy(update={
-                    "claims": [*strict_answer.claims, *teaching_answer.claims],
-                    "answer_mode": ConversationAnswerMode.MIXED,
-                    "generation_path": ConversationGenerationPath.COMPOSITE,
-                    "suggested_followups": teaching_answer.suggested_followups,
-                })
-                b6_status = (
-                    ChatAnswerStatus.ANSWERED
-                    if strict_status == teaching_status == ChatAnswerStatus.ANSWERED
-                    else ChatAnswerStatus.PARTIALLY_ANSWERED
-                )
-                if b6_status != ChatAnswerStatus.ANSWERED:
-                    generated = generated.model_copy(update={"suggested_followups": []})
-        else:
-            generated, b6_status = path_results[0]
-            if mixed_source_unverified:
-                generated = generated.model_copy(update={
-                    "answer_mode": ConversationAnswerMode.MIXED,
-                    "generation_path": ConversationGenerationPath.COMPOSITE,
-                    "suggested_followups": [],
-                })
-                b6_status = ChatAnswerStatus.PARTIALLY_ANSWERED
-
-        if b6_status == ChatAnswerStatus.INSUFFICIENT_EVIDENCE:
-            answer_markdown = INSUFFICIENT_EVIDENCE_ANSWER
-            cited_eids = set()
-            effective_followups = []
-            message_status = ChatAnswerStatus.INSUFFICIENT_EVIDENCE
-        elif generated.answer_mode == ConversationAnswerMode.CLARIFICATION:
-            answer_markdown = generated.clarification_question or INSUFFICIENT_EVIDENCE_ANSWER
-            cited_eids = set()
-            effective_followups = []
-            message_status = ChatAnswerStatus.PARTIALLY_ANSWERED
-        else:
-            if paths == [ConversationGenerationPath.STRICT_DOCUMENT]:
-                answer_markdown, cited_eids = _render_grounded_answer(generated.claims)
-            else:
-                answer_markdown, cited_eids = _render_hybrid_answer(generated.claims)
-            if not answer_markdown.strip():
-                answer_markdown = INSUFFICIENT_EVIDENCE_ANSWER
-                cited_eids = set()
-                effective_followups = []
-                message_status = ChatAnswerStatus.INSUFFICIENT_EVIDENCE
-            else:
-                effective_followups = generated.suggested_followups
-                message_status = b6_status
-                if mixed_source_unverified:
-                    answer_markdown = (
-                        f"{MIXED_SOURCE_UNVERIFIED_NOTICE}\n\n{answer_markdown}"
-                    )
+    return retrieved_chunks, retrieval_passed
 
 
-    citation_payloads = []
-    for eid in sorted(cited_eids):
-        # Determine the UI index from the string ID
-        try:
-            index = int(eid.replace("e_", ""))
-        except ValueError:
-            continue
-
-        chunk = source_registry[eid]
-        citation_payloads.append(
-            CitationResponse(
-                index=index,
-                source_type="document",
-                title=document_title,
-                url=None,
-                document_id=document_id,
-                chunk_id=chunk.id,
-                page_number=chunk.page_number,
-                excerpt=chunk.content.strip()[:500] or None,
-            )
-        )
-
+def _persist_conversation_turn(
+    *,
+    conversation_id: uuid.UUID,
+    clerk_user_id: str,
+    document_id: uuid.UUID,
+    index_generation: int,
+    snapshot_updated_at: datetime,
+    question: str,
+    selected_text: str | None,
+    retrieval_mode: RetrievalMode,
+    answer_markdown: str,
+    citation_payloads: list[CitationResponse],
+    effective_followups: list[str],
+    message_status: ChatAnswerStatus,
+    search_attribution_html: str | None = None,
+    enforce_web_daily_limit: bool = False,
+) -> ChatAnswer:
     with _open_session(clerk_user_id) as session:
         # Match document-deletion lock order: document first, then conversation.
         document = _get_owned_document(
@@ -884,6 +960,14 @@ def send_conversation_message(
             raise ConcurrentConversationUpdateError
         if conversation.updated_at != snapshot_updated_at:
             raise ConcurrentConversationUpdateError
+        if enforce_web_daily_limit:
+            bind = session.get_bind()
+            if bind is not None and bind.dialect.name == "postgresql":
+                session.execute(
+                    text("SELECT pg_advisory_xact_lock(hashtext(:lock_key))"),
+                    {"lock_key": f"web_grounding_daily_limit:{clerk_user_id}"},
+                )
+            _enforce_web_grounding_daily_limit(session, clerk_user_id=clerk_user_id)
 
         maximum_sequence = session.exec(
             select(func.max(AIMessage.sequence_number)).where(
@@ -949,4 +1033,401 @@ def send_conversation_message(
         citations=citation_payloads,
         suggested_followups=effective_followups,
         status=message_status,
+        search_attribution_html=search_attribution_html,
+    )
+
+
+def send_conversation_message(
+    *,
+    conversation_id: uuid.UUID,
+    clerk_user_id: str,
+    question: str,
+    selected_text: str | None = None,
+    retrieval_mode: RetrievalMode = "document",
+) -> ChatAnswer:
+    if retrieval_mode != "document" and not settings.web_grounding_enabled:
+        raise WebGroundingDisabledError
+
+    is_conversational = _is_conversational_turn(question)
+
+    with _open_session(clerk_user_id) as session:
+        conversation = get_owned_conversation(
+            session,
+            conversation_id=conversation_id,
+            clerk_user_id=clerk_user_id,
+        )
+        if conversation.document_id is None:
+            raise DocumentNotReadyError
+        document = _get_owned_document(
+            session,
+            document_id=conversation.document_id,
+            clerk_user_id=clerk_user_id,
+        )
+        if document.status != DocumentStatus.COMPLETED:
+            raise DocumentNotReadyError
+        index_readiness = get_document_index_readiness(
+            session=session,
+            document_id=document.id,
+            index_generation=document.active_index_generation,
+        )
+        if not index_readiness.is_ready:
+            raise SearchIndexNotReadyError(
+                document_id=document.id,
+                repairable=index_readiness.is_repairable,
+            )
+        recent_messages = session.exec(
+            select(AIMessage)
+            .where(AIMessage.conversation_id == conversation.id)
+            .order_by(AIMessage.sequence_number.desc())
+            .limit(12)
+        ).all()
+        history = _bounded_history(recent_messages)
+        prior_selected_text = _recent_selected_context(recent_messages)
+        snapshot_updated_at = conversation.updated_at
+        document_id = document.id
+        document_title = document.filename
+        index_generation = document.active_index_generation
+
+        if (
+            retrieval_mode != "document"
+            and not is_conversational
+            and _request_scope(question, history) != ConversationRequestScope.DOCUMENT_ONLY
+        ):
+            _enforce_web_grounding_daily_limit(session, clerk_user_id=clerk_user_id)
+
+    if is_conversational:
+        return _persist_conversation_turn(
+            conversation_id=conversation_id,
+            clerk_user_id=clerk_user_id,
+            document_id=document_id,
+            index_generation=index_generation,
+            snapshot_updated_at=snapshot_updated_at,
+            question=question,
+            selected_text=selected_text,
+            retrieval_mode=retrieval_mode,
+            answer_markdown=_conversational_reply(question),
+            citation_payloads=[],
+            effective_followups=[],
+            message_status=ChatAnswerStatus.ANSWERED,
+        )
+
+    request_scope = _request_scope(question, history)
+    document_only = request_scope == ConversationRequestScope.DOCUMENT_ONLY
+    requires_source = request_scope in {
+        ConversationRequestScope.DOCUMENT_ONLY,
+        ConversationRequestScope.SOURCE_SPECIFIC,
+        ConversationRequestScope.MIXED,
+    }
+    retrieval_query = _retrieval_query(
+        question,
+        selected_text,
+        history,
+        prior_selected_text,
+    )
+    teaching_context = _teaching_topic_keywords(
+        selected_text
+        or (
+            prior_selected_text
+            if _REFERENTIAL_FOLLOWUP.search(question.strip())
+            else None
+        )
+    )
+
+    source_registry: dict[str, RetrievedChatChunk] = {}
+    web_registry: dict[str, WebSource] = {}
+    search_attribution_html: str | None = None
+
+    if retrieval_mode == "web":
+        if document_only:
+            answer_markdown = INSUFFICIENT_EVIDENCE_ANSWER
+            cited_eids: set[str] = set()
+            effective_followups: list[str] = []
+            message_status = ChatAnswerStatus.INSUFFICIENT_EVIDENCE
+        else:
+            web_registry, search_attribution_html = retrieve_verified_web_sources(question)
+            if not web_registry:
+                answer_markdown = INSUFFICIENT_EVIDENCE_ANSWER
+                cited_eids = set()
+                effective_followups = []
+                message_status = ChatAnswerStatus.INSUFFICIENT_EVIDENCE
+                search_attribution_html = None
+            else:
+                web_answer, web_status = _generate_validated_web_path(
+                    web_registry=web_registry,
+                    question=question,
+                    history=history,
+                )
+                if web_status == ChatAnswerStatus.INSUFFICIENT_EVIDENCE:
+                    answer_markdown = INSUFFICIENT_EVIDENCE_ANSWER
+                    cited_eids = set()
+                    effective_followups = []
+                    message_status = ChatAnswerStatus.INSUFFICIENT_EVIDENCE
+                    search_attribution_html = None
+                else:
+                    answer_markdown, cited_eids = _render_grounded_answer(web_answer.claims)
+                    if not answer_markdown.strip():
+                        answer_markdown = INSUFFICIENT_EVIDENCE_ANSWER
+                        cited_eids = set()
+                        effective_followups = []
+                        message_status = ChatAnswerStatus.INSUFFICIENT_EVIDENCE
+                        search_attribution_html = None
+                    else:
+                        effective_followups = web_answer.suggested_followups
+                        message_status = web_status
+
+    elif retrieval_mode == "hybrid" and not document_only:
+        retrieved_chunks, retrieval_passed = _retrieve_document_chunks_for_turn(
+            clerk_user_id=clerk_user_id,
+            conversation_id=conversation_id,
+            document_id=document_id,
+            index_generation=index_generation,
+            retrieval_query=retrieval_query,
+        )
+        source_registry = (
+            {
+                f"e_{index:02d}": chunk
+                for index, chunk in enumerate(retrieved_chunks, start=1)
+            }
+            if retrieval_passed
+            else {}
+        )
+        if retrieval_passed:
+            doc_answer, doc_status = _generate_validated_path(
+                generation_path=ConversationGenerationPath.STRICT_DOCUMENT,
+                source_registry=source_registry,
+                question=question,
+                history=history,
+                selected_text=selected_text,
+                teaching_context=teaching_context,
+            )
+            doc_claims = (
+                doc_answer.claims
+                if doc_status != ChatAnswerStatus.INSUFFICIENT_EVIDENCE
+                else []
+            )
+        else:
+            doc_status = ChatAnswerStatus.INSUFFICIENT_EVIDENCE
+            doc_claims = []
+
+        web_registry, search_attribution_html = retrieve_verified_web_sources(question)
+        if web_registry:
+            web_answer, web_status = _generate_validated_web_path(
+                web_registry=web_registry,
+                question=question,
+                history=history,
+            )
+            web_claims = (
+                web_answer.claims
+                if web_status != ChatAnswerStatus.INSUFFICIENT_EVIDENCE
+                else []
+            )
+        else:
+            web_answer = None
+            web_status = ChatAnswerStatus.INSUFFICIENT_EVIDENCE
+            web_claims = []
+            search_attribution_html = None
+
+        if not doc_claims and not web_claims:
+            answer_markdown = INSUFFICIENT_EVIDENCE_ANSWER
+            cited_eids = set()
+            effective_followups = []
+            message_status = ChatAnswerStatus.INSUFFICIENT_EVIDENCE
+            search_attribution_html = None
+        else:
+            combined_claims = [*doc_claims, *web_claims]
+            answer_markdown, cited_eids = _render_hybrid_answer(combined_claims)
+            if not answer_markdown.strip():
+                answer_markdown = INSUFFICIENT_EVIDENCE_ANSWER
+                cited_eids = set()
+                effective_followups = []
+                message_status = ChatAnswerStatus.INSUFFICIENT_EVIDENCE
+                search_attribution_html = None
+            else:
+                if not web_claims:
+                    search_attribution_html = None
+                if doc_claims and web_claims:
+                    message_status = (
+                        ChatAnswerStatus.ANSWERED
+                        if doc_status == web_status == ChatAnswerStatus.ANSWERED
+                        else ChatAnswerStatus.PARTIALLY_ANSWERED
+                    )
+                    effective_followups = (
+                        web_answer.suggested_followups
+                        if message_status == ChatAnswerStatus.ANSWERED and web_answer is not None
+                        else []
+                    )
+                elif doc_claims:
+                    message_status = doc_status
+                    effective_followups = []
+                else:
+                    if requires_source:
+                        answer_markdown = (
+                            f"{MIXED_SOURCE_UNVERIFIED_NOTICE}\n\n{answer_markdown}"
+                        )
+                        message_status = ChatAnswerStatus.PARTIALLY_ANSWERED
+                        effective_followups = []
+                    else:
+                        message_status = web_status
+                        effective_followups = (
+                            web_answer.suggested_followups
+                            if web_status == ChatAnswerStatus.ANSWERED and web_answer is not None
+                            else []
+                        )
+
+    else:
+        retrieved_chunks, retrieval_passed = _retrieve_document_chunks_for_turn(
+            clerk_user_id=clerk_user_id,
+            conversation_id=conversation_id,
+            document_id=document_id,
+            index_generation=index_generation,
+            retrieval_query=retrieval_query,
+        )
+        mixed_source_unverified = False
+
+        # Phase B5 remains the deterministic fast path for explicit source-only turns.
+        if document_only and not retrieval_passed:
+            answer_markdown = INSUFFICIENT_EVIDENCE_ANSWER
+            cited_eids = set()
+            effective_followups = []
+            message_status = ChatAnswerStatus.INSUFFICIENT_EVIDENCE
+            source_registry = {}
+        else:
+            source_registry = (
+                {
+                    f"e_{index:02d}": chunk
+                    for index, chunk in enumerate(retrieved_chunks, start=1)
+                }
+                if retrieval_passed
+                else {}
+            )
+            if request_scope == ConversationRequestScope.MIXED and not retrieval_passed:
+                mixed_source_unverified = True
+                paths = [ConversationGenerationPath.TEACHING]
+            elif requires_source and not retrieval_passed:
+                paths = [ConversationGenerationPath.CLARIFICATION]
+            elif request_scope == ConversationRequestScope.MIXED:
+                paths = [
+                    ConversationGenerationPath.STRICT_DOCUMENT,
+                    ConversationGenerationPath.TEACHING,
+                ]
+            elif requires_source:
+                paths = [ConversationGenerationPath.STRICT_DOCUMENT]
+            else:
+                paths = [ConversationGenerationPath.TEACHING]
+
+            path_results = [
+                _generate_validated_path(
+                    generation_path=path,
+                    source_registry=source_registry,
+                    question=question,
+                    history=history,
+                    selected_text=selected_text,
+                    teaching_context=teaching_context,
+                )
+                for path in paths
+            ]
+
+            if (
+                request_scope == ConversationRequestScope.SOURCE_SPECIFIC
+                and paths == [ConversationGenerationPath.STRICT_DOCUMENT]
+                and path_results[0][1] == ChatAnswerStatus.INSUFFICIENT_EVIDENCE
+            ):
+                paths = [ConversationGenerationPath.CLARIFICATION]
+                path_results = [
+                    _generate_validated_path(
+                        generation_path=ConversationGenerationPath.CLARIFICATION,
+                        source_registry=source_registry,
+                        question=question,
+                        history=history,
+                        selected_text=selected_text,
+                        teaching_context=teaching_context,
+                    )
+                ]
+
+            if len(path_results) == 2:
+                strict_answer, strict_status = path_results[0]
+                teaching_answer, teaching_status = path_results[1]
+                if strict_status == ChatAnswerStatus.INSUFFICIENT_EVIDENCE:
+                    mixed_source_unverified = True
+                    generated = teaching_answer.model_copy(update={
+                        "answer_mode": ConversationAnswerMode.MIXED,
+                        "generation_path": ConversationGenerationPath.COMPOSITE,
+                        "suggested_followups": [],
+                    })
+                    b6_status = ChatAnswerStatus.PARTIALLY_ANSWERED
+                else:
+                    generated = strict_answer.model_copy(update={
+                        "claims": [*strict_answer.claims, *teaching_answer.claims],
+                        "answer_mode": ConversationAnswerMode.MIXED,
+                        "generation_path": ConversationGenerationPath.COMPOSITE,
+                        "suggested_followups": teaching_answer.suggested_followups,
+                    })
+                    b6_status = (
+                        ChatAnswerStatus.ANSWERED
+                        if strict_status == teaching_status == ChatAnswerStatus.ANSWERED
+                        else ChatAnswerStatus.PARTIALLY_ANSWERED
+                    )
+                    if b6_status != ChatAnswerStatus.ANSWERED:
+                        generated = generated.model_copy(update={"suggested_followups": []})
+            else:
+                generated, b6_status = path_results[0]
+                if mixed_source_unverified:
+                    generated = generated.model_copy(update={
+                        "answer_mode": ConversationAnswerMode.MIXED,
+                        "generation_path": ConversationGenerationPath.COMPOSITE,
+                        "suggested_followups": [],
+                    })
+                    b6_status = ChatAnswerStatus.PARTIALLY_ANSWERED
+
+            if b6_status == ChatAnswerStatus.INSUFFICIENT_EVIDENCE:
+                answer_markdown = INSUFFICIENT_EVIDENCE_ANSWER
+                cited_eids = set()
+                effective_followups = []
+                message_status = ChatAnswerStatus.INSUFFICIENT_EVIDENCE
+            elif generated.answer_mode == ConversationAnswerMode.CLARIFICATION:
+                answer_markdown = generated.clarification_question or INSUFFICIENT_EVIDENCE_ANSWER
+                cited_eids = set()
+                effective_followups = []
+                message_status = ChatAnswerStatus.PARTIALLY_ANSWERED
+            else:
+                if paths == [ConversationGenerationPath.STRICT_DOCUMENT]:
+                    answer_markdown, cited_eids = _render_grounded_answer(generated.claims)
+                else:
+                    answer_markdown, cited_eids = _render_hybrid_answer(generated.claims)
+                if not answer_markdown.strip():
+                    answer_markdown = INSUFFICIENT_EVIDENCE_ANSWER
+                    cited_eids = set()
+                    effective_followups = []
+                    message_status = ChatAnswerStatus.INSUFFICIENT_EVIDENCE
+                else:
+                    effective_followups = generated.suggested_followups
+                    message_status = b6_status
+                    if mixed_source_unverified:
+                        answer_markdown = (
+                            f"{MIXED_SOURCE_UNVERIFIED_NOTICE}\n\n{answer_markdown}"
+                        )
+
+    citation_payloads = _build_citation_payloads(
+        cited_eids=cited_eids,
+        source_registry=source_registry,
+        web_registry=web_registry,
+        document_id=document_id,
+        document_title=document_title,
+    )
+
+    return _persist_conversation_turn(
+        conversation_id=conversation_id,
+        clerk_user_id=clerk_user_id,
+        document_id=document_id,
+        index_generation=index_generation,
+        snapshot_updated_at=snapshot_updated_at,
+        question=question,
+        selected_text=selected_text,
+        retrieval_mode=retrieval_mode,
+        answer_markdown=answer_markdown,
+        citation_payloads=citation_payloads,
+        effective_followups=effective_followups,
+        message_status=message_status,
+        search_attribution_html=search_attribution_html if any(c.source_type == "web" for c in citation_payloads) else None,
+        enforce_web_daily_limit=(retrieval_mode != "document" and not document_only),
     )

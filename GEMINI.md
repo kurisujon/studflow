@@ -1,9 +1,9 @@
 # StudFlow AI Configuration & Constraints
 
 ## Current Phase
-**Pending Next Feature Assignment**
+**Phase E — Verified Web Grounding & Conversational Turns (Implemented Behind `WEB_GROUNDING_ENABLED=false` — Pending Rollout)**
 
-*Note: Phase D (Chunking Strategy & Hyperparameter Tuning) was evaluated and marked as Completed, as the current chunking mechanisms perfectly satisfy the C3/C4/C5 evaluation baseline. The frontend Dashboard UI evolution (Phases 12-15) is fully complete. Awaiting the next feature assignment.*
+*Note: Phase D (Chunking Strategy & Hyperparameter Tuning) was evaluated and marked as Completed, as the current chunking mechanisms perfectly satisfy the C3/C4/C5 evaluation baseline. The frontend Dashboard UI evolution (Phases 12-15) and V2.1.1 RLS runtime transition tooling (PR #8) are complete. Phase E (`E1`–`E6`) is implemented and verified on `feature/verified-web-grounding` under the rules in `docs/GUARDRAILS.md`: conversational turns reply naturally without retrieval, and cited Web/Hybrid modes use Gemini Google Search grounding + SSRF-safe server-side page verification behind `WEB_GROUNDING_ENABLED=false` pending PR merge, the V2.1.1 production transition, and deployment approval.*
 
 - **C1: Golden evaluation dataset** (Complete)
 - **C2: Retrieval evaluation** (Complete)

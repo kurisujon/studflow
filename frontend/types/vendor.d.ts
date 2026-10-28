@@ -14,6 +14,7 @@ declare module "lucide-react" {
   export const Eraser: import("react").ComponentType<IconProps>;
   export const ExternalLink: import("react").ComponentType<IconProps>;
   export const FileText: import("react").ComponentType<IconProps>;
+  export const Globe: import("react").ComponentType<IconProps>;
   export const GripHorizontal: import("react").ComponentType<IconProps>;
   export const Highlighter: import("react").ComponentType<IconProps>;
   export const Layers3: import("react").ComponentType<IconProps>;

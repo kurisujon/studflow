@@ -16,13 +16,14 @@ import { Button } from "@/components/ui/button";
 import {
   AIChatAPIError,
   createAIConversation,
+  getAICapabilities,
   getAIConversationMessages,
   listAIConversations,
   sendAIConversationMessage,
 } from "@/lib/api/ai-chat";
 import { createFlashcard } from "@/lib/api/flashcards";
 import type { AIToolMode, StudyAIContext } from "@/types/annotations";
-import type { AIChatMessage, AIConversation } from "@/types/ai-chat";
+import type { AIChatMessage, AIConversation, AIRetrievalMode } from "@/types/ai-chat";
 
 const QUICK_ACTIONS = [
   { label: "Simplify", question: "Explain this in simpler terms." },
@@ -32,6 +33,8 @@ const QUICK_ACTIONS = [
 
 const CONVERSATION_CHANGED_MESSAGE = "The conversation changed while the answer was generated. Please retry.";
 const INDEX_PREPARING_MESSAGE = "The document search index is being prepared. Please retry shortly.";
+const WEB_UNAVAILABLE_MESSAGE = "Web and hybrid retrieval are not available yet.";
+const WEB_RATE_LIMITED_FALLBACK_MESSAGE = "Daily verified web search limit reached. Switch Sources to Document to continue studying, or try Web again tomorrow.";
 
 function contextText(context: StudyAIContext): string | undefined {
   const selected = context.selectedText.trim();
@@ -113,6 +116,10 @@ export function AIStudyAssistantPanel({
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [savingFlashcardId, setSavingFlashcardId] = useState<string | null>(null);
   const [savedFlashcardIds, setSavedFlashcardIds] = useState<Set<string>>(new Set());
+  const [webGroundingEnabled, setWebGroundingEnabled] = useState(false);
+  const [webGroundingDailyLimit, setWebGroundingDailyLimit] = useState(0);
+  const [retrievalMode, setRetrievalMode] = useState<AIRetrievalMode>("document");
+  const [searchAttributionByMessageId, setSearchAttributionByMessageId] = useState<Record<string, string>>({});
   const listRef = useRef<HTMLDivElement | null>(null);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
   const loadAbortRef = useRef<AbortController | null>(null);
@@ -182,7 +189,20 @@ export function AIStudyAssistantPanel({
     try {
       const token = await getToken({ skipCache: true });
       if (!token) throw new Error("Your session is unavailable. Please sign in again.");
-      let items = await listAIConversations(documentId, token, controller.signal);
+      const [capabilities, initialItems] = await Promise.all([
+        getAICapabilities(token, controller.signal).catch((capError: unknown) => {
+          if (capError instanceof Error && capError.name === "AbortError") throw capError;
+          return { web_grounding_enabled: false, web_grounding_daily_limit: 0 };
+        }),
+        listAIConversations(documentId, token, controller.signal),
+      ]);
+      if (requestIdRef.current !== requestId) return;
+      setWebGroundingEnabled(capabilities.web_grounding_enabled);
+      setWebGroundingDailyLimit(capabilities.web_grounding_daily_limit);
+      if (!capabilities.web_grounding_enabled) {
+        setRetrievalMode("document");
+      }
+      let items = initialItems;
       if (requestIdRef.current !== requestId) return;
       if (items.length === 0) {
         const created = await createAIConversation(documentId, token, controller.signal);
@@ -280,10 +300,13 @@ export function AIStudyAssistantPanel({
     }
   }
 
+  const effectiveRetrievalMode: AIRetrievalMode = webGroundingEnabled ? retrievalMode : "document";
+
   async function submit(question: string) {
     const normalized = question.trim();
     if (!normalized || !conversationId || sending || reconciliationRequired) return;
     const selected = contextText(pendingContext);
+    const activeMode = effectiveRetrievalMode;
     const optimisticId = `pending-${Date.now()}`;
     const optimistic: AIChatMessage = {
       id: optimisticId,
@@ -292,7 +315,7 @@ export function AIStudyAssistantPanel({
       role: "user",
       content: normalized,
       selected_text: selected ?? null,
-      retrieval_mode: "document",
+      retrieval_mode: activeMode,
       suggested_followups: [],
       citations: [],
       status: "ANSWERED",
@@ -311,16 +334,23 @@ export function AIStudyAssistantPanel({
     try {
       const token = await getToken({ skipCache: true });
       if (!token) throw new Error("Your session is unavailable.");
-      await sendAIConversationMessage(
+      const answer = await sendAIConversationMessage(
         conversationId,
         {
           question: normalized,
           ...(selected ? { selected_text: selected } : {}),
-          retrieval_mode: "document",
+          retrieval_mode: activeMode,
         },
         token,
         controller.signal,
       );
+      if (answer.search_attribution_html) {
+        const attributionHtml = answer.search_attribution_html;
+        setSearchAttributionByMessageId((current) => ({
+          ...current,
+          [answer.message_id]: attributionHtml,
+        }));
+      }
       await loadConversation(conversationId, token, { forceLatest: true });
       setReconciliationRequired(false);
       setPendingContext({ source: "general", selectedText: "" });
@@ -333,6 +363,19 @@ export function AIStudyAssistantPanel({
       if (sendError instanceof Error && sendError.name === "AbortError") {
         setReconciliationRequired(true);
         setNotice("Stopped waiting. This response may still finish on the server. Reload before sending again.");
+      } else if (
+        sendError instanceof AIChatAPIError
+        && sendError.status === 429
+      ) {
+        setNotice(sendError.message || WEB_RATE_LIMITED_FALLBACK_MESSAGE);
+      } else if (
+        sendError instanceof AIChatAPIError
+        && sendError.status === 409
+        && sendError.message === WEB_UNAVAILABLE_MESSAGE
+      ) {
+        setWebGroundingEnabled(false);
+        setRetrievalMode("document");
+        setNotice("Verified web sources are not enabled right now. Switched Sources back to Document.");
       } else if (
         sendError instanceof AIChatAPIError
         && sendError.status === 409
@@ -439,16 +482,28 @@ export function AIStudyAssistantPanel({
           </label>
           <select
             id={`ai-retrieval-mode-${documentId}`}
-            value="document"
+            value={effectiveRetrievalMode}
+            disabled={panelLoading || sending}
             aria-describedby={`ai-retrieval-mode-help-${documentId}`}
-            onChange={() => undefined}
+            onChange={(event) => {
+              const nextMode = event.target.value;
+              if (nextMode === "document" || nextMode === "web" || nextMode === "hybrid") {
+                setRetrievalMode(nextMode);
+              }
+            }}
           >
             <option value="document">Document</option>
-            <option value="web" disabled>Web — coming later</option>
-            <option value="hybrid" disabled>Hybrid — coming later</option>
+            <option value="web" disabled={!webGroundingEnabled}>
+              {webGroundingEnabled ? "Web (verified)" : "Web — coming later"}
+            </option>
+            <option value="hybrid" disabled={!webGroundingEnabled}>
+              {webGroundingEnabled ? "Hybrid (doc + web)" : "Hybrid — coming later"}
+            </option>
           </select>
           <span id={`ai-retrieval-mode-help-${documentId}`} className="sr-only">
-            Document is selected. Web and hybrid sources are disabled until verified web grounding is available.
+            {webGroundingEnabled
+              ? `Selected source mode: ${effectiveRetrievalMode}. Web and hybrid searches are limited to ${webGroundingDailyLimit} per day and never send your document text.`
+              : "Document is selected. Web and hybrid sources are disabled until verified web grounding is available."}
           </span>
         </div>
         <Button type="button" variant="outline" size="sm" onClick={() => void createNewChat()} disabled={creating || sending}>
@@ -471,7 +526,24 @@ export function AIStudyAssistantPanel({
           </div>
         </section>
       ) : (
-        <div className="ai-chat-document-banner"><span>Document-aware tutoring</span><span>Document claims use verified citations</span></div>
+        <div className="ai-chat-document-banner">
+          {effectiveRetrievalMode === "web" ? (
+            <>
+              <span>Verified web grounding</span>
+              <span>Every factual claim cites a public HTTPS source</span>
+            </>
+          ) : effectiveRetrievalMode === "hybrid" ? (
+            <>
+              <span>Hybrid study mode</span>
+              <span>Combines document &amp; verified web citations</span>
+            </>
+          ) : (
+            <>
+              <span>Document-aware tutoring</span>
+              <span>Document claims use verified citations</span>
+            </>
+          )}
+        </div>
       )}
 
       <div
@@ -510,6 +582,7 @@ export function AIStudyAssistantPanel({
               copied={copiedMessageId === message.id}
               flashcardSaved={savedFlashcardIds.has(message.id)}
               flashcardSaving={savingFlashcardId === message.id}
+              searchAttributionHtml={searchAttributionByMessageId[message.id] ?? null}
               onCopy={() => void copyMessage(message)}
               onSaveFlashcard={(question, answer) => void saveFlashcard(message, question, answer)}
               onFollowup={(question) => void submit(question)}

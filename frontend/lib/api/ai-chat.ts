@@ -1,5 +1,6 @@
 import { API_BASE_URL, readAPIErrorDetail } from "@/lib/api";
 import type {
+  AICapabilities,
   AIChatAnswer,
   AIChatCitation,
   AIChatMessage,
@@ -50,6 +51,33 @@ function nullableString(value: unknown, field: string): string | null {
   return string(value, field);
 }
 
+export function sanitizeExternalHttpsUrl(rawUrl: string | null): string | null {
+  if (!rawUrl) return null;
+  const trimmed = rawUrl.trim();
+  if (!trimmed || trimmed.length > 2048) return null;
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== "https:") return null;
+    if (parsed.username || parsed.password) return null;
+    if (!parsed.hostname) return null;
+    if (parsed.port && parsed.port !== "443") return null;
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+
+export function extractCitationDomain(rawUrl: string | null): string | null {
+  const safeUrl = sanitizeExternalHttpsUrl(rawUrl);
+  if (!safeUrl) return null;
+  try {
+    const hostname = new URL(safeUrl).hostname.toLowerCase();
+    return hostname.replace(/^www\./, "") || hostname;
+  } catch {
+    return null;
+  }
+}
+
 
 function chatStatus(value: unknown): AIChatAnswerStatus {
   if (
@@ -82,11 +110,12 @@ function citation(value: unknown): AIChatCitation {
   if (value.source_type !== "document" && value.source_type !== "web") {
     throw new Error("Invalid AI citation source.");
   }
+  const rawUrl = nullableString(value.url, "citation URL");
   return {
     index: value.index,
     source_type: value.source_type,
     title: string(value.title, "citation title"),
-    url: nullableString(value.url, "citation URL"),
+    url: value.source_type === "web" ? sanitizeExternalHttpsUrl(rawUrl) : null,
     document_id: nullableString(value.document_id, "citation document id"),
     chunk_id: nullableString(value.chunk_id, "citation chunk id"),
     page_number: value.page_number === null ? null : Number(value.page_number),
@@ -176,6 +205,25 @@ export async function getAIConversationMessages(
   };
 }
 
+export async function getAICapabilities(
+  token: string | null,
+  signal?: AbortSignal,
+): Promise<AICapabilities> {
+  const response = await request("/api/ai/capabilities", token, { signal });
+  const payload: unknown = await response.json();
+  if (
+    !isObject(payload) ||
+    typeof payload.web_grounding_enabled !== "boolean" ||
+    typeof payload.web_grounding_daily_limit !== "number"
+  ) {
+    throw new Error("Invalid AI capabilities response.");
+  }
+  return {
+    web_grounding_enabled: payload.web_grounding_enabled,
+    web_grounding_daily_limit: payload.web_grounding_daily_limit,
+  };
+}
+
 export async function sendAIConversationMessage(
   conversationId: string,
   payload: {
@@ -202,5 +250,9 @@ export async function sendAIConversationMessage(
     citations: value.citations.map(citation),
     status: chatStatus(value.status),
     suggested_followups: value.suggested_followups.map((item) => string(item, "follow-up")),
+    search_attribution_html:
+      value.search_attribution_html === undefined
+        ? null
+        : nullableString(value.search_attribution_html, "search attribution HTML"),
   };
 }

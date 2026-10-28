@@ -135,7 +135,7 @@ Goal: replace isolated AI report sessions with durable, ownership-safe conversat
 - [x] Add page-aware PDF chunking and controlled legacy-document reindexing
 - [x] Propagate verified PDF page numbers through active-generation document citations
 - [x] Keep document retrieval selected while rejecting Web and Hybrid before AI generation or persistence
-- [ ] Add verified Google Search grounding with document, web, and hybrid modes
+- [ ] Add verified Google Search grounding with document, web, and hybrid modes (approved 2026-10-28 — tracked in Phase E below)
 - [ ] Add authenticated streaming after the synchronous contract is stable
 
 ## Phase A: AI Architecture Cleanup (Current Priority)
@@ -335,3 +335,44 @@ Goal: Begin systematic chunking experiments and threshold tuning evaluating cand
 - [x] Add symbolic success, audit failure, drain failure, role failure, and rollback-order tests
 - [ ] Run the protected transition in an approved production maintenance window
 - [ ] Rerun the unchanged strict production preflight after cutover
+
+## Phase E: Verified Web Grounding & Conversational Turns (Implemented Behind Flag — Pending Rollout)
+
+Goal: let the study assistant answer beyond the uploaded document using cited web sources, and reply naturally to conversational turns, without allowing uncited or invented facts. Rules are defined in `docs/GUARDRAILS.md` § Verified Web Grounding.
+
+Prerequisite: the V2.1.1 RLS runtime transition and the deployment of the Phase B.1 hybrid tutoring build to production.
+
+### E1: Conversational Turn Handling
+- [x] Deterministically detect pure acknowledgement/greeting/closing turns before retrieval
+- [x] Return a short claim-free, citation-free reply without document retrieval or web search
+- [x] Stop pronoun-only matches (e.g. "that was good thanks") from inheriting source-specific scope
+
+### E2: Web Retrieval Provider
+- [x] Add a Google Search grounding call to `llm_provider.py` with retry and model fallback
+- [x] Build the web source registry (`w_XX`) only from grounding metadata URLs/titles with SSRF-guarded server-side excerpt verification
+- [x] Enforce `https`, derive domain, bound excerpts, and wrap web text in `UntrustedDataBoundary`
+- [x] Send only the student's question to search (no document text, selections, notes, or identifiers)
+
+### E3: Web and Hybrid Generation Paths
+- [x] Add `WEB` generation path and `web` claim provenance with web-only evidence IDs
+- [x] Strip model-authored URLs and citation markers; reject unknown evidence IDs
+- [x] Run semantic citation evaluation and unsupported-claim filtering for web claims
+- [x] Hybrid: document retrieval first, web for the remaining gap, independently validated paths
+- [x] Keep explicit document-only requests on the strict document path with no web search
+- [x] Gate `web`/`hybrid` behind a default-disabled `WEB_GROUNDING_ENABLED` flag (preserving 409 when disabled)
+
+### E4: Persistence, Limits, and API
+- [x] Persist web citations with `source_type="web"`, URL, title, and bounded excerpt (domain derived on read)
+- [x] Add per-user web/hybrid daily rate limiting through configuration (`WEB_GROUNDING_DAILY_LIMIT`)
+- [x] Preserve existing response shapes and document-mode behavior, plus `GET /api/ai/capabilities`
+
+### E5: Frontend
+- [x] Enable Web and Hybrid source options when `GET /api/ai/capabilities` reports the backend flag is on
+- [x] Render separate "From your document" and "From the web" citation sections with validated `https` external links
+- [x] Show sanitized Google Search attribution inside a scriptless sandboxed iframe (`sandbox=""`)
+
+### E6: Verification & Gate
+- [x] Unit tests: fabricated links, unknown IDs, cross-provenance citations, prompt-injection web content, SSRF/DNS rebinding, privacy of search queries, conversational turns
+- [x] Confirm document-mode C6 regression gate still passes against `c3_baseline_v2`
+- [x] Backend tests, frontend lint/build, independent security review
+- [ ] Authenticated production acceptance after separate deployment approval

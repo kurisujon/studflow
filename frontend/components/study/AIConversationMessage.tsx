@@ -3,7 +3,17 @@ import { Bot, Check, Clipboard, Layers3, User } from "lucide-react";
 import { AIConversationSources } from "@/components/study/AIConversationSources";
 import { SafeMessageContent } from "@/components/study/SafeMessageContent";
 import { Button } from "@/components/ui/button";
-import type { AIChatMessage } from "@/types/ai-chat";
+import type { AIChatMessage, AIRetrievalMode } from "@/types/ai-chat";
+
+function insufficientEvidenceCopy(mode: AIRetrievalMode): string {
+  if (mode === "web") {
+    return "StudFlow could not find enough verified web evidence to support an answer.";
+  }
+  if (mode === "hybrid") {
+    return "StudFlow could not find enough verified evidence in your document or on the web to support an answer.";
+  }
+  return "StudFlow could not find enough verified evidence in this material to support an answer.";
+}
 
 export function AIConversationMessage({
   message,
@@ -12,6 +22,7 @@ export function AIConversationMessage({
   copied,
   flashcardSaved,
   flashcardSaving,
+  searchAttributionHtml,
   onCopy,
   onSaveFlashcard,
   onFollowup,
@@ -22,6 +33,7 @@ export function AIConversationMessage({
   copied: boolean;
   flashcardSaved: boolean;
   flashcardSaving: boolean;
+  searchAttributionHtml?: string | null;
   onCopy: () => void;
   onSaveFlashcard: (question: string, answer: string) => void;
   onFollowup: (question: string) => void;
@@ -55,14 +67,17 @@ export function AIConversationMessage({
       <SafeMessageContent content={message.content} citations={message.citations} />
       {message.status === "INSUFFICIENT_EVIDENCE" ? (
         <p className="mt-3 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-sm text-amber-900 dark:text-amber-200" role="status">
-          StudFlow could not find enough verified evidence in this material to support an answer.
+          {insufficientEvidenceCopy(message.retrieval_mode)}
         </p>
       ) : message.status === "OUT_OF_SCOPE" ? (
         <p className="mt-3 rounded-xl border border-border bg-muted px-3 py-2 text-sm text-muted-foreground" role="status">
           This question falls outside the selected material. Try asking about a topic contained in the document.
         </p>
       ) : null}
-      <AIConversationSources citations={message.citations} />
+      <AIConversationSources
+        citations={message.citations}
+        searchAttributionHtml={searchAttributionHtml}
+      />
       {message.status === "ANSWERED" && message.suggested_followups.length > 0 ? (
         <div className="ai-chat-followups" aria-label="Suggested follow-up questions">
           {message.suggested_followups.map((followup) => (

@@ -658,6 +658,102 @@ class TestDomainValidation(unittest.TestCase):
                 generation_path=ConversationGenerationPath.TEACHING,
             )
 
+    def test_web_path_validates_claims_and_strips_model_urls_and_markers(self):
+        raw = ConversationAnswer(
+            answer_mode="web",
+            claims=[
+                RawGroundedClaim(
+                    claim_text=(
+                        "Laravel route parameters capture URI segments (see https://evil.example/phish) "
+                        "via [official docs](https://laravel.com/docs/routing) and www.fake.org/path [w_01] [1]."
+                    ),
+                    cited_evidence_ids=["w_01", "w_01"],
+                    provenance="web",
+                )
+            ],
+            evidence_sufficient=True,
+            suggested_followups=["Untyped followup should be cleared"],
+            followup_candidates=[
+                RawSuggestedFollowup(
+                    question="How do optional route parameters work?",
+                    answer_path="general",
+                )
+            ],
+        )
+
+        validated = validate_conversation_answer(
+            raw,
+            available_ids={"w_01"},
+            generation_path=ConversationGenerationPath.WEB,
+        )
+
+        self.assertEqual(validated.answer_mode, ConversationAnswerMode.WEB)
+        self.assertEqual(len(validated.claims), 1)
+        claim_text = validated.claims[0].claim_text
+        self.assertNotIn("https://", claim_text)
+        self.assertNotIn("www.fake.org", claim_text)
+        self.assertNotIn("[w_01]", claim_text)
+        self.assertNotIn("[1]", claim_text)
+        self.assertIn("official docs", claim_text)
+        self.assertEqual(validated.claims[0].cited_evidence_ids, ["w_01"])
+        self.assertEqual(validated.suggested_followups, ["How do optional route parameters work?"])
+
+    def test_cross_provenance_and_unknown_ids_are_rejected(self):
+        doc_citing_web = ConversationAnswer(
+            answer_mode="document",
+            claims=[
+                RawGroundedClaim(
+                    claim_text="Route parameters capture IDs.",
+                    cited_evidence_ids=["w_01"],
+                    provenance="document",
+                )
+            ],
+            evidence_sufficient=True,
+        )
+        web_citing_doc = ConversationAnswer(
+            answer_mode="web",
+            claims=[
+                RawGroundedClaim(
+                    claim_text="Route parameters capture IDs.",
+                    cited_evidence_ids=["e_01"],
+                    provenance="web",
+                )
+            ],
+            evidence_sufficient=True,
+        )
+        web_citing_unknown = ConversationAnswer(
+            answer_mode="web",
+            claims=[
+                RawGroundedClaim(
+                    claim_text="Route parameters capture IDs.",
+                    cited_evidence_ids=["w_99"],
+                    provenance="web",
+                )
+            ],
+            evidence_sufficient=True,
+        )
+
+        with self.assertRaisesRegex(ValueError, "Cross-provenance Evidence ID reference: w_01"):
+            validate_conversation_answer(
+                doc_citing_web,
+                available_ids={"e_01", "w_01"},
+                generation_path=ConversationGenerationPath.STRICT_DOCUMENT,
+            )
+
+        with self.assertRaisesRegex(ValueError, "Cross-provenance Evidence ID reference: e_01"):
+            validate_conversation_answer(
+                web_citing_doc,
+                available_ids={"e_01", "w_01"},
+                generation_path=ConversationGenerationPath.WEB,
+            )
+
+        with self.assertRaisesRegex(ValueError, "Invalid Evidence ID reference: w_99"):
+            validate_conversation_answer(
+                web_citing_unknown,
+                available_ids={"w_01"},
+                generation_path=ConversationGenerationPath.WEB,
+            )
+
 
 if __name__ == '__main__':
     unittest.main()

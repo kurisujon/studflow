@@ -6,7 +6,14 @@ from pydantic import BaseModel
 from pydantic import Field, ValidationError
 from typing import Literal
 from core.config import settings
-from services.llm_provider import AIServiceError, _embed_contents, _generate_structured
+from services.llm_provider import (
+    AIServiceError,
+    WebGroundingChunkMetadata,
+    WebSearchGenerationResult,
+    _embed_contents,
+    _generate_structured,
+    _generate_with_search,
+)
 logger = logging.getLogger(__name__)
 
 class StudyMaterialQualityError(AIServiceError):
@@ -58,7 +65,7 @@ class DocumentQuestionAnswer(BaseModel):
 class RawGroundedClaim(BaseModel):
     claim_text: str = Field(min_length=1, max_length=2000)
     cited_evidence_ids: list[str] = Field(default_factory=list)
-    provenance: Literal["document", "general", "illustrative"] = "document"
+    provenance: Literal["document", "general", "illustrative", "web"] = "document"
 
 
 class RawSuggestedFollowup(BaseModel):
@@ -70,7 +77,7 @@ class ConversationAnswer(BaseModel):
     claims: list[RawGroundedClaim]
     evidence_sufficient: bool
     suggested_followups: list[str] = Field(default_factory=list, max_length=4)
-    answer_mode: Literal["document", "general", "mixed", "clarification", "insufficient"] = "document"
+    answer_mode: Literal["document", "general", "mixed", "clarification", "insufficient", "web"] = "document"
     clarification_question: str | None = Field(default=None, max_length=500)
     followup_candidates: list[RawSuggestedFollowup] = Field(default_factory=list, max_length=4)
 
@@ -105,6 +112,36 @@ document notation or reported value means. Return either clarification mode with
 claims and one targeted clarification_question, or insufficient mode with no claims.
 All citation and follow-up arrays must be empty. Return only JSON matching the schema.
 '''.strip()
+
+WEB_QA_PROMPT = '''
+You are StudFlow AI, a patient study assistant answering a student's question using ONLY
+the supplied verified web sources.
+Conversation history provides context for the student's intent, but it is not evidence.
+Do not invent facts, titles, URLs, domain names, page numbers, or citations.
+
+Your response must be an array of distinct claims. Each claim represents a distinct
+sentence or logical thought. For each claim, set provenance to "web" and provide a list
+of Evidence IDs (e.g. "w_01") in cited_evidence_ids that explicitly support that claim.
+Do NOT write URLs, markdown links, or inline citation markers (like [1] or [w_01])
+inside claim_text.
+
+If the supplied web sources cannot answer the question:
+1. Set answer_mode to "insufficient" and evidence_sufficient to false.
+2. Return an empty claims array and empty suggested_followups.
+
+If the supplied web sources can answer the question:
+1. Set answer_mode to "web" and evidence_sufficient to true.
+2. Ensure every claim has provenance="web" and cites at least one valid "w_XX" Evidence ID
+   from the supplied source registry.
+Return only JSON matching the required schema.
+'''.strip()
+
+
+def run_grounded_web_search(prompt: str) -> WebSearchGenerationResult:
+    """Execute a Google Search grounded Gemini retrieval call returning metadata only."""
+    if not prompt.strip():
+        raise AIServiceError('A search prompt is required.')
+    return _generate_with_search(prompt=prompt.strip())
 
 def generate_embeddings_batch(chunks: list[str]) -> list[list[float]]:
     """Embed a bounded batch of stored document chunks for semantic retrieval."""
@@ -272,13 +309,15 @@ def answer_conversation_question(
     user_question: str,
     conversation_history: list[tuple[str, str]],
     selected_text: str | None = None,
-    generation_path: Literal["strict_document", "teaching", "clarification"] = "strict_document",
+    generation_path: Literal["strict_document", "teaching", "clarification", "web"] = "strict_document",
 ) -> ConversationAnswer:
     boundary = UntrustedDataBoundary()
     if not sources and generation_path == "strict_document":
         raise AIServiceError('Cannot answer a conversation question without document sources.')
-    if sources and generation_path != "strict_document":
-        raise AIServiceError('Only strict document generation may receive verified sources.')
+    if not sources and generation_path == "web":
+        raise AIServiceError('Cannot answer a web-grounded question without verified web sources.')
+    if sources and generation_path not in {"strict_document", "web"}:
+        raise AIServiceError('Only strict document or web generation may receive verified sources.')
     if not user_question.strip():
         raise AIServiceError('A conversation question is required.')
     history_text = '\n'.join((f'{role.upper()}: {content}' for role, content in conversation_history)) or 'No previous messages.'
@@ -287,15 +326,34 @@ def answer_conversation_question(
         "strict_document": CONVERSATION_QA_PROMPT,
         "teaching": TEACHING_QA_PROMPT,
         "clarification": CLARIFICATION_QA_PROMPT,
+        "web": WEB_QA_PROMPT,
     }[generation_path]
-    mode_instruction = (
-        "Use answer_mode='document' and provenance='document' for supported claims. "
-        "Use answer_mode='insufficient' when the sources cannot answer."
-        if generation_path == "strict_document"
-        else "Follow the externally selected generation path above; do not self-select another path."
-    )
+    if generation_path == "strict_document":
+        mode_instruction = (
+            "Use answer_mode='document' and provenance='document' for supported claims. "
+            "Use answer_mode='insufficient' when the sources cannot answer."
+        )
+        registry_footer = (
+            "cited_evidence_ids must contain every Evidence ID used to support a document claim. "
+            "Use only Evidence IDs present in the registry."
+        )
+    elif generation_path == "web":
+        mode_instruction = (
+            "Use answer_mode='web' and provenance='web' for supported claims. "
+            "Use answer_mode='insufficient' when the verified web sources cannot answer."
+        )
+        registry_footer = (
+            "cited_evidence_ids must contain every 'w_XX' Evidence ID used to support a web claim. "
+            "Use only Evidence IDs present in the registry and never write URLs inside claim_text."
+        )
+    else:
+        mode_instruction = "Follow the externally selected generation path above; do not self-select another path."
+        registry_footer = (
+            "cited_evidence_ids must contain every Evidence ID used to support a document claim. "
+            "Use only Evidence IDs present in the registry."
+        )
     source_registry = boundary.wrap(source_text) if source_text else 'No verified document evidence passed the relevance threshold.'
-    prompt = f'{system_prompt}\n\n{mode_instruction}\n\n{boundary.instruction}\nRecent conversation:\n{boundary.wrap(history_text)}\n\nCurrent student question:\n{boundary.wrap(user_question.strip())}\n\nStudent-selected context for this turn (use it to understand intent, but cite only the verified source registry):\n{(boundary.wrap(selected_text) if selected_text else 'No selected context.')}\n\nVerified source registry:\n{source_registry}\n\ncited_evidence_ids must contain every Evidence ID used to support a document claim. Use only Evidence IDs present in the registry.'
+    prompt = f'{system_prompt}\n\n{mode_instruction}\n\n{boundary.instruction}\nRecent conversation:\n{boundary.wrap(history_text)}\n\nCurrent student question:\n{boundary.wrap(user_question.strip())}\n\nStudent-selected context for this turn (use it to understand intent, but cite only the verified source registry):\n{(boundary.wrap(selected_text) if selected_text else 'No selected context.')}\n\nVerified source registry:\n{source_registry}\n\n{registry_footer}'
     answer: ConversationAnswer | None = None
     final_validation_error: ValidationError | None = None
     for generation_attempt in range(2):
