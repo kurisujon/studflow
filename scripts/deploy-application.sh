@@ -132,6 +132,17 @@ wait_frontend() {
   return 1
 }
 
+wait_worker() {
+  local attempt
+  for attempt in $(seq 1 "$WAIT_ATTEMPTS"); do
+    if celery_control inspect >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep "$WAIT_INTERVAL"
+  done
+  return 1
+}
+
 verify_running_ref() {
   local service="$1" expected="$2" repository="$3" actual
   actual="$(immutable_digest "$service" "$repository")"
@@ -259,7 +270,7 @@ cleanup() {
         wait_backend >&2
         if [ "$rollback_worker_state" != "running" ] || stop_drained_worker >&2; then
           compose up -d --no-deps worker >&2
-          celery_control inspect >&2
+          wait_worker >&2
         else
           write_images "$current_frontend" "$TARGET_BACKEND"
           printf 'Automatic backend rollback was unsafe because the drained worker did not stop cleanly.\n' >&2
@@ -341,7 +352,7 @@ stop_drained_worker || fail "Drained Celery worker did not stop cleanly; release
 worker_changed=true
 compose up -d --no-deps worker
 consumer_drained=false
-celery_control inspect >/dev/null
+wait_worker || fail "Replacement worker did not become ready."
 verify_running_ref backend "$TARGET_BACKEND" "$BACKEND_REPOSITORY"
 verify_running_ref worker "$TARGET_BACKEND" "$BACKEND_REPOSITORY"
 
