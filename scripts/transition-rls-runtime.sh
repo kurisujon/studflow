@@ -147,10 +147,26 @@ stop_drained_worker() {
   return 1
 }
 tag_ref() {
-  local repository="$1" sha="$2" digest
-  digest="$(docker manifest inspect --verbose "$repository:$sha" | python3 -c 'import json,sys; d=json.load(sys.stdin); xs=d if isinstance(d,list) else [d]; values={x.get("Descriptor",{}).get("digest") for x in xs}; values.discard(None); len(values)==1 or sys.exit(1); print(values.pop())')"
-  [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]] || fail "Source tag manifest is ambiguous."
-  printf '%s@%s\n' "$repository" "$digest"
+  local repository="$1" sha="$2" expected="${3:-}"
+  local tag_manifest digest_manifest
+  if [ -n "$expected" ]; then
+    tag_manifest="$(mktemp)"; digest_manifest="$(mktemp)"
+    if docker manifest inspect "$repository:$sha" > "$tag_manifest" 2>/dev/null && \
+       docker manifest inspect "$expected" > "$digest_manifest" 2>/dev/null && \
+       python3 -c 'import json,sys; raise SystemExit(0 if json.load(open(sys.argv[1])) == json.load(open(sys.argv[2])) else 1)' "$tag_manifest" "$digest_manifest"; then
+      rm -f -- "$tag_manifest" "$digest_manifest"
+      printf '%s\n' "$expected"
+      return 0
+    fi
+    rm -f -- "$tag_manifest" "$digest_manifest"
+  fi
+  local digest
+  digest="$(docker manifest inspect --verbose "$repository:$sha" | python3 -c 'import json,sys; d=json.load(sys.stdin); xs=d if isinstance(d,list) else [d]; xs=[x for x in xs if x.get("Descriptor",{}).get("annotations",{}).get("vnd.docker.reference.type") != "attestation-manifest"]; values={x.get("Descriptor",{}).get("digest") for x in xs}; values.discard(None); len(values)==1 or sys.exit(1); print(values.pop())' 2>/dev/null || true)"
+  if [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+    printf '%s@%s\n' "$repository" "$digest"
+    return 0
+  fi
+  fail "Source tag manifest is ambiguous."
 }
 database_helper() {
   local backend_ref="$1" mode="$2" backend_container
@@ -171,10 +187,10 @@ if [ "$current_backend" != "$EXPECTED_CURRENT_BACKEND" ] || [ "$current_worker" 
 docker_config="$(mktemp -d "${TMPDIR:-/tmp}/studflow-transition-docker.XXXXXX")"
 export DOCKER_CONFIG="$docker_config"
 docker login ghcr.io --username "$GHCR_USERNAME" --password-stdin < "$token_file" >/dev/null
-[ "$(tag_ref "$FRONTEND_REPOSITORY" "$CURRENT_FRONTEND_SHA")" = "$current_frontend" ] || fail "Current frontend source-to-digest attestation failed."
-[ "$(tag_ref "$BACKEND_REPOSITORY" "$CURRENT_BACKEND_SHA")" = "$current_backend" ] || fail "Current backend source-to-digest attestation failed."
-[ "$(tag_ref "$FRONTEND_REPOSITORY" "$TARGET_SHA")" = "$TARGET_FRONTEND" ] || fail "Target frontend source-to-digest attestation failed."
-[ "$(tag_ref "$BACKEND_REPOSITORY" "$TARGET_SHA")" = "$TARGET_BACKEND" ] || fail "Target backend source-to-digest attestation failed."
+[ "$(tag_ref "$FRONTEND_REPOSITORY" "$CURRENT_FRONTEND_SHA" "$current_frontend")" = "$current_frontend" ] || fail "Current frontend source-to-digest attestation failed."
+[ "$(tag_ref "$BACKEND_REPOSITORY" "$CURRENT_BACKEND_SHA" "$current_backend")" = "$current_backend" ] || fail "Current backend source-to-digest attestation failed."
+[ "$(tag_ref "$FRONTEND_REPOSITORY" "$TARGET_SHA" "$TARGET_FRONTEND")" = "$TARGET_FRONTEND" ] || fail "Target frontend source-to-digest attestation failed."
+[ "$(tag_ref "$BACKEND_REPOSITORY" "$TARGET_SHA" "$TARGET_BACKEND")" = "$TARGET_BACKEND" ] || fail "Target backend source-to-digest attestation failed."
 for image in "$current_frontend" "$current_backend" "$TARGET_FRONTEND" "$TARGET_BACKEND"; do docker manifest inspect "$image" >/dev/null; done
 docker image inspect "$current_frontend" >/dev/null
 docker image inspect "$current_backend" >/dev/null
