@@ -406,6 +406,86 @@ _TEACHING_REQUEST_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+_CONVERSATIONAL_EXCLUDED_TOKENS = {
+    "what", "whats", "what's", "why", "how", "when", "where", "who", "which", "whose", "whom",
+    "explain", "define", "summarize", "summary", "compare", "contrast", "describe", "elaborate",
+    "clarify", "example", "examples", "sample", "syntax", "code", "formula", "equation",
+    "calculate", "compute", "solve", "derive", "prove", "list", "show", "give", "tell",
+    "write", "draft", "translate", "analyze", "mean", "means", "meaning", "difference",
+    "between", "document", "pdf", "page", "pages", "section", "chapter", "slide", "slides",
+    "table", "figure", "chart", "paper", "study", "article", "report", "source", "sources",
+    "quiz", "flashcard", "flashcards", "more", "another", "next", "continue", "repeat", "again",
+}
+
+_CONV_GREETING_RE = re.compile(
+    r"(?:hi|hello|hey|yo|good (?:morning|afternoon|evening)|greetings)"
+    r"(?: there)?(?: studflow(?: ai)?)?"
+)
+_CONV_THANKS_PHRASE = (
+    r"(?:thanks|thank you|thx|ty|many thanks|thanks a lot|thank you so much|"
+    r"thanks so much|much appreciated|appreciate (?:it|that|this)|i appreciate (?:it|that|this))"
+)
+_CONV_EVAL_PREFIX = (
+    r"(?:(?:that|this|it|that's|thats|it's|its)\s+(?:was|is)\s+"
+    r"(?:(?:very|really|super|so|pretty|quite)\s+)?"
+    r"(?:good|great|helpful|clear|useful|awesome|nice|perfect|amazing|excellent|cool|neat|sweet|wonderful|fantastic|spot on)"
+    r"|(?:(?:very|really|super|so|pretty|quite)\s+)?"
+    r"(?:good|great|helpful|clear|useful|awesome|nice|perfect|amazing|excellent|cool|spot on)"
+    r"|(?:that|this|it)\s+(?:helped|helps)(?:\s+(?:me\s+)?a\s+lot)?"
+    r"|(?:(?:that|this|it)\s+)?makes(?:\s+total)?\s+sense"
+    r"|that's all|thats all|that is all|nothing else|all set|i'm good|im good|all good|sounds good"
+    r"|ok|okay|alright|got it|i got it|i see|understood)"
+)
+_CONV_GRATITUDE_RE = re.compile(
+    rf"(?:{_CONV_EVAL_PREFIX}\s+)?{_CONV_THANKS_PHRASE}"
+    r"(?:\s+(?:for (?:the|your|that) (?:help|explanation|answer|info)|studflow(?: ai)?|ai))?"
+)
+_CONV_ACK_CLOSING_RE = re.compile(
+    r"(?:got it|i got it|i see|oh i see|makes(?:\s+total)?\s+sense|"
+    r"(?:that|it) makes(?:\s+total)?\s+sense|understood|i understand(?: now)?|"
+    r"(?:(?:ok|okay|alright)\s+)?(?:cool|great|awesome|nice|perfect|got it|understood|makes sense)|"
+    r"ok|okay|alright|sounds good|all good|good to know|noted|clear now|that's clear|thats clear|"
+    r"bye|goodbye|see ya|see you(?: later)?|have a (?:good|great|nice) (?:day|one|night)|"
+    r"that's all|thats all|that is all|nothing else|all set|i'm good|im good)(?:\s+now)?"
+)
+
+
+def _normalize_conversational_text(question: str) -> str | None:
+    stripped = question.strip()
+    if not stripped or len(stripped) > 80 or "\n" in stripped or "?" in stripped:
+        return None
+    cleaned = re.sub(r"[^\w\s']", " ", stripped.lower())
+    normalized = " ".join(cleaned.split())
+    if not normalized:
+        return None
+    words = normalized.split()
+    if len(words) > 10:
+        return None
+    if any(word in _CONVERSATIONAL_EXCLUDED_TOKENS for word in words):
+        return None
+    return normalized
+
+
+def _is_conversational_turn(question: str) -> bool:
+    """Return True only for short, pure greetings, thanks, acknowledgements, or closings."""
+    normalized = _normalize_conversational_text(question)
+    if normalized is None:
+        return False
+    return bool(
+        _CONV_GREETING_RE.fullmatch(normalized)
+        or _CONV_GRATITUDE_RE.fullmatch(normalized)
+        or _CONV_ACK_CLOSING_RE.fullmatch(normalized)
+    )
+
+
+def _conversational_reply(question: str) -> str:
+    normalized = _normalize_conversational_text(question) or ""
+    if _CONV_GREETING_RE.fullmatch(normalized):
+        return "Hello! Ask me anything about this study material whenever you're ready."
+    if _CONV_GRATITUDE_RE.fullmatch(normalized):
+        return "You're welcome! Ask me anything else about this material whenever you're ready."
+    return "Glad that helped! Ask me anything else about this material whenever you're ready."
+
 
 def _is_explicit_document_only(question: str) -> bool:
     return any(pattern.search(question) for pattern in _EXPLICIT_DOCUMENT_ONLY_PATTERNS)
@@ -419,6 +499,8 @@ def _request_scope(
     question: str,
     history: list[tuple[str, str]],
 ) -> ConversationRequestScope:
+    if _is_conversational_turn(question):
+        return ConversationRequestScope.HYBRID
     if _is_explicit_document_only(question):
         return ConversationRequestScope.DOCUMENT_ONLY
     source_specific = _is_source_specific(question)
@@ -433,7 +515,11 @@ def _request_scope(
     if _TEACHING_REQUEST_PATTERN.search(question):
         return ConversationRequestScope.HYBRID
     previous_user_question = next(
-        (content for role, content in reversed(history) if role == "user"),
+        (
+            content
+            for role, content in reversed(history)
+            if role == "user" and not _is_conversational_turn(content)
+        ),
         None,
     )
     if previous_user_question and _is_explicit_document_only(previous_user_question):
@@ -469,7 +555,7 @@ def _retrieval_query(
                 else f"{content.strip()[:1_000]}\n…\n{content.strip()[-1_000:]}"
             )
             for role, content in history
-            if role == "user" and content.strip()
+            if role == "user" and content.strip() and not _is_conversational_turn(content)
         ][-2:]
         if recent_user_questions:
             parts.append("Recent student context:\n" + "\n".join(recent_user_questions))
@@ -596,6 +682,111 @@ def _generate_validated_path(
     return filter_unsupported_claims(generated)
 
 
+def _persist_conversation_turn(
+    *,
+    conversation_id: uuid.UUID,
+    clerk_user_id: str,
+    document_id: uuid.UUID,
+    index_generation: int,
+    snapshot_updated_at: datetime,
+    question: str,
+    selected_text: str | None,
+    retrieval_mode: RetrievalMode,
+    answer_markdown: str,
+    citation_payloads: list[CitationResponse],
+    effective_followups: list[str],
+    message_status: ChatAnswerStatus,
+) -> ChatAnswer:
+    with _open_session(clerk_user_id) as session:
+        # Match document-deletion lock order: document first, then conversation.
+        document = _get_owned_document(
+            session,
+            document_id=document_id,
+            clerk_user_id=clerk_user_id,
+            for_update=True,
+        )
+        if document.status != DocumentStatus.COMPLETED:
+            raise DocumentNotReadyError
+        if document.active_index_generation != index_generation:
+            raise ConcurrentConversationUpdateError
+        conversation = get_owned_conversation(
+            session,
+            conversation_id=conversation_id,
+            clerk_user_id=clerk_user_id,
+            for_update=True,
+        )
+        if conversation.document_id != document_id:
+            raise ConcurrentConversationUpdateError
+        if conversation.updated_at != snapshot_updated_at:
+            raise ConcurrentConversationUpdateError
+
+        maximum_sequence = session.exec(
+            select(func.max(AIMessage.sequence_number)).where(
+                AIMessage.conversation_id == conversation.id
+            )
+        ).one()
+        next_sequence = int(maximum_sequence or 0) + 1
+        now = datetime.now(timezone.utc)
+        user_message = AIMessage(
+            status=ChatAnswerStatus.ANSWERED,
+            conversation_id=conversation.id,
+            sequence_number=next_sequence,
+            role="user",
+            content=question,
+            selected_text=selected_text,
+            retrieval_mode=retrieval_mode,
+            suggested_followups=[],
+            created_at=now,
+        )
+        assistant_message = AIMessage(
+            status=message_status,
+            conversation_id=conversation.id,
+            sequence_number=next_sequence + 1,
+            role="assistant",
+            content=answer_markdown,
+            retrieval_mode=retrieval_mode,
+            suggested_followups=effective_followups,
+            created_at=now,
+        )
+        try:
+            session.add(user_message)
+            session.add(assistant_message)
+            session.flush()
+            assistant_message_id = assistant_message.id
+            for citation in citation_payloads:
+                session.add(
+                    AIMessageCitation(
+                        message_id=assistant_message_id,
+                        citation_index=citation.index,
+                        source_type=citation.source_type,
+                        title=citation.title,
+                        url=citation.url,
+                        document_id=citation.document_id,
+                        chunk_id=citation.chunk_id,
+                        page_number=citation.page_number,
+                        excerpt=citation.excerpt,
+                    )
+                )
+            conversation.updated_at = datetime.now(timezone.utc)
+            session.add(conversation)
+            commit_and_reassert_rls(session, clerk_user_id)
+        except IntegrityError as exc:
+            session.rollback()
+            raise ConcurrentConversationUpdateError from exc
+        except Exception:
+            session.rollback()
+            raise
+
+    return ChatAnswer(
+        conversation_id=conversation_id,
+        message_id=assistant_message_id,
+        answer_markdown=answer_markdown,
+        citations=citation_payloads,
+        suggested_followups=effective_followups,
+        status=message_status,
+    )
+
+
 def send_conversation_message(
     *,
     conversation_id: uuid.UUID,
@@ -644,6 +835,22 @@ def send_conversation_message(
         document_id = document.id
         document_title = document.filename
         index_generation = document.active_index_generation
+
+    if _is_conversational_turn(question):
+        return _persist_conversation_turn(
+            conversation_id=conversation_id,
+            clerk_user_id=clerk_user_id,
+            document_id=document_id,
+            index_generation=index_generation,
+            snapshot_updated_at=snapshot_updated_at,
+            question=question,
+            selected_text=selected_text,
+            retrieval_mode=retrieval_mode,
+            answer_markdown=_conversational_reply(question),
+            citation_payloads=[],
+            effective_followups=[],
+            message_status=ChatAnswerStatus.ANSWERED,
+        )
 
     request_scope = _request_scope(question, history)
     document_only = request_scope == ConversationRequestScope.DOCUMENT_ONLY
@@ -862,91 +1069,17 @@ def send_conversation_message(
             )
         )
 
-    with _open_session(clerk_user_id) as session:
-        # Match document-deletion lock order: document first, then conversation.
-        document = _get_owned_document(
-            session,
-            document_id=document_id,
-            clerk_user_id=clerk_user_id,
-            for_update=True,
-        )
-        if document.status != DocumentStatus.COMPLETED:
-            raise DocumentNotReadyError
-        if document.active_index_generation != index_generation:
-            raise ConcurrentConversationUpdateError
-        conversation = get_owned_conversation(
-            session,
-            conversation_id=conversation_id,
-            clerk_user_id=clerk_user_id,
-            for_update=True,
-        )
-        if conversation.document_id != document_id:
-            raise ConcurrentConversationUpdateError
-        if conversation.updated_at != snapshot_updated_at:
-            raise ConcurrentConversationUpdateError
-
-        maximum_sequence = session.exec(
-            select(func.max(AIMessage.sequence_number)).where(
-                AIMessage.conversation_id == conversation.id
-            )
-        ).one()
-        next_sequence = int(maximum_sequence or 0) + 1
-        now = datetime.now(timezone.utc)
-        user_message = AIMessage(
-            status=ChatAnswerStatus.ANSWERED,
-            conversation_id=conversation.id,
-            sequence_number=next_sequence,
-            role="user",
-            content=question,
-            selected_text=selected_text,
-            retrieval_mode=retrieval_mode,
-            suggested_followups=[],
-            created_at=now,
-        )
-        assistant_message = AIMessage(
-            status=message_status,
-            conversation_id=conversation.id,
-            sequence_number=next_sequence + 1,
-            role="assistant",
-            content=answer_markdown,
-            retrieval_mode=retrieval_mode,
-            suggested_followups=effective_followups,
-            created_at=now,
-        )
-        try:
-            session.add(user_message)
-            session.add(assistant_message)
-            session.flush()
-            assistant_message_id = assistant_message.id
-            for citation in citation_payloads:
-                session.add(
-                    AIMessageCitation(
-                        message_id=assistant_message_id,
-                        citation_index=citation.index,
-                        source_type=citation.source_type,
-                        title=citation.title,
-                        url=citation.url,
-                        document_id=citation.document_id,
-                        chunk_id=citation.chunk_id,
-                        page_number=citation.page_number,
-                        excerpt=citation.excerpt,
-                    )
-                )
-            conversation.updated_at = datetime.now(timezone.utc)
-            session.add(conversation)
-            commit_and_reassert_rls(session, clerk_user_id)
-        except IntegrityError as exc:
-            session.rollback()
-            raise ConcurrentConversationUpdateError from exc
-        except Exception:
-            session.rollback()
-            raise
-
-    return ChatAnswer(
+    return _persist_conversation_turn(
         conversation_id=conversation_id,
-        message_id=assistant_message_id,
+        clerk_user_id=clerk_user_id,
+        document_id=document_id,
+        index_generation=index_generation,
+        snapshot_updated_at=snapshot_updated_at,
+        question=question,
+        selected_text=selected_text,
+        retrieval_mode=retrieval_mode,
         answer_markdown=answer_markdown,
-        citations=citation_payloads,
-        suggested_followups=effective_followups,
-        status=message_status,
+        citation_payloads=citation_payloads,
+        effective_followups=effective_followups,
+        message_status=message_status,
     )

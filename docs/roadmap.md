@@ -128,7 +128,11 @@ Current emphasis in `docs/tasks.md`:
 
 ## Current Priority Workstream
 
-### Phase D — Chunking Strategy & Hyperparameter Tuning
+### Phase E — Verified Web Grounding & Conversational Turns (Approved, Not Started)
+
+Approved on 2026-10-28. The study assistant will gain cited Web and Hybrid modes using Gemini Google Search grounding, plus deterministic handling of conversational turns such as "thanks". Rules live in `docs/GUARDRAILS.md` § Verified Web Grounding; the checklist lives in `docs/tasks.md` § Phase E. Implementation begins only after the plan is reviewed, and production rollout follows the V2.1.1 RLS runtime transition.
+
+### Phase D — Chunking Strategy & Hyperparameter Tuning (Completed)
 
 Current product state:
 - Phase A (AI Architecture Cleanup) is completely finished.
@@ -1198,3 +1202,19 @@ When a future agent completes a meaningful feature, they should update this file
 **What to do next:**
 - Complete independent security review and CI for the transition tooling.
 - During an approved maintenance window, review the attested legacy and target digests, execute the protected transition, then rerun the unchanged strict preflight before normal releases resume.
+
+### Update: 2026-10-28 — Phase E Approval: Verified Web Grounding
+
+**What Changed:**
+- Diagnosed production chat behavior: every turn, including "that was good thanks", runs through strict document retrieval and citation filtering, so off-document and conversational messages return the insufficient-evidence fallback. Production still runs the pre-hybrid build; the Phase B.1 hybrid tutoring on `main` is pending deployment.
+- The project owner approved verified web grounding through Gemini Google Search grounding and conversational turn handling.
+- Documentation only: added the Verified Web Grounding rules to `docs/GUARDRAILS.md`, the planned pipeline to `docs/architecture.md`, the Phase E checklist to `docs/tasks.md`, and updated the status blocks in `AGENTS.md` and `GEMINI.md`.
+
+**Contracts Changed:**
+- None yet. No code, schema, API, or environment contract changed. `web` and `hybrid` remain rejected with 409 until Phase E ships.
+
+**Docs Stale:**
+- No.
+
+**What to do next:**
+- Review the Phase E implementation plan, then implement E1 (conversational turns) first, followed by E2–E6 behind a default-disabled `WEB_GROUNDING_ENABLED` flag.

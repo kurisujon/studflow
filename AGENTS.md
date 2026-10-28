@@ -52,9 +52,9 @@ Constraints:
 - Do not change business logic unless explicitly requested.
 
 ## Current System State
-- **Active Phase**: Pending Next Feature Assignment
-- **Status**: Phase D (Chunking Strategy) has been marked as Completed as the existing chunking strategy performs perfectly against the C3/C4/C5 evaluation baselines. The Dashboard UI evolution (Phases 12-15) is fully complete.
-- **Recent Landings**: Phase 15 Settings Page UI Refinement.
-- **Next Steps**: Await user direction for the next major feature or phase.
+- **Active Phase**: Phase E — Verified Web Grounding & Conversational Turns (approved 2026-10-28, planning; not started)
+- **Status**: Phase D is Completed and the Dashboard UI evolution (Phases 12-15) is complete. V2.1.1 RLS runtime transition tooling is merged; the production transition has not been executed yet.
+- **Recent Landings**: Protected S0→S3 RLS runtime transition tooling (PR #8). Phase E rules added to `docs/GUARDRAILS.md`.
+- **Next Steps**: Review the Phase E plan, then implement E1–E6 per `docs/tasks.md` behind a default-disabled `WEB_GROUNDING_ENABLED` flag.
 - **Build Status**: Clean.
 

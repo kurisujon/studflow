@@ -28,6 +28,16 @@ This document serves as the strict guardrails for the entire development lifecyc
 - **Validation is Mandatory:** The backend must parse and validate all JSON outputs from Gemini using Pydantic before saving to the database. Never trust raw AI output.
 - **Semantic RAG & Vector Storage:** Embeddings and `pgvector` similarity search are approved for semantic chunk retrieval, long document processing (e.g., 100+ page PDFs), and grounded Q&A.
 - **AI Pipelines & Orchestration:** Background processing pipelines (Celery) and function-calling loops may be optimized for multi-step AI reasoning and long-document execution.
+- **Verified Web Grounding (approved 2026-10-28, Phase E):** Gemini's built-in Google Search grounding tool is approved as the only external web retrieval source for the study assistant. No other search provider, scraper, or crawler may be added without separate approval. The following rules are mandatory:
+  - **Grounded means sourced, not document-only.** Every factual web claim must cite at least one web source from the backend-built source registry. Uncited model knowledge is never presented as fact.
+  - **Links come from tool metadata only.** Web citation URLs and titles are taken exclusively from the grounding metadata returned by the Search tool. Any URL, title, or citation marker written by the model is stripped and never persisted or rendered.
+  - **Same validation as documents.** Web claims pass the same Pydantic validation, evidence-ID existence checks, semantic citation evaluation, and unsupported-claim filtering as document claims. Unsupported web claims fail closed.
+  - **Provenance stays separate.** Document claims may cite only document chunks; web claims may cite only web sources. The UI must label them distinctly ("From your document" vs. "From the web").
+  - **Document mode remains the default.** Web search runs only when the user selects Web or Hybrid. Explicit document-only requests never trigger a web search.
+  - **Privacy.** Search queries are derived from the student's question only. Document text, selected passages, notes, filenames, and user identifiers are never sent to the Search tool.
+  - **Untrusted content.** Web-derived text is wrapped in the same `UntrustedDataBoundary` as document text and is never treated as instructions.
+  - **Minimal storage.** Only `https` URL, title, domain, and a bounded excerpt are persisted per web citation. Full page content is not stored.
+  - **Cost control.** Web and Hybrid turns are opt-in and rate-limited per user through configuration.
 
 ## 6. UI/UX Design Direction
 - **Design Language:** Clean, informational, and lively. The UI must feel alive and purposeful without being distracting. Think structured clarity with warm, purposeful color accents.

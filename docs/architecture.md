@@ -47,7 +47,18 @@ The conversational assistant remains inside the FastAPI monolith and reuses the 
 8. Mixed answers combine the two paths only after independent validation. When the document portion cannot be verified, the assistant labels that limitation and may retain the independently valid teaching portion without a document citation.
 9. After successful generation, the user message, assistant message, and citation rows are committed atomically. Messages and citations return in stable sequence order and survive refresh.
 
-Conversation ownership remains the existing Clerk subject string, and the public synchronous API contract remains unchanged. The frontend loads the latest conversation, persists follow-up turns, pages backward through canonical history, and renders only backend-validated document citations. General explanations and hypothetical examples are explicitly labeled and never receive document citation records. Web grounding and streaming remain later phases. The legacy Ask AI and AI History endpoints remain available during the compatibility rollout.
+Conversation ownership remains the existing Clerk subject string, and the public synchronous API contract remains unchanged. The frontend loads the latest conversation, persists follow-up turns, pages backward through canonical history, and renders only backend-validated document citations. General explanations and hypothetical examples are explicitly labeled and never receive document citation records. Verified web grounding is approved and planned as Phase E (see below) but is not yet implemented; `web` and `hybrid` retrieval modes are still rejected with a stable 409. Streaming remains a later phase. The legacy Ask AI and AI History endpoints remain available during the compatibility rollout.
+
+### Planned: Verified Web Grounding (Phase E — approved, not implemented)
+The approved design extends the conversation pipeline without weakening grounding:
+
+1. **Conversational turns** (thanks, greetings, acknowledgements) are detected deterministically before retrieval and receive a short, claim-free, citation-free reply. They never trigger document retrieval or web search.
+2. **Document mode** (default) is unchanged.
+3. **Web mode** runs a Gemini Google Search grounding call using only the student's question. The backend builds a web source registry (`w_01`, `w_02`, …) exclusively from the tool's grounding metadata (URL, title, supported segments). A second structured call produces claims that may cite only those web evidence IDs, followed by the existing semantic citation evaluation and unsupported-claim filter.
+4. **Hybrid mode** runs document retrieval first, then web retrieval for the remaining gap. Document and web claims are validated independently and rendered in separate, labeled sections.
+5. Web citations persist as `ai_message_citations` rows with `source_type="web"`, an `https` URL, title, domain, and bounded excerpt. Model-authored links are never persisted.
+
+The two-call design is required because the configured default model (`gemini-2.5-flash`) does not support combining the Google Search tool with a JSON response schema in a single request.
 
 ## AI Architecture Pipeline
 The system enforces strict domain boundaries over generative outputs. It uses a **model-assisted semantic citation evaluation** step to verify whether generated claims are supported by retrieved document chunks, avoiding any false "guarantees" of absolute truth. Unsupported claims are aggressively filtered before presentation.
