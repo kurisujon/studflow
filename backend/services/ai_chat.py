@@ -6,7 +6,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
-from sqlalchemy import func
+from sqlalchemy import func, text
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 from core.database import commit_and_reassert_rls, tenant_session
@@ -936,6 +936,7 @@ def _persist_conversation_turn(
     effective_followups: list[str],
     message_status: ChatAnswerStatus,
     search_attribution_html: str | None = None,
+    enforce_web_daily_limit: bool = False,
 ) -> ChatAnswer:
     with _open_session(clerk_user_id) as session:
         # Match document-deletion lock order: document first, then conversation.
@@ -959,6 +960,14 @@ def _persist_conversation_turn(
             raise ConcurrentConversationUpdateError
         if conversation.updated_at != snapshot_updated_at:
             raise ConcurrentConversationUpdateError
+        if enforce_web_daily_limit:
+            bind = session.get_bind()
+            if bind is not None and bind.dialect.name == "postgresql":
+                session.execute(
+                    text("SELECT pg_advisory_xact_lock(hashtext(:lock_key))"),
+                    {"lock_key": f"web_grounding_daily_limit:{clerk_user_id}"},
+                )
+            _enforce_web_grounding_daily_limit(session, clerk_user_id=clerk_user_id)
 
         maximum_sequence = session.exec(
             select(func.max(AIMessage.sequence_number)).where(
@@ -1420,4 +1429,5 @@ def send_conversation_message(
         effective_followups=effective_followups,
         message_status=message_status,
         search_attribution_html=search_attribution_html if any(c.source_type == "web" for c in citation_payloads) else None,
+        enforce_web_daily_limit=(retrieval_mode != "document" and not document_only),
     )

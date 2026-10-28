@@ -1,6 +1,6 @@
 # Studflow Roadmap and Handoff
 
-Last updated: 2026-08-15
+Last updated: 2026-10-28
 
 ## Purpose
 
@@ -128,9 +128,9 @@ Current emphasis in `docs/tasks.md`:
 
 ## Current Priority Workstream
 
-### Phase E — Verified Web Grounding & Conversational Turns (Approved, Not Started)
+### Phase E — Verified Web Grounding & Conversational Turns (Implemented Behind Flag — Pending Rollout)
 
-Approved on 2026-10-28. The study assistant will gain cited Web and Hybrid modes using Gemini Google Search grounding, plus deterministic handling of conversational turns such as "thanks". Rules live in `docs/GUARDRAILS.md` § Verified Web Grounding; the checklist lives in `docs/tasks.md` § Phase E. Implementation begins only after the plan is reviewed, and production rollout follows the V2.1.1 RLS runtime transition.
+Approved and implemented on 2026-10-28 (`feature/verified-web-grounding`). Conversational turns (`E1`) reply deterministically without retrieval or model calls, and cited Web/Hybrid modes (`E2`–`E5`) are implemented behind `WEB_GROUNDING_ENABLED=false` (preserving HTTP 409 while off). Rules live in `docs/GUARDRAILS.md` § Verified Web Grounding; the checklist lives in `docs/tasks.md` § Phase E. Next operational steps are PR review/merge, executing the protected V2.1.1 `S0 -> S3` RLS runtime transition (`rls-runtime-transition.yml` permits the reviewed `backend/core/config.py` and `backend/schemas/ai_chat.py` additions, whereas steady-state `application-release.yml` blocks config/schema contract changes), and enabling `WEB_GROUNDING_ENABLED=true` after separate deployment approval.
 
 ### Phase D — Chunking Strategy & Hyperparameter Tuning (Completed)
 
@@ -138,7 +138,7 @@ Current product state:
 - Phase A (AI Architecture Cleanup) is completely finished.
 - Phase B (Evidence-Grounded Output) is completely finished.
 - Phase C (Evaluation Foundation) is completely finished and certified baseline frozen (`c3_baseline_v2`).
-- Phase D (Chunking Strategy & Hyperparameter Tuning) is the **CURRENT PRIORITY**.
+- Phase D (Chunking Strategy & Hyperparameter Tuning) was evaluated and marked as **Completed** against frozen `c3_baseline_v2`.
 
 Workstream constraints:
 - Measure candidate retrieval, answer, groundedness, and citation accuracy against frozen `c3_baseline_v2`.
@@ -154,6 +154,17 @@ The UI refinement implementation is complete, but one validation item remains un
 This validation should be completed before claiming the study-workspace refinement workstream fully closed. It does not require an API or backend contract change.
 
 ## Latest Completed Update
+
+### Verified Web Grounding & Conversational Turns — Phase E (2026-10-28)
+
+- Conversational turns (`thanks`, `that was good thanks`, `got it`, greetings, and closings) are detected deterministically in `backend/services/ai_chat.py` before embedding, retrieval, or Gemini calls, returning a concise `ANSWERED` reply without inheriting or erasing prior source-specific scope.
+- Added two-call Verified Web Grounding (`backend/services/llm_provider.py`, `backend/services/web_grounding.py`, `backend/services/ai_service.py`, `backend/services/domain_validation.py`):
+  - Search call (`google_search` tool) receives only the student's question wrapped in `UntrustedDataBoundary` and discards model prose.
+  - Candidate `https` URLs (port 443, max 5) are fetched server-side via an SSRF-safe `httpx` client (`_PublicDNSBackend`) that verifies all DNS records are globally routable, connects directly to the verified IP to block TOCTOU DNS rebinding, enforces a 4-hop redirect limit and 512 KB byte cap, and extracts bounded visible text into a `w_XX` source registry.
+  - Structured `WEB` generation validates citations strictly against `w_XX`, strips model-authored URLs/links/citation markers, evaluates semantic support against fetched page excerpts (`evaluate_citations`), and fails closed on unsupported claims.
+- Hybrid mode (`retrieval_mode="hybrid"`) independently validates strict document (`e_XX`) and web (`w_XX`) paths, offsets web citation indices after document indices, and renders labeled `"From your document"` and `"From the web"` sections.
+- Added `GET /api/ai/capabilities`, `WEB_GROUNDING_ENABLED=false` rollout flag (HTTP 409 while disabled), and `WEB_GROUNDING_DAILY_LIMIT=30` per-user daily quota (HTTP 429 when reached).
+- Updated `frontend/components/study/AIStudyAssistantPanel.tsx`, `AIConversationMessage.tsx`, `AIConversationSources.tsx`, and `frontend/lib/api/ai-chat.ts` to gate Web/Hybrid options on backend capability, validate `https` URLs client-side, separate document vs. web citation sections, and render sanitized Google Search attribution inside `<iframe sandbox="" referrerPolicy="no-referrer" srcDoc={...} />`.
 
 ### Persistent Conversation Interface (2026-08-02)
 

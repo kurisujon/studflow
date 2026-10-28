@@ -54,4 +54,10 @@ export type AIChatAnswer = {
   citations: AIChatCitation[];
   suggested_followups: string[];
   status: AIChatAnswerStatus;
+  search_attribution_html: string | null;
+};
+
+export type AICapabilities = {
+  web_grounding_enabled: boolean;
+  web_grounding_daily_limit: number;
 };

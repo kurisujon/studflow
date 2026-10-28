@@ -129,12 +129,28 @@ class WebGroundingProviderAndSSRFTests(unittest.TestCase):
                 ("169.254.169.254", socket.AF_INET),
                 ("100.64.0.1", socket.AF_INET),
                 ("::1", socket.AF_INET6),
+                ("fec0::1", socket.AF_INET6),
                 ("::ffff:169.254.169.254", socket.AF_INET6),
             ):
                 addr = [(family, socket.SOCK_STREAM, 6, "", (bad_ip, 443))]
                 with self.subTest(bad_ip=bad_ip):
                     with patch("services.web_grounding.socket.getaddrinfo", return_value=addr):
                         self.assertIsNone(fetch_excerpt("https://internal.example/meta", client=mock_client))
+
+            # 4b. Multi-record DNS response containing both public and private IPs rejected
+            mixed_dns = [
+                (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 443)),
+                (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("169.254.169.254", 443)),
+            ]
+            with patch("services.web_grounding.socket.getaddrinfo", return_value=mixed_dns):
+                self.assertIsNone(fetch_excerpt("https://dual-homed.example/docs", client=mock_client))
+
+            # 4c. Empty-path 2048-char URL that canonicalizes to 2049 chars rejected
+            prefix = "https://laravel.com?"
+            boundary_url = prefix + ("a" * (2048 - len(prefix)))
+            self.assertEqual(len(boundary_url), 2048)
+            with patch("services.web_grounding.socket.getaddrinfo", return_value=_public_addrinfo()):
+                self.assertIsNone(fetch_excerpt(boundary_url, client=mock_client))
 
             # 5. Redirect from public HTTPS host to private/metadata host rejected
             def _redirect_handler(request: httpx.Request) -> httpx.Response:
@@ -261,6 +277,27 @@ class WebGroundingProviderAndSSRFTests(unittest.TestCase):
         self.assertIn(".chip { color: #111; }", sanitized)
         self.assertIn('href="https://www.google.com/search?q=laravel"', sanitized)
         self.assertIn('rel="noopener noreferrer nofollow"', sanitized)
+
+    def test_sanitize_search_attribution_html_blocks_svg_style_foreign_content_and_css_urls(self) -> None:
+        sanitized = sanitize_search_attribution_html(
+            '<svg><style><script>alert(1)</script>'
+            '<meta http-equiv="refresh" content="0;url=https://evil.example">'
+            '<img src="https://evil.example/track" onerror="alert(2)">'
+            '</style><path d="M0 0" /></svg>'
+            '<style />'
+            '<style>.leak { background: url(https://evil.example/beacon); }</style>'
+            '<div class="chip">Safe chip</div>'
+        )
+        assert sanitized is not None
+        self.assertNotIn("<script", sanitized.lower())
+        self.assertNotIn("<meta", sanitized.lower())
+        self.assertNotIn("<img", sanitized.lower())
+        self.assertNotIn("onerror", sanitized.lower())
+        self.assertNotIn("evil.example", sanitized.lower())
+        self.assertNotIn("url(", sanitized.lower())
+        self.assertNotIn("<style />", sanitized.lower())
+        self.assertIn('<svg><path d="M0 0" /></svg>', sanitized)
+        self.assertIn('<div class="chip">Safe chip</div>', sanitized)
 
 
 class WebAndHybridEndToEndTests(unittest.TestCase):

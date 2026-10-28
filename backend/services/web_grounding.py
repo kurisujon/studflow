@@ -46,7 +46,7 @@ _SAFE_DATA_IMAGE_RE = re.compile(
     re.IGNORECASE,
 )
 _UNSAFE_CSS_RE = re.compile(
-    r"(?:javascript\s*:|vbscript\s*:|expression\s*\(|@import\b|</\s*style)",
+    r"(?:[<>]|url\s*\(|javascript\s*:|vbscript\s*:|expression\s*\(|@import\b)",
     re.IGNORECASE,
 )
 _STRIP_SUBTREE_TAGS = frozenset({
@@ -181,8 +181,10 @@ def _is_disallowed_ip(
     if isinstance(address, ipaddress.IPv6Address) and address.ipv4_mapped is not None:
         if _is_disallowed_ip(address.ipv4_mapped):
             return True
+    is_site_local = isinstance(address, ipaddress.IPv6Address) and address.is_site_local
     return (
         (not address.is_global)
+        or is_site_local
         or address.is_private
         or address.is_loopback
         or address.is_link_local
@@ -285,6 +287,8 @@ def _validate_and_resolve_public_https_url(raw_url: str) -> tuple[str, str] | No
         parsed.query,
         "",
     ))
+    if len(canonical_url) > 2048:
+        return None
     display_domain = hostname.removeprefix("www.") or hostname
     return canonical_url, display_domain
 
@@ -334,7 +338,10 @@ class _AttributionHTMLSanitizer(HTMLParser):
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
         self._strip_depth = 0
+        self._skip_style = False
         self._in_style = False
+        self._svg_depth = 0
+        self._open_tags: list[str] = []
         self._parts: list[str] = []
 
     def _sanitize_attrs(self, tag: str, attrs: list[tuple[str, str | None]]) -> str:
@@ -344,7 +351,7 @@ class _AttributionHTMLSanitizer(HTMLParser):
             if not name or name.startswith("on") or name not in _ALLOWED_WIDGET_ATTRS:
                 continue
             val = raw_val or ""
-            if name == "href":
+            if name in {"href", "xlink:href"}:
                 safe_url = _sanitize_widget_url(val, allow_data_image=False)
                 if safe_url is None:
                     continue
@@ -363,42 +370,77 @@ class _AttributionHTMLSanitizer(HTMLParser):
             rendered.append('rel="noopener noreferrer nofollow"')
         return (" " + " ".join(rendered)) if rendered else ""
 
+    def _close_open_tag(self, popped: str) -> None:
+        if popped == "style":
+            self._in_style = False
+        elif popped == "svg" and self._svg_depth > 0:
+            self._svg_depth -= 1
+        self._parts.append(f"</{popped}>")
+
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         lower = tag.lower()
         if lower in _STRIP_SUBTREE_TAGS:
             self._strip_depth += 1
             return
-        if self._strip_depth > 0 or lower not in _ALLOWED_WIDGET_TAGS:
+        if self._strip_depth > 0 or self._skip_style or lower not in _ALLOWED_WIDGET_TAGS:
             return
         if lower == "style":
+            # Disallow <style> inside <svg> foreign-content to prevent HTML/SVG parser differentials.
+            if self._svg_depth > 0 or self._in_style:
+                self._skip_style = True
+                return
             self._in_style = True
+        elif lower == "svg":
+            self._svg_depth += 1
         attr_str = self._sanitize_attrs(lower, attrs)
         if lower in _VOID_WIDGET_TAGS:
             self._parts.append(f"<{lower}{attr_str} />")
         else:
+            self._open_tags.append(lower)
             self._parts.append(f"<{lower}{attr_str}>")
 
     def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         lower = tag.lower()
-        if self._strip_depth > 0 or lower in _STRIP_SUBTREE_TAGS or lower not in _ALLOWED_WIDGET_TAGS:
+        if (
+            self._strip_depth > 0
+            or self._skip_style
+            or lower in _STRIP_SUBTREE_TAGS
+            or lower not in _ALLOWED_WIDGET_TAGS
+            or lower == "style"
+        ):
             return
         attr_str = self._sanitize_attrs(lower, attrs)
-        self._parts.append(f"<{lower}{attr_str} />")
+        if lower in _VOID_WIDGET_TAGS or (self._svg_depth > 0 and lower != "svg"):
+            self._parts.append(f"<{lower}{attr_str} />")
+        else:
+            self._parts.append(f"<{lower}{attr_str}></{lower}>")
 
     def handle_endtag(self, tag: str) -> None:
         lower = tag.lower()
+        if lower == "style" and self._skip_style:
+            self._skip_style = False
+            return
         if lower in _STRIP_SUBTREE_TAGS:
             if self._strip_depth > 0:
                 self._strip_depth -= 1
             return
-        if self._strip_depth > 0 or lower not in _ALLOWED_WIDGET_TAGS or lower in _VOID_WIDGET_TAGS:
+        if (
+            self._strip_depth > 0
+            or self._skip_style
+            or lower not in _ALLOWED_WIDGET_TAGS
+            or lower in _VOID_WIDGET_TAGS
+        ):
             return
-        if lower == "style":
-            self._in_style = False
-        self._parts.append(f"</{lower}>")
+        if lower not in self._open_tags:
+            return
+        while self._open_tags:
+            popped = self._open_tags.pop()
+            self._close_open_tag(popped)
+            if popped == lower:
+                break
 
     def handle_data(self, data: str) -> None:
-        if self._strip_depth > 0 or not data:
+        if self._strip_depth > 0 or self._skip_style or not data:
             return
         if self._in_style:
             if not _UNSAFE_CSS_RE.search(data):
@@ -407,6 +449,8 @@ class _AttributionHTMLSanitizer(HTMLParser):
         self._parts.append(html_escape(data, quote=False))
 
     def get_html(self) -> str:
+        while self._open_tags:
+            self._close_open_tag(self._open_tags.pop())
         return "".join(self._parts).strip()
 
 
@@ -420,8 +464,10 @@ def sanitize_search_attribution_html(raw_html: str | None) -> str | None:
         sanitizer.close()
     except Exception:
         return None
-    cleaned = sanitizer.get_html()[:MAX_ATTRIBUTION_HTML_CHARS]
-    return cleaned or None
+    cleaned = sanitizer.get_html()
+    if not cleaned or len(cleaned) > MAX_ATTRIBUTION_HTML_CHARS:
+        return None
+    return cleaned
 
 
 def fetch_excerpt(
