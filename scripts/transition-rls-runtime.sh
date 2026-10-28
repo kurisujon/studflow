@@ -78,7 +78,13 @@ container_id() {
   printf '%s\n' "$identifier"
 }
 require_running() {
-  [ "$(docker inspect --format '{{.State.Status}}' "$(container_id "$1")")" = running ] || fail "Service $1 is not running."
+  local status
+  status="$(docker inspect --format '{{.State.Status}}' "$(container_id "$1")")"
+  if [ "$status" != running ]; then
+    compose up -d --no-deps "$1" >/dev/null 2>&1 || true
+    status="$(docker inspect --format '{{.State.Status}}' "$(container_id "$1")")"
+  fi
+  [ "$status" = running ] || fail "Service $1 is not running."
 }
 immutable_digest() {
   local service="$1" repository="$2" image_id candidate
@@ -124,6 +130,17 @@ wait_frontend() {
   for attempt in $(seq 1 "$WAIT_ATTEMPTS"); do
     : "$attempt"; identifier="$(container_id frontend)"
     docker exec "$identifier" node -e "fetch('http://127.0.0.1:3000/').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))" >/dev/null 2>&1 && return 0
+    sleep "$WAIT_INTERVAL"
+  done
+  return 1
+}
+wait_worker() {
+  local attempt
+  for attempt in $(seq 1 "$WAIT_ATTEMPTS"); do
+    : "$attempt"
+    if celery_control inspect >/dev/null 2>&1; then
+      return 0
+    fi
     sleep "$WAIT_INTERVAL"
   done
   return 1
@@ -234,6 +251,7 @@ rollback_transition() {
     return 0
   fi
   if [ "$(docker inspect --format '{{.State.Status}}' "$(container_id worker)" 2>/dev/null)" = running ]; then
+    wait_worker || true
     if ! celery_control drain --timeout 300 --interval 10 --consecutive 3 >/dev/null; then
       printf 'ERROR: rollback could not establish a safe worker drain; no worker was forced down.\n' >&2
       return 1
@@ -244,7 +262,7 @@ rollback_transition() {
   cp --preserve=mode,ownership "$env_backup" "$ENV_PATH" || return 1
   write_images "$current_frontend" "$current_backend" || return 1
   compose up -d --no-deps worker || return 1
-  celery_control inspect >/dev/null || return 1
+  wait_worker || return 1
   compose up -d --no-deps backend || return 1
   wait_backend || return 1
   compose up -d --no-deps frontend || return 1
@@ -271,7 +289,7 @@ celery_control drain --timeout 300 --interval 10 --consecutive 3 >/dev/null
 stop_drained_worker || fail "Legacy worker did not stop cleanly."
 write_images "$current_frontend" "$TARGET_BACKEND"
 compose up -d --no-deps worker
-celery_control inspect >/dev/null
+wait_worker || fail "Hardened worker did not become ready."
 compose up -d --no-deps backend
 wait_backend || fail "Hardened backend failed with the legacy credential."
 if [ "$(immutable_digest worker "$BACKEND_REPOSITORY")" != "$TARGET_BACKEND" ] || [ "$(immutable_digest backend "$BACKEND_REPOSITORY")" != "$TARGET_BACKEND" ]; then fail "S1 image verification failed."; fi
@@ -283,7 +301,7 @@ stop_drained_worker || fail "Hardened worker did not stop cleanly."
 python3 "$DATABASE_HELPER_PATH" rewrite-env "$credential_file" "$ENV_PATH" "$STATE_DIR/pre-app-user-environment.env" >/dev/null
 compose up -d --no-deps worker
 strict_runtime_check worker
-celery_control inspect >/dev/null
+wait_worker || fail "Hardened worker did not become ready."
 compose up -d --no-deps backend
 strict_runtime_check backend
 wait_backend || fail "Hardened backend failed with app_user."
