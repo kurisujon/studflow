@@ -84,7 +84,7 @@ capture_protected() {
   : > "$destination"
   for service in caddy postgres redis; do
     identifier="$(container_id "$service")"
-    docker inspect --format '{{.Id}}|{{range .Mounts}}{{.Type}}:{{.Name}}:{{.Destination}};{{end}}' "$identifier" >> "$destination"
+    docker inspect --format '{{.Id}}|{{range .Mounts}}{{.Type}}:{{.Source}}:{{.Destination}};{{end}}' "$identifier" >> "$destination"
   done
 }
 
