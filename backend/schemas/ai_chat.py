@@ -115,3 +115,9 @@ class ChatAnswer(BaseModel):
     citations: list[CitationResponse]
     suggested_followups: list[str]
     status: ChatAnswerStatus
+    search_attribution_html: str | None = Field(default=None, max_length=65536)
+
+
+class AICapabilitiesResponse(BaseModel):
+    web_grounding_enabled: bool
+    web_grounding_daily_limit: int = Field(ge=0)

@@ -7,8 +7,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlmodel import Session
 
 from core.auth import CurrentUser, get_current_user
+from core.config import settings
 from core.database import get_session
 from schemas.ai_chat import (
+    AICapabilitiesResponse,
     ChatAnswer,
     ConversationListResponse,
     ConversationResponse,
@@ -23,6 +25,8 @@ from services.ai_chat import (
     DocumentNotReadyError,
     SearchIndexNotReadyError,
     UnsupportedRetrievalModeError,
+    WebGroundingDisabledError,
+    WebGroundingRateLimitedError,
     create_conversation,
     delete_conversation,
     get_owned_conversation,
@@ -194,6 +198,16 @@ def get_ai_conversation_messages(
     )
 
 
+@router.get("/capabilities", response_model=AICapabilitiesResponse)
+def get_ai_capabilities(
+    _current_user: CurrentUser = Depends(get_current_user),
+) -> AICapabilitiesResponse:
+    return AICapabilitiesResponse(
+        web_grounding_enabled=settings.web_grounding_enabled,
+        web_grounding_daily_limit=settings.web_grounding_daily_limit,
+    )
+
+
 @router.post(
     "/conversations/{conversation_id}/messages",
     response_model=ChatAnswer,
@@ -204,7 +218,7 @@ def send_ai_conversation_message(
     payload: SendMessageRequest,
     current_user: CurrentUser = Depends(get_current_user),
 ) -> ChatAnswer:
-    if payload.retrieval_mode != "document":
+    if payload.retrieval_mode != "document" and not settings.web_grounding_enabled:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Web and hybrid retrieval are not available yet.",
@@ -249,10 +263,15 @@ def send_ai_conversation_message(
             status_code=status.HTTP_409_CONFLICT,
             detail="The conversation changed while the answer was generated. Please retry.",
         ) from exc
-    except UnsupportedRetrievalModeError as exc:
+    except (UnsupportedRetrievalModeError, WebGroundingDisabledError) as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Web and hybrid retrieval are not available yet.",
+        ) from exc
+    except WebGroundingRateLimitedError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Daily verified web search limit reached. Switch to Document mode or try again tomorrow.",
         ) from exc
     except AIServiceError as exc:
         logger.warning(

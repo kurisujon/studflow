@@ -58,6 +58,13 @@ class Settings(BaseSettings):
     document_reindex_enabled: bool = False
     document_reindex_lease_seconds: int = 900
 
+    # Verified Web Grounding (Phase E — opt-in, disabled by default)
+    web_grounding_enabled: bool = False
+    web_grounding_max_sources: int = 5
+    web_grounding_daily_limit: int = 30
+    web_grounding_fetch_timeout_seconds: float = 5.0
+    web_grounding_max_response_bytes: int = 524_288
+
     # Long-running document processing
     document_processing_max_retries: int = 3
     celery_task_soft_time_limit: int = 300
@@ -105,6 +112,14 @@ class Settings(BaseSettings):
             raise ValueError(
                 "DOCUMENT_REINDEX_LEASE_SECONDS must exceed CELERY_TASK_TIME_LIMIT."
             )
+        if not 1 <= self.web_grounding_max_sources <= 10:
+            raise ValueError("WEB_GROUNDING_MAX_SOURCES must be between 1 and 10.")
+        if self.web_grounding_daily_limit < 0:
+            raise ValueError("WEB_GROUNDING_DAILY_LIMIT must be zero or greater.")
+        if self.web_grounding_fetch_timeout_seconds <= 0:
+            raise ValueError("WEB_GROUNDING_FETCH_TIMEOUT_SECONDS must be positive.")
+        if self.web_grounding_max_response_bytes < 1024:
+            raise ValueError("WEB_GROUNDING_MAX_RESPONSE_BYTES must be at least 1024.")
         return self
 
 

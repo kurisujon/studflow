@@ -109,6 +109,7 @@ class ConversationAnswerMode(str, Enum):
     MIXED = "mixed"
     CLARIFICATION = "clarification"
     INSUFFICIENT = "insufficient"
+    WEB = "web"
 
 
 class ConversationRequestScope(str, Enum):
@@ -123,12 +124,14 @@ class ConversationGenerationPath(str, Enum):
     TEACHING = "teaching"
     CLARIFICATION = "clarification"
     COMPOSITE = "composite"
+    WEB = "web"
 
 
 class ClaimProvenance(str, Enum):
     DOCUMENT = "document"
     GENERAL = "general"
     ILLUSTRATIVE = "illustrative"
+    WEB = "web"
 
 
 class DomainGroundedClaim(BaseModel):
