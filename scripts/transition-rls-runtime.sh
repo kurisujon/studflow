@@ -105,7 +105,7 @@ capture_protected() {
   local service identifier
   for service in caddy postgres redis; do
     identifier="$(container_id "$service")"
-    docker inspect --format '{{.Id}}|{{range .Mounts}}{{.Type}}:{{.Name}}:{{.Destination}};{{end}}' "$identifier" >> "$1"
+    docker inspect --format '{{.Id}}|{{range .Mounts}}{{.Type}}:{{.Source}}:{{.Destination}};{{end}}' "$identifier" >> "$1"
   done
 }
 wait_backend() {
