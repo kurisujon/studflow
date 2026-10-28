@@ -434,12 +434,18 @@ _CONV_THANKS_PHRASE = (
     r"(?:thanks|thank you|thx|ty|many thanks|thanks a lot|thank you so much|"
     r"thanks so much|much appreciated|appreciate (?:it|that|this)|i appreciate (?:it|that|this))"
 )
+_CONV_ADJ = (
+    r"(?:good|great|helpful|clear|useful|awesome|nice|perfect|amazing|"
+    r"excellent|cool|neat|sweet|wonderful|fantastic|spot on)"
+)
+_CONV_NOUN = (
+    r"(?:\s+(?:information|info|explanation|answer|response|summary|overview|breakdown|guide|tip|advice))?"
+)
+_CONV_ADV = r"(?:(?:very|really|super|so|pretty|quite)\s+)?"
+
 _CONV_EVAL_PREFIX = (
-    r"(?:(?:that|this|it|that's|thats|it's|its)\s+(?:was|is)\s+"
-    r"(?:(?:very|really|super|so|pretty|quite)\s+)?"
-    r"(?:good|great|helpful|clear|useful|awesome|nice|perfect|amazing|excellent|cool|neat|sweet|wonderful|fantastic|spot on)"
-    r"|(?:(?:very|really|super|so|pretty|quite)\s+)?"
-    r"(?:good|great|helpful|clear|useful|awesome|nice|perfect|amazing|excellent|cool|spot on)"
+    rf"(?:(?:that|this|it|that's|thats|it's|its)\s+(?:was|is)\s+(?:a\s+)?{_CONV_ADV}{_CONV_ADJ}{_CONV_NOUN}"
+    rf"|{_CONV_ADV}{_CONV_ADJ}{_CONV_NOUN}"
     r"|(?:that|this|it)\s+(?:helped|helps)(?:\s+(?:me\s+)?a\s+lot)?"
     r"|(?:(?:that|this|it)\s+)?makes(?:\s+total)?\s+sense"
     r"|that's all|thats all|that is all|nothing else|all set|i'm good|im good|all good|sounds good"

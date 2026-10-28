@@ -1928,6 +1928,9 @@ class ConversationalTurnTests(unittest.TestCase):
     def test_matches_greetings_gratitude_and_acknowledgements(self) -> None:
         for phrase in (
             "that was good thanks",
+            "that was a good information thanks a lot!",
+            "that was good information thanks",
+            "great info thanks a lot",
             "That was really helpful, thank you!",
             "thanks",
             "thank you!",
