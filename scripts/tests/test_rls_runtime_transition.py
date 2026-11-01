@@ -185,6 +185,7 @@ class RlsRuntimeTransitionTests(unittest.TestCase):
         self.assertIn('rm -f -- "$APP_DIR/.application-release/previous-images.env"', text)
         self.assertIn("capture_protected", text)
         self.assertIn('for service in caddy postgres redis', text)
+        self.assertIn('sorted(m for m in raw.split(chr(59)) if m)', text)
         self.assertIn('cmp -s "$before_protected" "$after_protected"', text)
         self.assertNotIn('rm -f -- "$env_backup" "$STATE_DIR/pre-app-user-environment.env"', text)
         self.assertIn('chmod 600 "$env_backup" "$STATE_DIR/pre-app-user-environment.env"', text)

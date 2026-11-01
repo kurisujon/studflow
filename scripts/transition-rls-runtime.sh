@@ -107,11 +107,12 @@ write_images() {
   chmod 600 "$temporary"; mv -f "$temporary" "$ENV_PATH"
 }
 capture_protected() {
-  : > "$1"
-  local service identifier
+  local destination="$1" service identifier
+  : > "$destination"
   for service in caddy postgres redis; do
     identifier="$(container_id "$service")"
-    docker inspect --format '{{.Id}}|{{range .Mounts}}{{.Type}}:{{.Source}}:{{.Destination}};{{end}}' "$identifier" >> "$1"
+    docker inspect --format '{{.Id}}|{{range .Mounts}}{{.Type}}:{{.Source}}:{{.Destination}};{{end}}' "$identifier" |
+      python3 -c 'import sys; line = sys.stdin.read().strip(); cid, _, raw = line.partition("|"); mounts = sorted(m for m in raw.split(chr(59)) if m); joined = chr(59).join(mounts) + chr(59) if mounts else ""; print(f"{cid}|{joined}")' >> "$destination"
   done
 }
 wait_backend() {
@@ -315,7 +316,10 @@ curl --fail --silent --show-error --head --connect-timeout 10 --max-time 30 --re
 curl --fail --silent --show-error --connect-timeout 10 --max-time 30 --retry 3 https://studflow.webcris.dev/api/health |
   python3 -c 'import json,sys; raise SystemExit(0 if json.load(sys.stdin).get("status")=="ok" else 1)' || fail "Public API smoke failed."
 capture_protected "$after_protected"
-cmp -s "$before_protected" "$after_protected" || fail "A protected service identity or mount changed."
+if ! cmp -s "$before_protected" "$after_protected"; then
+  diff -u "$before_protected" "$after_protected" >&2 || true
+  fail "A protected service identity or mount changed."
+fi
 
 # Generic image-only rollback is unsafe across the credential boundary.
 rm -f -- "$APP_DIR/.application-release/previous-images.env"
