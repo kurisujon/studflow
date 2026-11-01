@@ -58,8 +58,8 @@ class Settings(BaseSettings):
     document_reindex_enabled: bool = False
     document_reindex_lease_seconds: int = 900
 
-    # Verified Web Grounding (Phase E — opt-in, disabled by default)
-    web_grounding_enabled: bool = False
+    # Verified Web Grounding (Phase E)
+    web_grounding_enabled: bool = True
     web_grounding_max_sources: int = 5
     web_grounding_daily_limit: int = 30
     web_grounding_fetch_timeout_seconds: float = 5.0

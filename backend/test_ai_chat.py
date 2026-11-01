@@ -1760,7 +1760,7 @@ class AIChatIndexRepairRouteTests(unittest.TestCase):
             question="Search the web",
             retrieval_mode="web",
         )
-        with patch("api.routes.ai_chat.send_conversation_message") as send:
+        with patch("api.routes.ai_chat.settings.web_grounding_enabled", False), patch("api.routes.ai_chat.send_conversation_message") as send:
             with self.assertRaises(HTTPException) as raised:
                 send_ai_conversation_message(
                     self.conversation_id,

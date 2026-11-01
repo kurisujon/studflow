@@ -128,9 +128,9 @@ Current emphasis in `docs/tasks.md`:
 
 ## Current Priority Workstream
 
-### Phase E — Verified Web Grounding & Conversational Turns (Implemented Behind Flag — Pending Rollout)
+### Phase E — Verified Web Grounding & Conversational Turns (Live in Production)
 
-Approved and implemented on 2026-10-28 (`feature/verified-web-grounding`). Conversational turns (`E1`) reply deterministically without retrieval or model calls, and cited Web/Hybrid modes (`E2`–`E5`) are implemented behind `WEB_GROUNDING_ENABLED=false` (preserving HTTP 409 while off). Rules live in `docs/GUARDRAILS.md` § Verified Web Grounding; the checklist lives in `docs/tasks.md` § Phase E. Next operational steps are PR review/merge, executing the protected V2.1.1 `S0 -> S3` RLS runtime transition (`rls-runtime-transition.yml` permits the reviewed `backend/core/config.py` and `backend/schemas/ai_chat.py` additions, whereas steady-state `application-release.yml` blocks config/schema contract changes), and enabling `WEB_GROUNDING_ENABLED=true` after separate deployment approval.
+Approved and implemented on 2026-10-28 (`feature/verified-web-grounding`). Conversational turns (`E1`) reply deterministically without retrieval or model calls, and cited Web/Hybrid modes (`E2`–`E5`) are active with `WEB_GROUNDING_ENABLED=true` (with per-user daily quota and SSRF guardrails). Rules live in `docs/GUARDRAILS.md` § Verified Web Grounding; the checklist lives in `docs/tasks.md` § Phase E. On 2026-11-01, the protected V2.1.1 `S0 -> S3` RLS runtime transition was executed and verified, and `WEB_GROUNDING_ENABLED=true` was enabled.
 
 ### Phase D — Chunking Strategy & Hyperparameter Tuning (Completed)
 
