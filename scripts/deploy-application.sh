@@ -84,7 +84,8 @@ capture_protected() {
   : > "$destination"
   for service in caddy postgres redis; do
     identifier="$(container_id "$service")"
-    docker inspect --format '{{.Id}}|{{range .Mounts}}{{.Type}}:{{.Source}}:{{.Destination}};{{end}}' "$identifier" >> "$destination"
+    docker inspect --format '{{.Id}}|{{range .Mounts}}{{.Type}}:{{.Source}}:{{.Destination}};{{end}}' "$identifier" |
+      python3 -c 'import sys; line = sys.stdin.read().strip(); cid, _, raw = line.partition("|"); mounts = sorted(m for m in raw.split(chr(59)) if m); joined = chr(59).join(mounts) + chr(59) if mounts else ""; print(f"{cid}|{joined}")' >> "$destination"
   done
 }
 
@@ -362,7 +363,10 @@ wait_frontend || fail "Replacement frontend did not become ready."
 verify_running_ref frontend "$TARGET_FRONTEND" "$FRONTEND_REPOSITORY"
 
 capture_protected "$after_protected"
-cmp -s "$before_protected" "$after_protected" || fail "A protected service identity or mount changed during release."
+if ! cmp -s "$before_protected" "$after_protected"; then
+  diff -u "$before_protected" "$after_protected" >&2 || true
+  fail "A protected service identity or mount changed during release."
+fi
 
 mkdir -p "$STATE_DIR"
 chmod 700 "$STATE_DIR"
