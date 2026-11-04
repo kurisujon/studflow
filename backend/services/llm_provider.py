@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import itertools
 import logging
+import threading
 import time
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -37,6 +38,7 @@ class AIServiceError(Exception):
 # ---------------------------------------------------------------------------
 
 _key_iterator = None
+_key_lock = threading.Lock()
 
 
 def _get_api_key() -> str:
@@ -45,10 +47,11 @@ def _get_api_key() -> str:
     if not keys:
         raise AIServiceError("Gemini is not configured. Set GEMINI_API_KEY.")
 
-    if _key_iterator is None:
-        _key_iterator = itertools.cycle(keys)
+    with _key_lock:
+        if _key_iterator is None:
+            _key_iterator = itertools.cycle(keys)
 
-    return next(_key_iterator)
+        return next(_key_iterator)
 
 
 # ---------------------------------------------------------------------------
