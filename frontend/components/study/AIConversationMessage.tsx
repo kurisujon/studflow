@@ -58,19 +58,32 @@ export function AIConversationMessage({
     );
   }
 
+  const modeBadgeLabel =
+    message.retrieval_mode === "web"
+      ? "Web"
+      : message.retrieval_mode === "hybrid"
+        ? "Hybrid"
+        : "Document";
+
   return (
     <article className="ai-chat-assistant-row" aria-label="StudFlow AI message">
       <div className="ai-chat-assistant-heading">
-        <span className="ai-chat-avatar" aria-hidden="true"><Bot size={17} /></span>
-        <span>StudFlow AI</span>
+        <div className="ai-chat-assistant-identity">
+          <span className="ai-chat-avatar" aria-hidden="true"><Bot size={16} /></span>
+          <span>StudFlow AI</span>
+          <span className="ai-chat-mode-pill">{modeBadgeLabel}</span>
+        </div>
+        <time className="ai-chat-timestamp" dateTime={message.created_at}>
+          {new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(new Date(message.created_at))}
+        </time>
       </div>
       <SafeMessageContent content={message.content} citations={message.citations} />
       {message.status === "INSUFFICIENT_EVIDENCE" ? (
-        <p className="mt-3 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-sm text-amber-900 dark:text-amber-200" role="status">
+        <p className="mt-3 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3.5 py-2.5 text-sm text-amber-900 dark:text-amber-200" role="status">
           {insufficientEvidenceCopy(message.retrieval_mode)}
         </p>
       ) : message.status === "OUT_OF_SCOPE" ? (
-        <p className="mt-3 rounded-xl border border-border bg-muted px-3 py-2 text-sm text-muted-foreground" role="status">
+        <p className="mt-3 rounded-xl border border-border bg-muted px-3.5 py-2.5 text-sm text-muted-foreground" role="status">
           This question falls outside the selected material. Try asking about a topic contained in the document.
         </p>
       ) : null}
@@ -79,12 +92,16 @@ export function AIConversationMessage({
         searchAttributionHtml={searchAttributionHtml}
       />
       {message.status === "ANSWERED" && message.suggested_followups.length > 0 ? (
-        <div className="ai-chat-followups" aria-label="Suggested follow-up questions">
-          {message.suggested_followups.map((followup) => (
-            <button key={followup} type="button" onClick={() => onFollowup(followup)}>
-              {followup}
-            </button>
-          ))}
+        <div className="ai-chat-followups-section">
+          <p className="study-meta-label">Related follow-ups</p>
+          <div className="ai-chat-followups" aria-label="Suggested follow-up questions">
+            {message.suggested_followups.map((followup) => (
+              <button key={followup} type="button" onClick={() => onFollowup(followup)}>
+                <span>{followup}</span>
+                <span className="ai-chat-followup-arrow" aria-hidden="true">→</span>
+              </button>
+            ))}
+          </div>
         </div>
       ) : null}
       <div className="ai-chat-message-actions">
@@ -103,9 +120,6 @@ export function AIConversationMessage({
           {flashcardSaving ? "Saving…" : flashcardSaved ? "Saved" : "Save as flashcard"}
         </Button>
       </div>
-      <time className="ai-chat-timestamp" dateTime={message.created_at}>
-        {new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(new Date(message.created_at))}
-      </time>
     </article>
   );
 }

@@ -19,7 +19,12 @@ export function AIConversationSources({
     <div className="ai-chat-sources-group">
       {documentCitations.length > 0 ? (
         <section className="ai-chat-sources" aria-label="Sources from your document">
-          <p className="study-meta-label">From your document</p>
+          <div className="ai-chat-sources-header">
+            <p className="study-meta-label">From your document</p>
+            <span className="ai-chat-source-count-badge">
+              {documentCitations.length} {documentCitations.length === 1 ? "passage" : "passages"}
+            </span>
+          </div>
           <div className="ai-chat-source-list">
             {documentCitations.map((citation) => (
               <div
@@ -30,10 +35,14 @@ export function AIConversationSources({
                   <FileText size={15} />
                 </span>
                 <span className="ai-chat-source-copy">
-                  <span className="ai-chat-source-title">
-                    [{citation.index}] {citation.title}
+                  <span className="ai-chat-source-title-row">
+                    <span className="ai-chat-source-title">
+                      [{citation.index}] {citation.title}
+                    </span>
+                    {citation.page_number ? (
+                      <span className="ai-chat-source-page-pill">Page {citation.page_number}</span>
+                    ) : null}
                   </span>
-                  {citation.page_number ? <span>Page {citation.page_number}</span> : null}
                   {citation.excerpt ? (
                     <span className="ai-chat-source-excerpt">{citation.excerpt}</span>
                   ) : null}
@@ -60,15 +69,21 @@ export function AIConversationSources({
                     <Globe size={15} />
                   </span>
                   <span className="ai-chat-source-copy">
-                    <span className="ai-chat-source-title">
-                      [{citation.index}] {citation.title}
+                    <span className="ai-chat-source-title-row">
+                      <span className="ai-chat-source-title">
+                        [{citation.index}] {citation.title}
+                      </span>
+                      {domain ? <span className="ai-chat-source-domain">{domain}</span> : null}
                     </span>
-                    {domain ? <span className="ai-chat-source-domain">{domain}</span> : null}
                     {citation.excerpt ? (
                       <span className="ai-chat-source-excerpt">{citation.excerpt}</span>
                     ) : null}
                   </span>
-                  {safeUrl ? <ExternalLink size={14} aria-hidden="true" /> : null}
+                  {safeUrl ? (
+                    <span className="ai-chat-source-external" aria-hidden="true">
+                      <ExternalLink size={14} />
+                    </span>
+                  ) : null}
                 </>
               );
 

@@ -47,9 +47,14 @@ export function SafeMessageContent({
         index += 1;
       }
       blocks.push(
-        <pre key={`code-${index}`} className="ai-chat-code-block" aria-label={language ? `${language} code example` : "Code example"}>
-          <code>{code.join("\n")}</code>
-        </pre>,
+        <div key={`code-${index}`} className="ai-chat-code-wrapper">
+          <div className="ai-chat-code-header">
+            <span>{language || "code"}</span>
+          </div>
+          <pre className="ai-chat-code-block" aria-label={language ? `${language} code example` : "Code example"}>
+            <code>{code.join("\n")}</code>
+          </pre>
+        </div>,
       );
       index += 1;
       continue;

@@ -239,6 +239,13 @@ export function AIStudyAssistantPanel({
     if (contextText(context)) requestAnimationFrame(() => composerRef.current?.focus());
   }, [context, incomingContextKey]);
 
+  useEffect(() => {
+    const textarea = composerRef.current;
+    if (!textarea) return;
+    textarea.style.height = "auto";
+    textarea.style.height = `${Math.min(Math.max(textarea.scrollHeight, 52), 160)}px`;
+  }, [draft]);
+
   async function reloadCurrent() {
     if (!conversationId) return;
     setError(null);
@@ -623,13 +630,25 @@ export function AIStudyAssistantPanel({
             }}
             onKeyDown={handleComposerKeyDown}
           />
-          {sending ? (
-            <Button type="button" variant="outline" size="icon" onClick={stopWaiting} aria-label="Stop waiting for this response"><Square size={14} /></Button>
-          ) : (
-            <Button type="button" size="icon" onClick={() => void submit(draft)} disabled={!conversationId || reconciliationRequired || !draft.trim()} aria-label="Send message"><Send size={16} /></Button>
-          )}
+          <div className="ai-chat-composer-bar">
+            <span className="ai-chat-composer-status">
+              <span className="ai-chat-composer-dot" aria-hidden="true" />
+              {effectiveRetrievalMode === "web"
+                ? "Verified Web"
+                : effectiveRetrievalMode === "hybrid"
+                  ? "Doc + Web"
+                  : "Document Grounded"}
+            </span>
+            <div className="ai-chat-composer-controls">
+              <span className="ai-chat-composer-help">Enter to send · Shift+Enter for a new line</span>
+              {sending ? (
+                <Button type="button" variant="outline" size="icon" onClick={stopWaiting} aria-label="Stop waiting for this response"><Square size={14} /></Button>
+              ) : (
+                <Button type="button" size="icon" onClick={() => void submit(draft)} disabled={!conversationId || reconciliationRequired || !draft.trim()} aria-label="Send message"><Send size={16} /></Button>
+              )}
+            </div>
+          </div>
         </div>
-        <p className="ai-chat-composer-help">Enter to send · Shift+Enter for a new line</p>
       </footer>
     </div>
   );

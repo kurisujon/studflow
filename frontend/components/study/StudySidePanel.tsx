@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type KeyboardEvent } from "react";
 import { motion } from "framer-motion";
+import { Maximize2, Minus } from "lucide-react";
 
 import { AIStudyAssistantPanel } from "@/components/study/AIStudyAssistantPanel";
 import { NotesPanel } from "@/components/study/NotesPanel";
@@ -51,6 +52,7 @@ export function StudySidePanel({
   onAskAINote: (note: StudyNote) => void;
 }) {
   const [isCompactLayout, setIsCompactLayout] = useState(false);
+  const [isWideLayout, setIsWideLayout] = useState(false);
   const [aiInitialized, setAiInitialized] = useState(open && activeTab === "ai");
 
   useEffect(() => {
@@ -97,11 +99,12 @@ export function StudySidePanel({
             : isCompactLayout ? { y: 24, opacity: 0 } : { x: "100%", opacity: 0 }}
           transition={{ duration: 0.2, ease: "easeOut" }}
           className="study-side-panel-shell"
+          data-wide={isWideLayout ? "true" : "false"}
           style={{
             display: "flex",
             flexDirection: "column",
             overflow: "hidden",
-            padding: "1.3rem",
+            padding: "1rem",
             borderRadius: "24px",
             background:
               "linear-gradient(180deg, color-mix(in srgb, var(--card) 98%, white), color-mix(in srgb, var(--card) 94%, var(--theme-soft)))",
@@ -111,50 +114,63 @@ export function StudySidePanel({
             visibility: open ? "visible" : "hidden",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1rem" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem", marginBottom: "0.75rem", flexWrap: "wrap" }}>
             <div>
-              <p className="study-meta-label" style={{ marginBottom: "0.3rem" }}>
+              <p className="study-meta-label" style={{ marginBottom: "0.15rem" }}>
                 Study Panel
               </p>
-              <h3 style={{ color: "var(--foreground)" }}>Notes and AI</h3>
+              <h3 style={{ color: "var(--foreground)", fontSize: "1.02rem", fontWeight: 750 }}>Notes and AI</h3>
             </div>
-          </div>
 
-          <div role="tablist" aria-label="Study tools" style={{ display: "flex", gap: "0.6rem", marginBottom: "1rem", flexWrap: "wrap" }}>
-            <button
-              type="button"
-              onClick={() => onTabChange("notes")}
-              role="tab"
-              id={`study-notes-tab-${documentId}`}
-              aria-selected={activeTab === "notes"}
-              aria-controls={`study-notes-panel-${documentId}`}
-              tabIndex={activeTab === "notes" ? 0 : -1}
-              onKeyDown={(event) => handleTabKeyDown(event, "notes")}
-              className="study-segmented-pill"
-              style={{
-                backgroundColor: activeTab === "notes" ? "var(--theme-primary)" : "var(--card)",
-                color: activeTab === "notes" ? "var(--theme-on-primary)" : "var(--foreground)",
-              }}
-            >
-              Notes
-            </button>
-            <button
-              type="button"
-              onClick={() => onTabChange("ai")}
-              role="tab"
-              id={`study-ai-tab-${documentId}`}
-              aria-selected={activeTab === "ai"}
-              aria-controls={`study-ai-panel-${documentId}`}
-              tabIndex={activeTab === "ai" ? 0 : -1}
-              onKeyDown={(event) => handleTabKeyDown(event, "ai")}
-              className="study-segmented-pill"
-              style={{
-                backgroundColor: activeTab === "ai" ? "var(--theme-primary)" : "var(--card)",
-                color: activeTab === "ai" ? "var(--theme-on-primary)" : "var(--foreground)",
-              }}
-            >
-              AI
-            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <div role="tablist" aria-label="Study tools" style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  onClick={() => onTabChange("notes")}
+                  role="tab"
+                  id={`study-notes-tab-${documentId}`}
+                  aria-selected={activeTab === "notes"}
+                  aria-controls={`study-notes-panel-${documentId}`}
+                  tabIndex={activeTab === "notes" ? 0 : -1}
+                  onKeyDown={(event) => handleTabKeyDown(event, "notes")}
+                  className="study-segmented-pill"
+                  style={{
+                    backgroundColor: activeTab === "notes" ? "var(--theme-primary)" : "var(--card)",
+                    color: activeTab === "notes" ? "var(--theme-on-primary)" : "var(--foreground)",
+                  }}
+                >
+                  Notes
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onTabChange("ai")}
+                  role="tab"
+                  id={`study-ai-tab-${documentId}`}
+                  aria-selected={activeTab === "ai"}
+                  aria-controls={`study-ai-panel-${documentId}`}
+                  tabIndex={activeTab === "ai" ? 0 : -1}
+                  onKeyDown={(event) => handleTabKeyDown(event, "ai")}
+                  className="study-segmented-pill"
+                  style={{
+                    backgroundColor: activeTab === "ai" ? "var(--theme-primary)" : "var(--card)",
+                    color: activeTab === "ai" ? "var(--theme-on-primary)" : "var(--foreground)",
+                  }}
+                >
+                  AI
+                </button>
+              </div>
+              {!isCompactLayout ? (
+                <button
+                  type="button"
+                  onClick={() => setIsWideLayout((prev) => !prev)}
+                  className="study-panel-expand-btn"
+                  aria-label={isWideLayout ? "Restore standard panel width" : "Expand panel for wider reading"}
+                  title={isWideLayout ? "Standard width" : "Expand for wider reading"}
+                >
+                  {isWideLayout ? <Minus size={15} /> : <Maximize2 size={15} />}
+                </button>
+              ) : null}
+            </div>
           </div>
 
           <div className="study-side-panel-content">
