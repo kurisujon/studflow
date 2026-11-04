@@ -81,6 +81,7 @@ if args[:2] == ["compose", "--env-file"]:
     elif command == "stop":
         state["services"][rest[-1]]["status"] = "exited"; save()
     elif command == "exec":
+        sys.stdin.read()
         if "redis" in rest: print("PONG")
     else: raise SystemExit(1)
 elif args[0] == "inspect":

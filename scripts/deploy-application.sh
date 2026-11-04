@@ -46,9 +46,9 @@ command -v python3 >/dev/null 2>&1 || fail "Python 3 is unavailable."
 cd "$APP_DIR"
 compose() {
   if [ -n "${DOCKER_CONFIG:-}" ]; then
-    DOCKER_CONFIG="$DOCKER_CONFIG" docker compose --env-file "$ENV_PATH" "$@"
+    DOCKER_CONFIG="$DOCKER_CONFIG" docker compose --env-file "$ENV_PATH" "$@" < /dev/null
   else
-    docker compose --env-file "$ENV_PATH" "$@"
+    docker compose --env-file "$ENV_PATH" "$@" < /dev/null
   fi
 }
 
@@ -151,7 +151,7 @@ verify_running_ref() {
 }
 
 celery_control() {
-  (cd "$APP_DIR" && STUDFLOW_COMPOSE_ENV_FILE="$ENV_PATH" python3 "$CELERY_CONTROL_PATH" "$@")
+  (cd "$APP_DIR" && STUDFLOW_COMPOSE_ENV_FILE="$ENV_PATH" python3 "$CELERY_CONTROL_PATH" "$@" < /dev/null)
 }
 
 stop_drained_worker() {
