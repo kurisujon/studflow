@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import re
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
@@ -1182,56 +1183,72 @@ def send_conversation_message(
                         message_status = web_status
 
     elif retrieval_mode == "hybrid" and not document_only:
-        retrieved_chunks, retrieval_passed = _retrieve_document_chunks_for_turn(
-            clerk_user_id=clerk_user_id,
-            conversation_id=conversation_id,
-            document_id=document_id,
-            index_generation=index_generation,
-            retrieval_query=retrieval_query,
-        )
-        source_registry = (
-            {
-                f"e_{index:02d}": chunk
-                for index, chunk in enumerate(retrieved_chunks, start=1)
-            }
-            if retrieval_passed
-            else {}
-        )
-        if retrieval_passed:
-            doc_answer, doc_status = _generate_validated_path(
-                generation_path=ConversationGenerationPath.STRICT_DOCUMENT,
-                source_registry=source_registry,
-                question=question,
-                history=history,
-                selected_text=selected_text,
-                teaching_context=teaching_context,
+        def _run_hybrid_document_branch():
+            chunks, passed = _retrieve_document_chunks_for_turn(
+                clerk_user_id=clerk_user_id,
+                conversation_id=conversation_id,
+                document_id=document_id,
+                index_generation=index_generation,
+                retrieval_query=retrieval_query,
             )
-            doc_claims = (
-                doc_answer.claims
-                if doc_status != ChatAnswerStatus.INSUFFICIENT_EVIDENCE
-                else []
+            doc_reg = (
+                {
+                    f"e_{index:02d}": chunk
+                    for index, chunk in enumerate(chunks, start=1)
+                }
+                if passed
+                else {}
             )
-        else:
-            doc_status = ChatAnswerStatus.INSUFFICIENT_EVIDENCE
-            doc_claims = []
+            if passed:
+                ans, st = _generate_validated_path(
+                    generation_path=ConversationGenerationPath.STRICT_DOCUMENT,
+                    source_registry=doc_reg,
+                    question=question,
+                    history=history,
+                    selected_text=selected_text,
+                    teaching_context=teaching_context,
+                )
+                claims = (
+                    ans.claims
+                    if st != ChatAnswerStatus.INSUFFICIENT_EVIDENCE
+                    else []
+                )
+            else:
+                st = ChatAnswerStatus.INSUFFICIENT_EVIDENCE
+                claims = []
+            return doc_reg, st, claims
 
-        web_registry, search_attribution_html = retrieve_verified_web_sources(question)
-        if web_registry:
-            web_answer, web_status = _generate_validated_web_path(
-                web_registry=web_registry,
-                question=question,
-                history=history,
-            )
-            web_claims = (
-                web_answer.claims
-                if web_status != ChatAnswerStatus.INSUFFICIENT_EVIDENCE
-                else []
-            )
-        else:
-            web_answer = None
-            web_status = ChatAnswerStatus.INSUFFICIENT_EVIDENCE
-            web_claims = []
-            search_attribution_html = None
+        def _run_hybrid_web_branch():
+            w_reg, attr_html = retrieve_verified_web_sources(question)
+            if w_reg:
+                ans, st = _generate_validated_web_path(
+                    web_registry=w_reg,
+                    question=question,
+                    history=history,
+                )
+                claims = (
+                    ans.claims
+                    if st != ChatAnswerStatus.INSUFFICIENT_EVIDENCE
+                    else []
+                )
+            else:
+                ans = None
+                st = ChatAnswerStatus.INSUFFICIENT_EVIDENCE
+                claims = []
+                attr_html = None
+            return w_reg, attr_html, ans, st, claims
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            doc_future = executor.submit(_run_hybrid_document_branch)
+            web_future = executor.submit(_run_hybrid_web_branch)
+            source_registry, doc_status, doc_claims = doc_future.result()
+            (
+                web_registry,
+                search_attribution_html,
+                web_answer,
+                web_status,
+                web_claims,
+            ) = web_future.result()
 
         if not doc_claims and not web_claims:
             answer_markdown = INSUFFICIENT_EVIDENCE_ANSWER

@@ -133,6 +133,8 @@ If the supplied web sources can answer the question:
 1. Set answer_mode to "web" and evidence_sufficient to true.
 2. Ensure every claim has provenance="web" and cites at least one valid "w_XX" Evidence ID
    from the supplied source registry.
+3. For followup_candidates, suggest only general-learning follow-ups with answer_path="general"
+   and empty cited_evidence_ids.
 Return only JSON matching the required schema.
 '''.strip()
 

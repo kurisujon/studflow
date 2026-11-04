@@ -328,7 +328,7 @@ def validate_conversation_answer(
             raise ValueError("Web generation permits only web claims.")
         if any(not claim.cited_evidence_ids for claim in valid_claims):
             raise ValueError("Web claims require at least one web source reference.")
-        suggested_followups = _validated_hybrid_followups(raw, set())
+        suggested_followups = _validated_hybrid_followups(raw, available_ids)
     elif generation_path == ConversationGenerationPath.TEACHING:
         if answer_mode != ConversationAnswerMode.GENERAL or not raw.evidence_sufficient:
             raise ValueError("Teaching generation requires a complete general answer.")

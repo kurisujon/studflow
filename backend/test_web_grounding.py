@@ -695,7 +695,9 @@ class WebAndHybridEndToEndTests(unittest.TestCase):
             ),
             patch(
                 "services.ai_chat.answer_conversation_question",
-                side_effect=[doc_generated, web_generated],
+                side_effect=lambda **kwargs: (
+                    web_generated if kwargs.get("generation_path") == "web" else doc_generated
+                ),
             ),
             patch("services.ai_chat.evaluate_citations", side_effect=_fake_eval),
         ):
@@ -719,6 +721,44 @@ class WebAndHybridEndToEndTests(unittest.TestCase):
                 select(AIMessageCitation).order_by(AIMessageCitation.citation_index.asc())
             ).all()
         self.assertEqual([(c.citation_index, c.source_type) for c in stored], [(2, "document"), (3, "web")])
+
+    def test_web_followup_candidates_referencing_known_web_ids_do_not_crash(self) -> None:
+        from services.ai_service import RawSuggestedFollowup
+        from services.domain_validation import validate_conversation_answer
+        from schemas.domain import ConversationGenerationPath
+
+        raw = ConversationAnswer(
+            answer_mode="web",
+            claims=[
+                RawGroundedClaim(
+                    claim_text="Laravel uses MVC architecture.",
+                    cited_evidence_ids=["w_01"],
+                    provenance="web",
+                )
+            ],
+            evidence_sufficient=True,
+            followup_candidates=[
+                RawSuggestedFollowup(
+                    question="How does MVC work in Laravel?",
+                    answer_path="general",
+                    cited_evidence_ids=["w_01"],
+                ),
+                RawSuggestedFollowup(
+                    question="What are the benefits of MVC architecture?",
+                    answer_path="general",
+                    cited_evidence_ids=[],
+                ),
+            ],
+        )
+        validated = validate_conversation_answer(
+            raw,
+            {"w_01"},
+            generation_path=ConversationGenerationPath.WEB,
+        )
+        self.assertEqual(
+            validated.suggested_followups,
+            ["What are the benefits of MVC architecture?"],
+        )
 
 
 if __name__ == "__main__":

@@ -10,6 +10,7 @@ const apiBaseUrl = (
 const nextConfig: NextConfig = {
   experimental: {
     proxyClientMaxBodySize: "50mb",
+    proxyTimeout: 180_000,
   },
   turbopack: {
     root: path.resolve(__dirname),

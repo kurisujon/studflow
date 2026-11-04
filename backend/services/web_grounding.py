@@ -6,6 +6,7 @@ import ipaddress
 import logging
 import re
 import socket
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from html import escape as html_escape
 from html.parser import HTMLParser
@@ -565,14 +566,27 @@ def retrieve_verified_web_sources(
 
     max_sources = settings.web_grounding_max_sources
     max_attempts = max(max_sources * 2, 5)
+    candidates = search_result.grounding_chunks[:max_attempts]
     seen_final_urls: set[str] = set()
     verified_sources: list[tuple[str, str, str, str]] = []
 
     with _build_ssrf_safe_client() as client:
-        for attempt_idx, chunk in enumerate(search_result.grounding_chunks):
-            if len(verified_sources) >= max_sources or attempt_idx >= max_attempts:
+        if len(candidates) <= 1:
+            fetched_pages = [
+                fetch_excerpt(chunk.uri, client=client) for chunk in candidates
+            ]
+        else:
+            with ThreadPoolExecutor(max_workers=min(len(candidates), 6)) as executor:
+                fetched_pages = list(
+                    executor.map(
+                        lambda chunk: fetch_excerpt(chunk.uri, client=client),
+                        candidates,
+                    )
+                )
+
+        for chunk, fetched in zip(candidates, fetched_pages):
+            if len(verified_sources) >= max_sources:
                 break
-            fetched = fetch_excerpt(chunk.uri, client=client)
             if fetched is None or fetched.final_url in seen_final_urls:
                 continue
             seen_final_urls.add(fetched.final_url)
