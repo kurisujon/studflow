@@ -4,7 +4,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 
 import { AnnotatableTextBlock } from "@/components/study/AnnotatableTextBlock";
-import { FloatingNotesButton } from "@/components/study/FloatingNotesButton";
 import { RelatedLearningVideos } from "@/components/study/RelatedLearningVideos";
 import { StudySidePanel } from "@/components/study/StudySidePanel";
 import { Button } from "@/components/ui/button";
@@ -149,8 +148,8 @@ export function InteractiveSummaryReader({
   const [notes, setNotes] = useState<StudyNote[]>([]);
   const [selectionState, setSelectionState] = useState<SelectionState | null>(null);
   const [pendingSelection, setPendingSelection] = useState<SelectionState | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(initialPanel === "ai" || initialPanel === "notes");
-  const [activeBubbleTab, setActiveBubbleTab] = useState<StudyBubbleTab>(initialPanel === "ai" ? "ai" : "notes");
+  const [drawerOpen, setDrawerOpen] = useState(initialPanel !== "closed");
+  const [activeBubbleTab, setActiveBubbleTab] = useState<StudyBubbleTab>(initialPanel === "notes" ? "notes" : "ai");
   const [assistantInitialQuestion, setAssistantInitialQuestion] = useState("");
   const [aiMode, setAiMode] = useState<AIToolMode>("ask-ai");
   const [aiContextText, setAiContextText] = useState("");
@@ -254,18 +253,11 @@ export function InteractiveSummaryReader({
       if (pendingSelection) {
         clearPendingSelection();
       }
-
-      if (drawerOpen) {
-        clearAIContext();
-        setDrawerOpen(false);
-      }
     }
 
     function handleEscape(event: KeyboardEvent) {
       if (event.key === "Escape") {
         clearPendingSelection();
-        clearAIContext();
-        setDrawerOpen(false);
       }
     }
 
@@ -786,19 +778,71 @@ export function InteractiveSummaryReader({
   }
 
   return (
-    <section className="w-full relative flex justify-center pb-24">
-      {/* Floating Notes Button */}
-      <FloatingNotesButton
-        count={notes.length}
-        behindDrawer={drawerOpen}
-        expanded={drawerOpen}
-        controls={`study-side-panel-${documentId}`}
-        onClick={handleBubbleHeadClick}
+    <section className="study-split-workspace relative flex w-full flex-col gap-6 pb-20 lg:flex-row lg:items-start lg:gap-7">
+      {/* LEFT SIDE: Collapsible AI Chatbot & Notes Sidebar */}
+      <StudySidePanel
+        open={drawerOpen}
+        onToggleOpen={handleBubbleHeadClick}
+        documentId={documentId}
+        activeTab={activeBubbleTab}
+        onTabChange={setActiveBubbleTab}
+        aiContext={
+          aiContext.selectedText || aiContext.noteContent
+            ? aiContext
+            : {
+                source: "selection",
+                selectedText: aiContextText || selectionState?.selectedText || pendingSelection?.selectedText || "",
+              }
+        }
+        assistantInitialQuestion={assistantInitialQuestion}
+        aiMode={aiMode}
+        notes={topicNotes}
+        deletedNotes={deletedNotes}
+        focusedNoteId={focusedNoteId}
+        noteComposerValue={noteComposerValue}
+        noteComposerTextareaId={noteComposerTextareaId}
+        selectedNoteText={noteContextText || selectionState?.selectedText || pendingSelection?.selectedText || ""}
+        onNoteComposerChange={setNoteComposerValue}
+        onSaveNote={saveNote}
+        onDeleteNote={deleteNote}
+        onRestoreNote={restoreDeletedNote}
+        onForceDeleteNote={permanentlyDeleteNote}
+        onJumpToText={jumpToText}
+        onAskAINote={(note) => {
+          setDrawerOpen(true);
+          setActiveBubbleTab("ai");
+          setAiMode("ask-ai");
+          setAssistantInitialQuestion("");
+          setAiContextText(note.selectedText ?? "General note");
+          setAiContext({
+            source: "note",
+            selectedText: note.selectedText ?? "",
+            noteContent: note.content,
+          });
+          setSelectionState(
+            note.annotationId && note.selectedText
+              ? (() => {
+                  const annotation = annotations.find((item) => item.id === note.annotationId);
+                  return annotation
+                    ? {
+                        blockId: annotation.blockId,
+                        selectedText: annotation.selectedText,
+                        startOffset: annotation.startOffset,
+                        endOffset: annotation.endOffset,
+                        x: 0,
+                        y: 0,
+                      }
+                    : null;
+                })()
+              : null,
+          );
+        }}
       />
 
+      {/* RIGHT SIDE: Summary Lesson Content */}
       <div
         ref={rootRef}
-        className="w-full max-w-3xl px-6 sm:px-8 md:px-12 pt-12 lg:pt-16"
+        className="mx-auto w-full min-w-0 max-w-4xl flex-1 px-2 sm:px-4 md:px-6 pt-2 lg:pt-4"
         style={{ cursor: "text" }}
       >
         {annotationError && (
@@ -1004,64 +1048,6 @@ export function InteractiveSummaryReader({
           )}
         </AnimatePresence>
       </div>
-
-      <StudySidePanel
-        open={drawerOpen}
-        documentId={documentId}
-        activeTab={activeBubbleTab}
-        onTabChange={setActiveBubbleTab}
-        aiContext={
-          aiContext.selectedText || aiContext.noteContent
-            ? aiContext
-            : {
-                source: "selection",
-                selectedText: aiContextText || selectionState?.selectedText || pendingSelection?.selectedText || "",
-              }
-        }
-        assistantInitialQuestion={assistantInitialQuestion}
-        aiMode={aiMode}
-        notes={topicNotes}
-        deletedNotes={deletedNotes}
-        focusedNoteId={focusedNoteId}
-        noteComposerValue={noteComposerValue}
-        noteComposerTextareaId={noteComposerTextareaId}
-        selectedNoteText={noteContextText || selectionState?.selectedText || pendingSelection?.selectedText || ""}
-        onNoteComposerChange={setNoteComposerValue}
-        onSaveNote={saveNote}
-        onDeleteNote={deleteNote}
-        onRestoreNote={restoreDeletedNote}
-        onForceDeleteNote={permanentlyDeleteNote}
-        onJumpToText={jumpToText}
-        onAskAINote={(note) => {
-          setDrawerOpen(true);
-          setActiveBubbleTab("ai");
-          setAiMode("ask-ai");
-          setAssistantInitialQuestion("");
-          setAiContextText(note.selectedText ?? "General note");
-          setAiContext({
-            source: "note",
-            selectedText: note.selectedText ?? "",
-            noteContent: note.content,
-          });
-          setSelectionState(
-            note.annotationId && note.selectedText
-              ? (() => {
-                  const annotation = annotations.find((item) => item.id === note.annotationId);
-                  return annotation
-                    ? {
-                        blockId: annotation.blockId,
-                        selectedText: annotation.selectedText,
-                        startOffset: annotation.startOffset,
-                        endOffset: annotation.endOffset,
-                        x: 0,
-                        y: 0,
-                      }
-                    : null;
-                })()
-              : null,
-          );
-        }}
-      />
     </section>
   );
 }

@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState, type KeyboardEvent } from "react";
-import { motion } from "framer-motion";
-import { Maximize2, Minus } from "lucide-react";
+import { Bot, ChevronDown, ChevronUp, Maximize2, MessageSquareText, Minus } from "lucide-react";
 
 import { AIStudyAssistantPanel } from "@/components/study/AIStudyAssistantPanel";
 import { NotesPanel } from "@/components/study/NotesPanel";
@@ -10,6 +9,7 @@ import type { AIToolMode, StudyAIContext, StudyBubbleTab, StudyNote } from "@/ty
 
 export function StudySidePanel({
   open,
+  onToggleOpen,
   documentId,
   activeTab,
   onTabChange,
@@ -31,6 +31,7 @@ export function StudySidePanel({
   onAskAINote,
 }: {
   open: boolean;
+  onToggleOpen?: () => void;
   documentId: string;
   activeTab: StudyBubbleTab;
   onTabChange: (tab: StudyBubbleTab) => void;
@@ -64,7 +65,7 @@ export function StudySidePanel({
       return;
     }
 
-    const mediaQuery = window.matchMedia("(max-width: 768px)");
+    const mediaQuery = window.matchMedia("(max-width: 1023px)");
     const syncLayout = () => setIsCompactLayout(mediaQuery.matches);
     syncLayout();
     mediaQuery.addEventListener("change", syncLayout);
@@ -86,122 +87,156 @@ export function StudySidePanel({
     requestAnimationFrame(() => document.getElementById(`study-${next}-tab-${documentId}`)?.focus());
   }
 
+  function openWithTab(tab: StudyBubbleTab) {
+    onTabChange(tab);
+    if (!open && onToggleOpen) {
+      onToggleOpen();
+    }
+  }
+
   return (
-        <motion.aside
-          id={`study-side-panel-${documentId}`}
-          aria-label="Notes and AI study tools"
-          aria-hidden={!open}
-          inert={!open ? true : undefined}
+    <div className="study-left-sidebar-wrapper" data-open={open ? "true" : "false"} data-wide={isWideLayout ? "true" : "false"}>
+      {!open ? (
+        <aside
+          aria-label="Collapsed AI and Notes sidebar"
           data-study-bubble="true"
-          initial={false}
-          animate={open
-            ? isCompactLayout ? { y: 0, opacity: 1 } : { x: 0, opacity: 1 }
-            : isCompactLayout ? { y: 24, opacity: 0 } : { x: "100%", opacity: 0 }}
-          transition={{ duration: 0.2, ease: "easeOut" }}
-          className="study-side-panel-shell"
-          data-wide={isWideLayout ? "true" : "false"}
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            overflow: "hidden",
-            padding: "1rem",
-            borderRadius: "24px",
-            background:
-              "linear-gradient(180deg, color-mix(in srgb, var(--card) 98%, white), color-mix(in srgb, var(--card) 94%, var(--theme-soft)))",
-            border: "1px solid color-mix(in srgb, var(--theme-border) 58%, var(--border))",
-            boxShadow: "0 20px 52px color-mix(in srgb, var(--theme-shadow) 56%, transparent)",
-            pointerEvents: open ? "auto" : "none",
-            visibility: open ? "visible" : "hidden",
-          }}
+          className="study-left-sidebar-collapsed"
         >
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem", marginBottom: "0.75rem", flexWrap: "wrap" }}>
-            <div>
-              <p className="study-meta-label" style={{ marginBottom: "0.15rem" }}>
-                Study Panel
-              </p>
-              <h3 style={{ color: "var(--foreground)", fontSize: "1.02rem", fontWeight: 750 }}>Notes and AI</h3>
-            </div>
+          <button
+            type="button"
+            onClick={() => openWithTab("ai")}
+            className="study-collapsed-rail-btn study-collapsed-rail-btn-primary"
+            aria-label="Expand AI Study Assistant sidebar"
+            title="Open AI Study Assistant"
+          >
+            <span className="study-collapsed-rail-icon">
+              <Bot size={18} />
+            </span>
+            <span className="study-collapsed-rail-label">AI Chatbot</span>
+          </button>
 
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <div role="tablist" aria-label="Study tools" style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
-                <button
-                  type="button"
-                  onClick={() => onTabChange("notes")}
-                  role="tab"
-                  id={`study-notes-tab-${documentId}`}
-                  aria-selected={activeTab === "notes"}
-                  aria-controls={`study-notes-panel-${documentId}`}
-                  tabIndex={activeTab === "notes" ? 0 : -1}
-                  onKeyDown={(event) => handleTabKeyDown(event, "notes")}
-                  className="study-segmented-pill"
-                  style={{
-                    backgroundColor: activeTab === "notes" ? "var(--theme-primary)" : "var(--card)",
-                    color: activeTab === "notes" ? "var(--theme-on-primary)" : "var(--foreground)",
-                  }}
-                >
-                  Notes
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onTabChange("ai")}
-                  role="tab"
-                  id={`study-ai-tab-${documentId}`}
-                  aria-selected={activeTab === "ai"}
-                  aria-controls={`study-ai-panel-${documentId}`}
-                  tabIndex={activeTab === "ai" ? 0 : -1}
-                  onKeyDown={(event) => handleTabKeyDown(event, "ai")}
-                  className="study-segmented-pill"
-                  style={{
-                    backgroundColor: activeTab === "ai" ? "var(--theme-primary)" : "var(--card)",
-                    color: activeTab === "ai" ? "var(--theme-on-primary)" : "var(--foreground)",
-                  }}
-                >
-                  AI
-                </button>
-              </div>
-              {!isCompactLayout ? (
-                <button
-                  type="button"
-                  onClick={() => setIsWideLayout((prev) => !prev)}
-                  className="study-panel-expand-btn"
-                  aria-label={isWideLayout ? "Restore standard panel width" : "Expand panel for wider reading"}
-                  title={isWideLayout ? "Standard width" : "Expand for wider reading"}
-                >
-                  {isWideLayout ? <Minus size={15} /> : <Maximize2 size={15} />}
-                </button>
+          <button
+            type="button"
+            onClick={() => openWithTab("notes")}
+            className="study-collapsed-rail-btn"
+            aria-label="Expand Notes sidebar"
+            title="Open Study Notes"
+          >
+            <span className="study-collapsed-rail-icon">
+              <MessageSquareText size={16} />
+            </span>
+            <span className="study-collapsed-rail-label">Notes</span>
+            {notes.length > 0 ? (
+              <span className="study-collapsed-rail-badge">{notes.length}</span>
+            ) : null}
+          </button>
+        </aside>
+      ) : null}
+
+      <aside
+        id={`study-side-panel-${documentId}`}
+        aria-label="Notes and AI study tools"
+        aria-hidden={!open}
+        inert={!open ? true : undefined}
+        data-study-bubble="true"
+        data-wide={isWideLayout ? "true" : "false"}
+        hidden={!open}
+        className="study-side-panel-shell"
+      >
+        <div className="study-side-panel-topbar">
+          <div role="tablist" aria-label="Study tools" className="study-side-panel-tabs">
+            <button
+              type="button"
+              onClick={() => onTabChange("ai")}
+              role="tab"
+              id={`study-ai-tab-${documentId}`}
+              aria-selected={activeTab === "ai"}
+              aria-controls={`study-ai-panel-${documentId}`}
+              tabIndex={activeTab === "ai" ? 0 : -1}
+              onKeyDown={(event) => handleTabKeyDown(event, "ai")}
+              className="study-segmented-pill"
+              data-active={activeTab === "ai" ? "true" : "false"}
+            >
+              <Bot size={15} />
+              <span>AI Assistant</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onTabChange("notes")}
+              role="tab"
+              id={`study-notes-tab-${documentId}`}
+              aria-selected={activeTab === "notes"}
+              aria-controls={`study-notes-panel-${documentId}`}
+              tabIndex={activeTab === "notes" ? 0 : -1}
+              onKeyDown={(event) => handleTabKeyDown(event, "notes")}
+              className="study-segmented-pill"
+              data-active={activeTab === "notes" ? "true" : "false"}
+            >
+              <MessageSquareText size={14} />
+              <span>Notes</span>
+              {notes.length > 0 ? (
+                <span className="study-tab-count-pill">{notes.length}</span>
               ) : null}
-            </div>
+            </button>
           </div>
 
-          <div className="study-side-panel-content">
-            <div role="tabpanel" id={`study-ai-panel-${documentId}`} aria-labelledby={`study-ai-tab-${documentId}`} className="study-side-tab-panel" hidden={!open || activeTab !== "ai"} inert={!open || activeTab !== "ai" ? true : undefined}>
-              {aiInitialized ? (
-                <AIStudyAssistantPanel
-                  documentId={documentId}
-                  context={aiContext}
-                  initialQuestion={assistantInitialQuestion}
-                  mode={aiMode}
-                />
-              ) : null}
-            </div>
-            <div role="tabpanel" id={`study-notes-panel-${documentId}`} aria-labelledby={`study-notes-tab-${documentId}`} className="study-side-tab-panel study-side-notes-panel" hidden={!open || activeTab !== "notes"} inert={!open || activeTab !== "notes" ? true : undefined}>
-                <NotesPanel
-                  notes={notes}
-                  deletedNotes={deletedNotes}
-                  focusedNoteId={focusedNoteId}
-                  composerValue={noteComposerValue}
-                  composerTextareaId={noteComposerTextareaId}
-                  selectedTextContext={selectedNoteText}
-                  onComposerChange={onNoteComposerChange}
-                  onSaveNote={onSaveNote}
-                  onDeleteNote={onDeleteNote}
-                  onRestoreNote={onRestoreNote}
-                  onForceDeleteNote={onForceDeleteNote}
-                  onJumpToText={onJumpToText}
-                  onAskAI={onAskAINote}
-                />
-            </div>
+          <div className="study-side-panel-actions">
+            {!isCompactLayout ? (
+              <button
+                type="button"
+                onClick={() => setIsWideLayout((prev) => !prev)}
+                className="study-panel-expand-btn"
+                aria-label={isWideLayout ? "Restore standard panel width" : "Expand panel for wider reading"}
+                title={isWideLayout ? "Standard width" : "Wider split view"}
+              >
+                {isWideLayout ? <Minus size={14} /> : <Maximize2 size={14} />}
+              </button>
+            ) : null}
+            {onToggleOpen ? (
+              <button
+                type="button"
+                onClick={onToggleOpen}
+                className="study-panel-collapse-btn"
+                aria-label="Collapse AI and Notes sidebar"
+                title="Collapse sidebar"
+              >
+                {isCompactLayout ? <ChevronUp size={15} /> : <ChevronDown size={15} className="rotate-90" />}
+                <span>Hide</span>
+              </button>
+            ) : null}
           </div>
-        </motion.aside>
+        </div>
+
+        <div className="study-side-panel-content">
+          <div role="tabpanel" id={`study-ai-panel-${documentId}`} aria-labelledby={`study-ai-tab-${documentId}`} className="study-side-tab-panel" hidden={!open || activeTab !== "ai"} inert={!open || activeTab !== "ai" ? true : undefined}>
+            {aiInitialized ? (
+              <AIStudyAssistantPanel
+                documentId={documentId}
+                context={aiContext}
+                initialQuestion={assistantInitialQuestion}
+                mode={aiMode}
+              />
+            ) : null}
+          </div>
+          <div role="tabpanel" id={`study-notes-panel-${documentId}`} aria-labelledby={`study-notes-tab-${documentId}`} className="study-side-tab-panel study-side-notes-panel" hidden={!open || activeTab !== "notes"} inert={!open || activeTab !== "notes" ? true : undefined}>
+            <NotesPanel
+              notes={notes}
+              deletedNotes={deletedNotes}
+              focusedNoteId={focusedNoteId}
+              composerValue={noteComposerValue}
+              composerTextareaId={noteComposerTextareaId}
+              selectedTextContext={selectedNoteText}
+              onComposerChange={onNoteComposerChange}
+              onSaveNote={onSaveNote}
+              onDeleteNote={onDeleteNote}
+              onRestoreNote={onRestoreNote}
+              onForceDeleteNote={onForceDeleteNote}
+              onJumpToText={onJumpToText}
+              onAskAI={onAskAINote}
+            />
+          </div>
+        </div>
+      </aside>
+    </div>
   );
 }

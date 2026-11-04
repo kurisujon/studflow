@@ -140,177 +140,192 @@ export function StudyWorkspace({
   });
 
   return (
-    <div className="flex w-full flex-1 flex-col gap-5 pb-10 lg:flex-row lg:items-start lg:gap-6">
-      {/* MATERIAL CONTEXT + STUDY TOOLS */}
+    <div className="flex w-full flex-1 flex-col gap-5 pb-10">
+      {/* TOP BAR: MATERIAL CONTEXT + STUDY TOOLS CARDS ABOVE THE SUMMARY */}
       <aside
         aria-label="Study material and tools"
-        className="flex w-full shrink-0 flex-col gap-3 lg:sticky lg:top-20 lg:w-64 xl:w-72 lg:gap-4"
+        className="flex w-full flex-col gap-3"
       >
-        <Link
-          href="/dashboard"
-          className="inline-flex w-fit items-center gap-1.5 rounded-lg text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)]"
-        >
-          <ChevronLeftIcon aria-hidden="true" className="size-4" />
-          Back to Dashboard
-        </Link>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Link
+            href="/dashboard"
+            className="inline-flex w-fit items-center gap-1.5 rounded-lg text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)]"
+          >
+            <ChevronLeftIcon aria-hidden="true" className="size-4" />
+            Back to Dashboard
+          </Link>
+        </div>
 
-        {/* STUDYING CONTAINER */}
-        <section
-          aria-labelledby="study-material-heading"
-          className="flex flex-col gap-2.5 rounded-2xl border border-border/80 bg-card p-3.5 shadow-xs"
-        >
-          <div className="flex items-center justify-between px-0.5">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-              Studying
-            </p>
-          </div>
+        <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2 xl:grid-cols-12">
+          {/* 1. STUDYING CONTAINER */}
+          <section
+            aria-labelledby="study-material-heading"
+            className="flex flex-col justify-between gap-2.5 rounded-2xl border border-border/80 bg-card p-3.5 shadow-xs xl:col-span-4"
+          >
+            <div className="flex items-center justify-between px-0.5">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                Studying
+              </p>
+              <div role="status">
+                {isCompleted ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                    <CheckCircle2Icon aria-hidden="true" className="size-3.5" />
+                    Ready to study
+                  </span>
+                ) : isFailed ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-red-500/10 px-2.5 py-0.5 text-xs font-semibold text-red-600 dark:text-red-400">
+                    <AlertCircleIcon aria-hidden="true" className="size-3.5" />
+                    Processing failed
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:text-amber-400">
+                    <Loader2Icon aria-hidden="true" className="size-3.5 animate-spin" />
+                    Processing
+                  </span>
+                )}
+              </div>
+            </div>
 
-          {/* Document Card */}
-          <div className="flex flex-col gap-3 rounded-xl border border-border/60 bg-muted/20 p-3 transition-colors hover:border-border">
-            <div className="flex items-start gap-3">
+            {/* Document Card */}
+            <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-muted/20 p-3 transition-colors hover:border-border">
               <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[var(--theme-soft)] text-[var(--theme-primary)]">
                 <FileTextIcon aria-hidden="true" className="size-5" />
               </div>
               <div className="min-w-0 flex-1">
                 <h1
                   id="study-material-heading"
-                  className="break-words text-sm font-semibold leading-snug text-foreground line-clamp-2"
+                  className="truncate text-sm font-semibold leading-snug text-foreground"
                   title={document.filename}
                 >
                   {document.filename}
                 </h1>
-                <p className="mt-1 text-xs text-muted-foreground">Added {addedOn}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">Added {addedOn}</p>
               </div>
             </div>
+          </section>
 
-            <div className="border-t border-border/50 pt-2" role="status">
-              {isCompleted ? (
-                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
-                  <CheckCircle2Icon aria-hidden="true" className="size-3.5" />
-                  Ready to study
-                </span>
-              ) : isFailed ? (
-                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-red-600 dark:text-red-400">
-                  <AlertCircleIcon aria-hidden="true" className="size-3.5" />
-                  Processing failed
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-400">
-                  <Loader2Icon aria-hidden="true" className="size-3.5 animate-spin" />
-                  Processing
-                </span>
-              )}
-            </div>
-          </div>
-        </section>
+          {/* 2 & 3. TOOL GROUPS (LEARN & PRACTICE) CONTAINERS */}
+          <nav
+            aria-label="Study tools"
+            className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 md:col-span-1 xl:col-span-5 xl:grid-cols-5"
+          >
+            {TOOL_GROUPS.map((group) => {
+              const isPractice = group.label === "Practice";
+              return (
+                <section
+                  key={group.label}
+                  aria-label={group.label}
+                  className={`flex flex-col justify-between gap-2.5 rounded-2xl border border-border/80 bg-card p-3.5 shadow-xs ${
+                    isPractice ? "xl:col-span-3" : "xl:col-span-2"
+                  }`}
+                >
+                  <div className="flex items-center justify-between px-0.5">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                      {group.label}
+                    </p>
+                  </div>
 
-        {/* TOOL GROUPS (LEARN & PRACTICE) CONTAINERS */}
-        <nav aria-label="Study tools" className="grid grid-cols-3 gap-2 lg:flex lg:flex-col lg:gap-4">
-          {TOOL_GROUPS.map((group) => (
-            <section
-              key={group.label}
-              aria-label={group.label}
-              className="contents lg:flex lg:flex-col lg:gap-2.5 lg:rounded-2xl lg:border lg:border-border/80 lg:bg-card lg:p-3.5 lg:shadow-xs"
-            >
-              <div className="hidden items-center justify-between px-0.5 lg:flex">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                  {group.label}
-                </p>
-              </div>
+                  <div
+                    className={`grid gap-2 ${
+                      group.tools.length > 1 ? "grid-cols-2" : "grid-cols-1"
+                    }`}
+                  >
+                    {group.tools.map((tool) => {
+                      const Icon = tool.icon;
+                      const isActive = currentTab === tool.key;
+                      const count = counts[tool.key];
 
-              <div className="contents lg:flex lg:flex-col lg:gap-2">
-                {group.tools.map((tool) => {
-                  const Icon = tool.icon;
-                  const isActive = currentTab === tool.key;
-                  const count = counts[tool.key];
-
-                  return (
-                    <button
-                      key={tool.key}
-                      type="button"
-                      onClick={() => navigateToTab(tool.key)}
-                      aria-current={isActive ? "page" : undefined}
-                      aria-keyshortcuts={tool.shortcut}
-                      className={`group flex min-h-16 w-full flex-col items-center justify-center gap-1 rounded-xl border p-2 text-center text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)] lg:min-h-0 lg:flex-row lg:justify-start lg:gap-3 lg:p-2.5 lg:text-left lg:text-sm ${
-                        isActive
-                          ? "border-[var(--theme-primary)]/50 bg-[var(--theme-soft)] text-[var(--theme-primary)] shadow-xs"
-                          : "border-border/60 bg-muted/20 text-muted-foreground hover:border-border hover:bg-muted/50 hover:text-foreground"
-                      }`}
-                    >
-                      <div
-                        className={`flex size-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
-                          isActive
-                            ? "bg-[var(--theme-primary)] text-[var(--theme-on-primary)] shadow-xs"
-                            : "bg-background text-muted-foreground border border-border/50 group-hover:text-foreground group-hover:border-border"
-                        }`}
-                      >
-                        <Icon aria-hidden="true" className="size-4" />
-                      </div>
-
-                      <span className="font-semibold lg:flex-1">{tool.label}</span>
-
-                      {count !== undefined ? (
-                        <span
-                          className={`hidden rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums lg:inline ${
+                      return (
+                        <button
+                          key={tool.key}
+                          type="button"
+                          onClick={() => navigateToTab(tool.key)}
+                          aria-current={isActive ? "page" : undefined}
+                          aria-keyshortcuts={tool.shortcut}
+                          className={`group flex min-h-[54px] w-full items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)] ${
                             isActive
-                              ? "bg-[var(--theme-primary)]/15 text-[var(--theme-primary)]"
-                              : "bg-muted text-muted-foreground border border-border/40"
+                              ? "border-[var(--theme-primary)]/50 bg-[var(--theme-soft)] text-[var(--theme-primary)] shadow-xs"
+                              : "border-border/60 bg-muted/20 text-muted-foreground hover:border-border hover:bg-muted/50 hover:text-foreground"
                           }`}
                         >
-                          {count}
-                        </span>
-                      ) : null}
-                    </button>
-                  );
-                })}
+                          <div
+                            className={`flex size-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                              isActive
+                                ? "bg-[var(--theme-primary)] text-[var(--theme-on-primary)] shadow-xs"
+                                : "border border-border/50 bg-background text-muted-foreground group-hover:border-border group-hover:text-foreground"
+                            }`}
+                          >
+                            <Icon aria-hidden="true" className="size-4" />
+                          </div>
+
+                          <span className="min-w-0 flex-1 truncate font-semibold">
+                            {tool.label}
+                          </span>
+
+                          {count !== undefined ? (
+                            <span
+                              className={`rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${
+                                isActive
+                                  ? "bg-[var(--theme-primary)]/15 text-[var(--theme-primary)]"
+                                  : "border border-border/40 bg-muted text-muted-foreground"
+                              }`}
+                            >
+                              {count}
+                            </span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              );
+            })}
+          </nav>
+
+          {/* 4. SHORTCUTS CONTAINER */}
+          <section
+            aria-label="Keyboard shortcuts"
+            className="hidden flex-col justify-between gap-2.5 rounded-2xl border border-border/80 bg-card p-3.5 shadow-xs md:flex xl:col-span-3"
+          >
+            <div className="px-0.5">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                Shortcuts
+              </p>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              <div className="flex items-center justify-between gap-1.5 rounded-xl border border-border/50 bg-muted/20 px-2.5 py-2.5 text-xs text-muted-foreground transition-colors hover:border-border hover:text-foreground">
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <SparklesIcon aria-hidden="true" className="size-3.5 shrink-0 text-amber-500" />
+                  <span className="truncate font-medium">Summary</span>
+                </span>
+                <kbd className="rounded border border-border bg-background px-1.5 py-0.5 font-mono text-[10px] font-bold text-foreground shadow-2xs">
+                  1
+                </kbd>
               </div>
-            </section>
-          ))}
-        </nav>
 
-        {/* SHORTCUTS CONTAINER */}
-        <section
-          aria-label="Keyboard shortcuts"
-          className="hidden flex-col gap-2.5 rounded-2xl border border-border/80 bg-card p-3.5 shadow-xs lg:flex"
-        >
-          <div className="px-0.5">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-              Shortcuts
-            </p>
-          </div>
+              <div className="flex items-center justify-between gap-1.5 rounded-xl border border-border/50 bg-muted/20 px-2.5 py-2.5 text-xs text-muted-foreground transition-colors hover:border-border hover:text-foreground">
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <BrainIcon aria-hidden="true" className="size-3.5 shrink-0 text-purple-600 dark:text-purple-400" />
+                  <span className="truncate font-medium">Cards</span>
+                </span>
+                <kbd className="rounded border border-border bg-background px-1.5 py-0.5 font-mono text-[10px] font-bold text-foreground shadow-2xs">
+                  2
+                </kbd>
+              </div>
 
-          <div className="grid grid-cols-1 gap-1.5">
-            <div className="flex items-center justify-between rounded-lg border border-border/50 bg-muted/20 px-2.5 py-2 text-xs text-muted-foreground transition-colors hover:border-border hover:text-foreground">
-              <span className="flex items-center gap-2">
-                <SparklesIcon aria-hidden="true" className="size-3.5 text-amber-500" />
-                <span className="font-medium">Summary</span>
-              </span>
-              <kbd className="rounded border border-border bg-background px-1.5 py-0.5 font-mono text-[10px] font-bold text-foreground shadow-2xs">
-                1
-              </kbd>
+              <div className="flex items-center justify-between gap-1.5 rounded-xl border border-border/50 bg-muted/20 px-2.5 py-2.5 text-xs text-muted-foreground transition-colors hover:border-border hover:text-foreground">
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <CircleHelpIcon aria-hidden="true" className="size-3.5 shrink-0 text-blue-500" />
+                  <span className="truncate font-medium">Quiz</span>
+                </span>
+                <kbd className="rounded border border-border bg-background px-1.5 py-0.5 font-mono text-[10px] font-bold text-foreground shadow-2xs">
+                  3
+                </kbd>
+              </div>
             </div>
-
-            <div className="flex items-center justify-between rounded-lg border border-border/50 bg-muted/20 px-2.5 py-2 text-xs text-muted-foreground transition-colors hover:border-border hover:text-foreground">
-              <span className="flex items-center gap-2">
-                <BrainIcon aria-hidden="true" className="size-3.5 text-purple-600 dark:text-purple-400" />
-                <span className="font-medium">Flashcards</span>
-              </span>
-              <kbd className="rounded border border-border bg-background px-1.5 py-0.5 font-mono text-[10px] font-bold text-foreground shadow-2xs">
-                2
-              </kbd>
-            </div>
-
-            <div className="flex items-center justify-between rounded-lg border border-border/50 bg-muted/20 px-2.5 py-2 text-xs text-muted-foreground transition-colors hover:border-border hover:text-foreground">
-              <span className="flex items-center gap-2">
-                <CircleHelpIcon aria-hidden="true" className="size-3.5 text-blue-500" />
-                <span className="font-medium">Quiz</span>
-              </span>
-              <kbd className="rounded border border-border bg-background px-1.5 py-0.5 font-mono text-[10px] font-bold text-foreground shadow-2xs">
-                3
-              </kbd>
-            </div>
-          </div>
-        </section>
+          </section>
+        </div>
       </aside>
 
       {/* MAIN WORKSPACE */}
