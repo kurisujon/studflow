@@ -779,67 +779,7 @@ export function InteractiveSummaryReader({
 
   return (
     <section className="study-split-workspace relative flex w-full flex-col gap-6 pb-20 lg:flex-row lg:items-start lg:gap-7">
-      {/* LEFT SIDE: Collapsible AI Chatbot & Notes Sidebar */}
-      <StudySidePanel
-        open={drawerOpen}
-        onToggleOpen={handleBubbleHeadClick}
-        documentId={documentId}
-        activeTab={activeBubbleTab}
-        onTabChange={setActiveBubbleTab}
-        aiContext={
-          aiContext.selectedText || aiContext.noteContent
-            ? aiContext
-            : {
-                source: "selection",
-                selectedText: aiContextText || selectionState?.selectedText || pendingSelection?.selectedText || "",
-              }
-        }
-        assistantInitialQuestion={assistantInitialQuestion}
-        aiMode={aiMode}
-        notes={topicNotes}
-        deletedNotes={deletedNotes}
-        focusedNoteId={focusedNoteId}
-        noteComposerValue={noteComposerValue}
-        noteComposerTextareaId={noteComposerTextareaId}
-        selectedNoteText={noteContextText || selectionState?.selectedText || pendingSelection?.selectedText || ""}
-        onNoteComposerChange={setNoteComposerValue}
-        onSaveNote={saveNote}
-        onDeleteNote={deleteNote}
-        onRestoreNote={restoreDeletedNote}
-        onForceDeleteNote={permanentlyDeleteNote}
-        onJumpToText={jumpToText}
-        onAskAINote={(note) => {
-          setDrawerOpen(true);
-          setActiveBubbleTab("ai");
-          setAiMode("ask-ai");
-          setAssistantInitialQuestion("");
-          setAiContextText(note.selectedText ?? "General note");
-          setAiContext({
-            source: "note",
-            selectedText: note.selectedText ?? "",
-            noteContent: note.content,
-          });
-          setSelectionState(
-            note.annotationId && note.selectedText
-              ? (() => {
-                  const annotation = annotations.find((item) => item.id === note.annotationId);
-                  return annotation
-                    ? {
-                        blockId: annotation.blockId,
-                        selectedText: annotation.selectedText,
-                        startOffset: annotation.startOffset,
-                        endOffset: annotation.endOffset,
-                        x: 0,
-                        y: 0,
-                      }
-                    : null;
-                })()
-              : null,
-          );
-        }}
-      />
-
-      {/* RIGHT SIDE: Summary Lesson Content */}
+      {/* LEFT SIDE: Summary Lesson Content */}
       <div
         ref={rootRef}
         className="mx-auto w-full min-w-0 max-w-4xl flex-1 px-2 sm:px-4 md:px-6 pt-2 lg:pt-4"
@@ -1048,6 +988,66 @@ export function InteractiveSummaryReader({
           )}
         </AnimatePresence>
       </div>
+
+      {/* RIGHT SIDE: Collapsible AI Chatbot & Notes Sidebar */}
+      <StudySidePanel
+        open={drawerOpen}
+        onToggleOpen={handleBubbleHeadClick}
+        documentId={documentId}
+        activeTab={activeBubbleTab}
+        onTabChange={setActiveBubbleTab}
+        aiContext={
+          aiContext.selectedText || aiContext.noteContent
+            ? aiContext
+            : {
+                source: "selection",
+                selectedText: aiContextText || selectionState?.selectedText || pendingSelection?.selectedText || "",
+              }
+        }
+        assistantInitialQuestion={assistantInitialQuestion}
+        aiMode={aiMode}
+        notes={topicNotes}
+        deletedNotes={deletedNotes}
+        focusedNoteId={focusedNoteId}
+        noteComposerValue={noteComposerValue}
+        noteComposerTextareaId={noteComposerTextareaId}
+        selectedNoteText={noteContextText || selectionState?.selectedText || pendingSelection?.selectedText || ""}
+        onNoteComposerChange={setNoteComposerValue}
+        onSaveNote={saveNote}
+        onDeleteNote={deleteNote}
+        onRestoreNote={restoreDeletedNote}
+        onForceDeleteNote={permanentlyDeleteNote}
+        onJumpToText={jumpToText}
+        onAskAINote={(note) => {
+          setDrawerOpen(true);
+          setActiveBubbleTab("ai");
+          setAiMode("ask-ai");
+          setAssistantInitialQuestion("");
+          setAiContextText(note.selectedText ?? "General note");
+          setAiContext({
+            source: "note",
+            selectedText: note.selectedText ?? "",
+            noteContent: note.content,
+          });
+          setSelectionState(
+            note.annotationId && note.selectedText
+              ? (() => {
+                  const annotation = annotations.find((item) => item.id === note.annotationId);
+                  return annotation
+                    ? {
+                        blockId: annotation.blockId,
+                        selectedText: annotation.selectedText,
+                        startOffset: annotation.startOffset,
+                        endOffset: annotation.endOffset,
+                        x: 0,
+                        y: 0,
+                      }
+                    : null;
+                })()
+              : null,
+          );
+        }}
+      />
     </section>
   );
 }

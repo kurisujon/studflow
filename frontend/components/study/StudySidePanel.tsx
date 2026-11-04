@@ -200,8 +200,8 @@ export function StudySidePanel({
                 aria-label="Collapse AI and Notes sidebar"
                 title="Collapse sidebar"
               >
-                {isCompactLayout ? <ChevronUp size={15} /> : <ChevronDown size={15} className="rotate-90" />}
                 <span>Hide</span>
+                {isCompactLayout ? <ChevronUp size={15} /> : <ChevronDown size={15} className="-rotate-90" />}
               </button>
             ) : null}
           </div>

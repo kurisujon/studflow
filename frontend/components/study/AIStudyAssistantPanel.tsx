@@ -471,7 +471,7 @@ export function AIStudyAssistantPanel({
     <div className="ai-chat-shell">
       <header className="ai-chat-header">
         <div className="ai-chat-thread-picker">
-          <label htmlFor={`ai-conversation-${documentId}`} className="study-meta-label">Conversation</label>
+          <label htmlFor={`ai-conversation-${documentId}`} className="sr-only">Conversation</label>
           <select
             id={`ai-conversation-${documentId}`}
             value={conversationId ?? ""}
@@ -483,8 +483,8 @@ export function AIStudyAssistantPanel({
             ))}
           </select>
         </div>
-        <div className="ai-chat-thread-picker">
-          <label htmlFor={`ai-retrieval-mode-${documentId}`} className="study-meta-label">
+        <div className="ai-chat-thread-picker ai-chat-source-picker">
+          <label htmlFor={`ai-retrieval-mode-${documentId}`} className="sr-only">
             Sources
           </label>
           <select
@@ -514,7 +514,7 @@ export function AIStudyAssistantPanel({
           </span>
         </div>
         <Button type="button" variant="outline" size="sm" onClick={() => void createNewChat()} disabled={creating || sending}>
-          <MessageSquarePlus size={15} /> {creating ? "Creating…" : "New chat"}
+          <MessageSquarePlus size={15} /> {creating ? "Creating…" : "New"}
         </Button>
       </header>
 
@@ -532,26 +532,7 @@ export function AIStudyAssistantPanel({
             <Button type="button" variant="ghost" size="sm" onClick={() => setPendingContext({ source: "general", selectedText: "" })}>Clear</Button>
           </div>
         </section>
-      ) : (
-        <div className="ai-chat-document-banner">
-          {effectiveRetrievalMode === "web" ? (
-            <>
-              <span>Verified web grounding</span>
-              <span>Every factual claim cites a public HTTPS source</span>
-            </>
-          ) : effectiveRetrievalMode === "hybrid" ? (
-            <>
-              <span>Hybrid study mode</span>
-              <span>Combines document &amp; verified web citations</span>
-            </>
-          ) : (
-            <>
-              <span>Document-aware tutoring</span>
-              <span>Document claims use verified citations</span>
-            </>
-          )}
-        </div>
-      )}
+      ) : null}
 
       <div
         ref={listRef}
@@ -631,16 +612,8 @@ export function AIStudyAssistantPanel({
             onKeyDown={handleComposerKeyDown}
           />
           <div className="ai-chat-composer-bar">
-            <span className="ai-chat-composer-status">
-              <span className="ai-chat-composer-dot" aria-hidden="true" />
-              {effectiveRetrievalMode === "web"
-                ? "Verified Web"
-                : effectiveRetrievalMode === "hybrid"
-                  ? "Doc + Web"
-                  : "Document Grounded"}
-            </span>
+            <span className="ai-chat-composer-help">Enter to send · Shift+Enter for a new line</span>
             <div className="ai-chat-composer-controls">
-              <span className="ai-chat-composer-help">Enter to send · Shift+Enter for a new line</span>
               {sending ? (
                 <Button type="button" variant="outline" size="icon" onClick={stopWaiting} aria-label="Stop waiting for this response"><Square size={14} /></Button>
               ) : (
