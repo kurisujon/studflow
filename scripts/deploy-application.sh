@@ -333,10 +333,63 @@ done
 docker image inspect "$current_frontend" >/dev/null 2>&1 || fail "Frontend rollback image is not available locally."
 docker image inspect "$current_backend" >/dev/null 2>&1 || fail "Backend rollback image is not available locally."
 
+reclaim_stale_images() {
+  local keep_cids=" " keep_ids=" " keep_refs=" " service cid full_cid iid ref exited_cids stale_refs stale_ids
+  for service in frontend backend worker caddy postgres redis; do
+    cid="$(compose ps --all -q "$service" 2>/dev/null || true)"
+    if [[ "$cid" =~ ^[0-9a-f]{12,64}$ ]]; then
+      full_cid="$(docker inspect --format '{{.Id}}' "$cid" < /dev/null 2>/dev/null || true)"
+      keep_cids="${keep_cids}${cid} ${full_cid} "
+      iid="$(docker inspect --format '{{.Image}}' "$cid" < /dev/null 2>/dev/null || true)"
+      [ -n "$iid" ] && keep_ids="${keep_ids}${iid} "
+    fi
+  done
+  for ref in "$current_frontend" "$current_backend" "$TARGET_FRONTEND" "$TARGET_BACKEND"; do
+    if [ -n "$ref" ]; then
+      keep_refs="${keep_refs}${ref} "
+      iid="$(docker image inspect --format '{{.Id}}' "$ref" < /dev/null 2>/dev/null || true)"
+      [ -n "$iid" ] && keep_ids="${keep_ids}${iid} "
+    fi
+  done
+  exited_cids="$(docker container ls --all --no-trunc --quiet --filter status=exited --filter status=dead < /dev/null 2>/dev/null || true)"
+  while IFS= read -r cid; do
+    [ -n "$cid" ] || continue
+    case "$keep_cids" in
+      *" $cid "*) ;;
+      *) docker container rm -f "$cid" < /dev/null >/dev/null 2>&1 || true ;;
+    esac
+  done <<< "$exited_cids"
+  stale_refs="$(
+    docker image ls --digests --no-trunc --format '{{.Repository}}@{{.Digest}}' "$FRONTEND_REPOSITORY" < /dev/null 2>/dev/null || true
+    docker image ls --digests --no-trunc --format '{{.Repository}}@{{.Digest}}' "$BACKEND_REPOSITORY" < /dev/null 2>/dev/null || true
+  )"
+  while IFS= read -r ref; do
+    [ -n "$ref" ] || continue
+    case "$keep_refs" in
+      *" $ref "*) ;;
+      *) docker image rm -f "$ref" < /dev/null >/dev/null 2>&1 || true ;;
+    esac
+  done <<< "$stale_refs"
+  stale_ids="$(docker image ls --all --no-trunc --quiet < /dev/null 2>/dev/null || true)"
+  while IFS= read -r iid; do
+    [ -n "$iid" ] || continue
+    case "$keep_ids" in
+      *" $iid "*) ;;
+      *) docker image rm -f "$iid" < /dev/null >/dev/null 2>&1 || true ;;
+    esac
+  done <<< "$stale_ids"
+}
+
+reclaim_stale_images
 capture_protected "$before_protected"
 write_images "$TARGET_FRONTEND" "$TARGET_BACKEND"
 env_changed=true
-compose pull backend worker frontend >/dev/null
+if [ "$TARGET_BACKEND" != "$current_backend" ]; then
+  compose pull backend worker >/dev/null
+fi
+if [ "$TARGET_FRONTEND" != "$current_frontend" ]; then
+  compose pull frontend >/dev/null
+fi
 for image in "$TARGET_FRONTEND" "$TARGET_BACKEND"; do
   platform="$(docker image inspect --format '{{.Os}}/{{.Architecture}}' "$image")"
   [ "$platform" = "linux/$expected_architecture" ] || fail "Target image platform does not match the production host."

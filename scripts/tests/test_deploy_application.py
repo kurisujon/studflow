@@ -89,6 +89,7 @@ elif args[0] == "inspect":
     name, item = service_from_id(identifier)
     if ".State.Health" in fmt: print("healthy" if name == "backend" and item["status"] == "running" else item["status"])
     elif ".State.Status" in fmt: print(item["status"])
+    elif fmt == "{{.Id}}": print(item["id"])
     elif fmt == "{{.Image}}": print("sha256:" + item["image"].split("sha256:")[1])
     elif fmt.startswith("{{.Id}}|"): print(item["id"] + "|volume:" + name + ":/data;")
     else: raise SystemExit(1)
@@ -97,12 +98,33 @@ elif args[:2] == ["image", "inspect"]:
         fmt = args[3]; image = args[4]
         if ".Os" in fmt and ".Architecture" in fmt: print("linux/amd64")
         elif ".Architecture" in fmt: print("amd64")
+        elif fmt == "{{.Id}}":
+            if "sha256:" in image: print("sha256:" + image.split("sha256:", 1)[1])
+            else: raise SystemExit(1)
         elif ".RepoDigests" in fmt:
             digest = image
             if image.startswith("sha256:"):
                 digest = next(item["image"] for item in state["services"].values() if item["image"].endswith(image[7:]))
             print(digest)
         else: raise SystemExit(1)
+elif args[:2] == ["image", "ls"]:
+    if "--digests" in args:
+        repo = args[-1]
+        for ref in state.get("local_images", []):
+            if ref.startswith(repo + "@"): print(ref)
+    else:
+        for ref in state.get("local_images", []):
+            if "sha256:" in ref: print("sha256:" + ref.split("sha256:", 1)[1])
+elif args[:2] == ["image", "rm"]:
+    target = args[-1]
+    state["removed_images"] = state.get("removed_images", []) + [target]
+    save()
+elif args[:2] == ["container", "ls"]:
+    for cid in state.get("exited_containers", []): print(cid)
+elif args[:2] == ["container", "rm"]:
+    target = args[-1]
+    state["removed_containers"] = state.get("removed_containers", []) + [target]
+    save()
 elif args[:2] == ["manifest", "inspect"]:
     image = args[2]
     if image.endswith("a" * 40): digest = "1" * 64
@@ -384,6 +406,32 @@ class DeployApplicationTests(unittest.TestCase):
             "deploy", NEW_FRONTEND, NEW_BACKEND, MOCK_MUTATE_PROTECTED="1"
         )
         self.assertNotEqual(result.returncode, 0)
+
+    def test_reclaims_stale_images_without_removing_active_or_rollback_images(self) -> None:
+        stale_frontend = "ghcr.io/kurisujon/studflow-frontend@sha256:" + "8" * 64
+        stale_backend = "ghcr.io/kurisujon/studflow-backend@sha256:" + "9" * 64
+        state = json.loads(self.state_path.read_text())
+        state["local_images"] = [
+            OLD_FRONTEND,
+            OLD_BACKEND,
+            NEW_FRONTEND,
+            NEW_BACKEND,
+            stale_frontend,
+            stale_backend,
+        ]
+        state["exited_containers"] = ["111111111111", "ffffffffffff"]
+        self.state_path.write_text(json.dumps(state))
+        result = self.run_script("deploy", NEW_FRONTEND, NEW_BACKEND)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        updated = json.loads(self.state_path.read_text())
+        removed_images = set(updated.get("removed_images", []))
+        self.assertIn(stale_frontend, removed_images)
+        self.assertIn(stale_backend, removed_images)
+        self.assertNotIn(OLD_FRONTEND, removed_images)
+        self.assertNotIn(OLD_BACKEND, removed_images)
+        self.assertNotIn(NEW_FRONTEND, removed_images)
+        self.assertNotIn(NEW_BACKEND, removed_images)
+        self.assertEqual(updated.get("removed_containers", []), ["ffffffffffff"])
 
 
 if __name__ == "__main__":

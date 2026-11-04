@@ -120,7 +120,7 @@ jobs:
       packages: write
     outputs:
       frontend_digest: ${{ steps.frontend.outputs.digest }}
-      backend_digest: ${{ steps.backend.outputs.digest }}
+      backend_digest: ${{ steps.backend.outputs.digest || steps.backend_reuse.outputs.digest }}
     steps:
       - name: Check out exact approved source
         uses: actions/checkout@v4
@@ -199,6 +199,8 @@ jobs:
           push: true
           tags: ghcr.io/kurisujon/studflow-frontend:${{ needs.validate.outputs.release_sha }}
           labels: org.opencontainers.image.revision=${{ needs.validate.outputs.release_sha }}
+          cache-from: type=gha,scope=release-frontend
+          cache-to: type=gha,scope=release-frontend,mode=max
           build-args: |
             NEXT_PUBLIC_API_BASE_URL=${{ env.NEXT_PUBLIC_API_BASE_URL }}
             INTERNAL_API_BASE_URL=${{ env.INTERNAL_API_BASE_URL }}
@@ -208,8 +210,30 @@ jobs:
             NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=${{ env.NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL }}
             NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=${{ env.NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL }}
 
+      - name: Reuse running backend image if backend source is unchanged
+        id: backend_reuse
+        env:
+          CURRENT_BACKEND_SHA: ${{ inputs.current_backend_sha }}
+          RELEASE_SHA: ${{ needs.validate.outputs.release_sha }}
+          EXPECTED_CURRENT_BACKEND: ${{ inputs.expected_current_backend_digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet "$CURRENT_BACKEND_SHA..$RELEASE_SHA" -- backend/; then
+            digest="${EXPECTED_CURRENT_BACKEND##*@}"
+            [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::Invalid expected current backend digest."; exit 1; }
+            docker buildx imagetools create \
+              --tag "ghcr.io/kurisujon/studflow-backend:$RELEASE_SHA" \
+              "$EXPECTED_CURRENT_BACKEND"
+            printf 'changed=false\n' >> "$GITHUB_OUTPUT"
+            printf 'digest=%s\n' "$digest" >> "$GITHUB_OUTPUT"
+          else
+            printf 'changed=true\n' >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build and publish backend
         id: backend
+        if: ${{ steps.backend_reuse.outputs.changed == 'true' }}
         uses: docker/build-push-action@v6
         with:
           context: backend
@@ -218,6 +242,8 @@ jobs:
           push: true
           tags: ghcr.io/kurisujon/studflow-backend:${{ needs.validate.outputs.release_sha }}
           labels: org.opencontainers.image.revision=${{ needs.validate.outputs.release_sha }}
+          cache-from: type=gha,scope=release-backend
+          cache-to: type=gha,scope=release-backend,mode=max
 
   deploy:
     name: Apply approved application image set
