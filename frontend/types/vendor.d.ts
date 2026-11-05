@@ -28,6 +28,7 @@ declare module "lucide-react" {
   export const Send: import("react").ComponentType<IconProps>;
   export const Square: import("react").ComponentType<IconProps>;
   export const StickyNote: import("react").ComponentType<IconProps>;
+  export const Trash2: import("react").ComponentType<IconProps>;
   export const Underline: import("react").ComponentType<IconProps>;
   export const Undo2: import("react").ComponentType<IconProps>;
   export const User: import("react").ComponentType<IconProps>;

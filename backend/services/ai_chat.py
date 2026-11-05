@@ -7,9 +7,9 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
-from sqlalchemy import func, text
+from sqlalchemy import func, or_, text
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 from core.database import commit_and_reassert_rls, tenant_session
 
 from core.config import settings
@@ -52,6 +52,7 @@ INSUFFICIENT_EVIDENCE_ANSWER = (
 MIXED_SOURCE_UNVERIFIED_NOTICE = (
     "I couldn't verify the source-specific part from the retrieved document evidence."
 )
+DELETED_CONVERSATION_PREFIX = "__deleted__:"
 
 
 class ConversationNotFoundError(Exception):
@@ -133,6 +134,33 @@ def _get_owned_document(
     return document
 
 
+def _strip_deleted_prefix(value: str | None) -> str:
+    cleaned = (value or "").strip()
+    while cleaned.startswith(DELETED_CONVERSATION_PREFIX):
+        cleaned = cleaned[len(DELETED_CONVERSATION_PREFIX) :].strip()
+    return cleaned
+
+
+def _sanitize_conversation_title(
+    raw_title: str | None,
+    fallback: str = "Study conversation",
+) -> str:
+    candidate = _strip_deleted_prefix(raw_title)
+    if not candidate:
+        candidate = _strip_deleted_prefix(fallback)
+    if not candidate:
+        candidate = "Study conversation"
+    return candidate[:160]
+
+
+def _active_conversation_title_clause():
+    title_column = col(AIConversation.title)
+    return or_(
+        title_column.is_(None),
+        ~title_column.startswith(DELETED_CONVERSATION_PREFIX, autoescape=True),
+    )
+
+
 def get_owned_conversation(
     session: Session,
     *,
@@ -144,11 +172,15 @@ def get_owned_conversation(
         select(AIConversation)
         .where(AIConversation.id == conversation_id)
         .where(AIConversation.clerk_user_id == clerk_user_id)
+        .where(_active_conversation_title_clause())
     )
     if for_update:
         statement = statement.with_for_update()
     conversation = session.exec(statement).first()
-    if conversation is None:
+    if conversation is None or (
+        conversation.title is not None
+        and conversation.title.startswith(DELETED_CONVERSATION_PREFIX)
+    ):
         raise ConversationNotFoundError
     return conversation
 
@@ -173,7 +205,7 @@ def create_conversation(
     conversation = AIConversation(
         clerk_user_id=clerk_user_id,
         document_id=document.id,
-        title=(title or default_title)[:160],
+        title=_sanitize_conversation_title(title, fallback=default_title),
         created_at=now,
         updated_at=now,
     )
@@ -199,15 +231,21 @@ def list_conversations(
             document_id=document_id,
             clerk_user_id=clerk_user_id,
         )
-    statement = select(AIConversation).where(
-        AIConversation.clerk_user_id == clerk_user_id
+    statement = (
+        select(AIConversation)
+        .where(AIConversation.clerk_user_id == clerk_user_id)
+        .where(_active_conversation_title_clause())
     )
     if document_id is not None:
         statement = statement.where(AIConversation.document_id == document_id)
     conversations = session.exec(
         statement.order_by(AIConversation.updated_at.desc(), AIConversation.id.desc())
     ).all()
-    return [_conversation_response(item) for item in conversations]
+    return [
+        _conversation_response(item)
+        for item in conversations
+        if not (item.title and item.title.startswith(DELETED_CONVERSATION_PREFIX))
+    ]
 
 
 def update_conversation_title(
@@ -223,7 +261,7 @@ def update_conversation_title(
         clerk_user_id=clerk_user_id,
         for_update=True,
     )
-    conversation.title = title
+    conversation.title = _sanitize_conversation_title(title)
     conversation.updated_at = datetime.now(timezone.utc)
     try:
         session.add(conversation)
@@ -247,8 +285,12 @@ def delete_conversation(
         clerk_user_id=clerk_user_id,
         for_update=True,
     )
+    base_title = _sanitize_conversation_title(conversation.title)
+    max_base_length = 160 - len(DELETED_CONVERSATION_PREFIX)
+    conversation.title = f"{DELETED_CONVERSATION_PREFIX}{base_title[:max_base_length]}"
+    conversation.updated_at = datetime.now(timezone.utc)
     try:
-        session.delete(conversation)
+        session.add(conversation)
         commit_and_reassert_rls(session, clerk_user_id)
     except Exception:
         session.rollback()
@@ -1082,14 +1124,30 @@ def send_conversation_message(
                 document_id=document.id,
                 repairable=index_readiness.is_repairable,
             )
-        recent_messages = session.exec(
+        current_messages = session.exec(
             select(AIMessage)
             .where(AIMessage.conversation_id == conversation.id)
             .order_by(AIMessage.sequence_number.desc())
             .limit(12)
         ).all()
-        history = _bounded_history(recent_messages)
-        prior_selected_text = _recent_selected_context(recent_messages)
+        prior_session_messages = session.exec(
+            select(AIMessage)
+            .join(AIConversation, AIMessage.conversation_id == AIConversation.id)
+            .where(AIConversation.clerk_user_id == clerk_user_id)
+            .where(AIConversation.document_id == document.id)
+            .where(AIConversation.id != conversation.id)
+            .where(AIMessage.role.in_(("user", "assistant")))
+            .order_by(
+                AIMessage.created_at.desc(),
+                AIMessage.conversation_id.desc(),
+                AIMessage.sequence_number.desc(),
+                AIMessage.id.desc(),
+            )
+            .limit(12)
+        ).all()
+        current_history = _bounded_history(current_messages)
+        memory_history = _bounded_history([*current_messages, *prior_session_messages])
+        prior_selected_text = _recent_selected_context(current_messages)
         snapshot_updated_at = conversation.updated_at
         document_id = document.id
         document_title = document.filename
@@ -1098,7 +1156,7 @@ def send_conversation_message(
         if (
             retrieval_mode != "document"
             and not is_conversational
-            and _request_scope(question, history) != ConversationRequestScope.DOCUMENT_ONLY
+            and _request_scope(question, current_history) != ConversationRequestScope.DOCUMENT_ONLY
         ):
             _enforce_web_grounding_daily_limit(session, clerk_user_id=clerk_user_id)
 
@@ -1118,7 +1176,7 @@ def send_conversation_message(
             message_status=ChatAnswerStatus.ANSWERED,
         )
 
-    request_scope = _request_scope(question, history)
+    request_scope = _request_scope(question, current_history)
     document_only = request_scope == ConversationRequestScope.DOCUMENT_ONLY
     requires_source = request_scope in {
         ConversationRequestScope.DOCUMENT_ONLY,
@@ -1128,7 +1186,7 @@ def send_conversation_message(
     retrieval_query = _retrieval_query(
         question,
         selected_text,
-        history,
+        memory_history,
         prior_selected_text,
     )
     teaching_context = _teaching_topic_keywords(
@@ -1162,7 +1220,7 @@ def send_conversation_message(
                 web_answer, web_status = _generate_validated_web_path(
                     web_registry=web_registry,
                     question=question,
-                    history=history,
+                    history=memory_history,
                 )
                 if web_status == ChatAnswerStatus.INSUFFICIENT_EVIDENCE:
                     answer_markdown = INSUFFICIENT_EVIDENCE_ANSWER
@@ -1204,7 +1262,7 @@ def send_conversation_message(
                     generation_path=ConversationGenerationPath.STRICT_DOCUMENT,
                     source_registry=doc_reg,
                     question=question,
-                    history=history,
+                    history=memory_history,
                     selected_text=selected_text,
                     teaching_context=teaching_context,
                 )
@@ -1224,7 +1282,7 @@ def send_conversation_message(
                 ans, st = _generate_validated_web_path(
                     web_registry=w_reg,
                     question=question,
-                    history=history,
+                    history=memory_history,
                 )
                 claims = (
                     ans.claims
@@ -1343,7 +1401,7 @@ def send_conversation_message(
                     generation_path=path,
                     source_registry=source_registry,
                     question=question,
-                    history=history,
+                    history=memory_history,
                     selected_text=selected_text,
                     teaching_context=teaching_context,
                 )
@@ -1361,7 +1419,7 @@ def send_conversation_message(
                         generation_path=ConversationGenerationPath.CLARIFICATION,
                         source_registry=source_registry,
                         question=question,
-                        history=history,
+                        history=memory_history,
                         selected_text=selected_text,
                         teaching_context=teaching_context,
                     )

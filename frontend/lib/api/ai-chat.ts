@@ -181,6 +181,17 @@ export async function createAIConversation(
   return conversation(await response.json());
 }
 
+export async function deleteAIConversation(
+  conversationId: string,
+  token: string | null,
+  signal?: AbortSignal,
+): Promise<void> {
+  await request(`/api/ai/conversations/${encodeURIComponent(conversationId)}`, token, {
+    method: "DELETE",
+    signal,
+  });
+}
+
 export async function getAIConversationMessages(
   conversationId: string,
   token: string | null,

@@ -796,6 +796,7 @@ textarea {
 }
 
 .ai-chat-header,
+.ai-chat-delete-banner,
 .ai-chat-context-banner,
 .ai-chat-composer-shell { flex: none; }
 
@@ -825,6 +826,24 @@ textarea {
   border-color: var(--theme-primary);
   background: var(--card);
 }
+
+.ai-chat-delete-banner {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0.15rem 0.1rem 0.35rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--destructive) 28%, var(--border));
+  border-left: 3px solid var(--destructive);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--destructive) 7%, var(--card));
+}
+.ai-chat-delete-banner p {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.48;
+  color: var(--foreground);
+}
+.ai-chat-delete-actions { display: flex; justify-content: flex-end; gap: 0.35rem; }
 
 .ai-chat-context-banner {
   display: grid;

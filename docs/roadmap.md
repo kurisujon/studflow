@@ -1,6 +1,6 @@
 # Studflow Roadmap and Handoff
 
-Last updated: 2026-10-28
+Last updated: 2026-11-05
 
 ## Purpose
 
@@ -1229,3 +1229,21 @@ When a future agent completes a meaningful feature, they should update this file
 
 **What to do next:**
 - Review the Phase E implementation plan, then implement E1 (conversational turns) first, followed by E2–E6 behind a default-disabled `WEB_GROUNDING_ENABLED` flag.
+
+### Update: 2026-11-05 — Soft-Delete Chat Sessions with Cross-Session Memory
+
+**What Changed:**
+- Updated `backend/services/ai_chat.py` so `delete_conversation` soft-archives sessions via a reserved `__deleted__:` title prefix instead of deleting `AIConversation` / `AIMessage` rows, with NULL-safe and wildcard-escaped filtering (`_active_conversation_title_clause`) in `get_owned_conversation` and `list_conversations` plus reserved-prefix sanitization (`_sanitize_conversation_title`) on `create_conversation` and `update_conversation_title`.
+- Extended `send_conversation_message` in `backend/services/ai_chat.py` to combine active-session messages (`current_messages`, prioritized) with bounded prior owned messages for the same document across active and soft-deleted sessions (`prior_session_messages`) for `_retrieval_query`, `_generate_validated_path`, and `_generate_validated_web_path`, while keeping `_request_scope` and `_recent_selected_context` strictly isolated to `current_messages` and keeping `retrieve_verified_web_sources` restricted to `question` only.
+- Added `deleteAIConversation` (`204 No Content` safe) in `frontend/lib/api/ai-chat.ts`, declared `Trash2` in `frontend/types/vendor.d.ts`, and added a header delete trigger plus inline `.ai-chat-delete-banner` confirmation flow with fault-isolated post-delete session transition in `frontend/components/study/AIStudyAssistantPanel.tsx` and `frontend/app/globals.css`.
+- Added unit and real-SQLite regression coverage in `backend/test_ai_chat.py` for soft-delete 404 semantics, `title=None` and `_` wildcard safety, `__deleted__:` prefix spoofing sanitization, cross-session chronological memory priority, and Phase B.1 scope/selection isolation; synchronized `docs/architecture.md` and `docs/tasks.md`.
+- Validated locally with backend `compileall`, FastAPI app import, `unittest` (`173` passed), offline `eval/` `pytest` (`43` passed; the `4` live PostgreSQL `app_role` RLS integration tests require CI's `NOBYPASSRLS` `studflow_test` container rather than the local `backend/.env` connection), C6 baseline integrity (`eval/results/c3_baseline_v2`), frontend `tsc --noEmit`, `npm run lint`, and `npm run build`.
+
+**Contracts Changed:**
+- `DELETE /api/ai/conversations/{conversation_id}` retains its HTTP `204 No Content` status and subsequent `404` session CRUD behavior, but now soft-archives `ai_conversations` rows (`__deleted__:` title prefix) and retains `ai_messages` rows in PostgreSQL until terminal document deletion. No database schema, migration, Pydantic model, environment variable, or dependency contract changed.
+
+**Docs Stale:**
+- No.
+
+**What to do next:**
+- Complete human final diff review before committing, execute the V2.1.1 protected RLS runtime transition in an approved production maintenance window, and complete authenticated production acceptance for Phase E after separate deployment approval.

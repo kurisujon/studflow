@@ -9,13 +9,14 @@ import {
   type KeyboardEvent,
 } from "react";
 import { useAuth } from "@clerk/nextjs";
-import { ChevronDown, ChevronUp, MessageSquarePlus, RefreshCw, Send, Square } from "lucide-react";
+import { ChevronDown, ChevronUp, MessageSquarePlus, RefreshCw, Send, Square, Trash2 } from "lucide-react";
 
 import { AIConversationMessage } from "@/components/study/AIConversationMessage";
 import { Button } from "@/components/ui/button";
 import {
   AIChatAPIError,
   createAIConversation,
+  deleteAIConversation,
   getAICapabilities,
   getAIConversationMessages,
   listAIConversations,
@@ -108,6 +109,8 @@ export function AIStudyAssistantPanel({
   const [loadingEarlier, setLoadingEarlier] = useState(false);
   const [sending, setSending] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [retryQuestion, setRetryQuestion] = useState<string | null>(null);
@@ -124,6 +127,7 @@ export function AIStudyAssistantPanel({
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
   const loadAbortRef = useRef<AbortController | null>(null);
   const sendAbortRef = useRef<AbortController | null>(null);
+  const deleteAbortRef = useRef<AbortController | null>(null);
   const nearBottomRef = useRef(true);
   const requestIdRef = useRef(0);
   const incomingContextKey = JSON.stringify([
@@ -185,6 +189,8 @@ export function AIStudyAssistantPanel({
 
   const initialize = useEffectEvent(async (requestId: number, controller: AbortController) => {
     setLoading(true);
+    setDeleting(false);
+    setConfirmingDelete(false);
     setError(null);
     try {
       const token = await getToken({ skipCache: true });
@@ -232,6 +238,7 @@ export function AIStudyAssistantPanel({
       controller.abort();
       loadAbortRef.current?.abort();
       sendAbortRef.current?.abort();
+      deleteAbortRef.current?.abort();
     };
   }, [documentId, isLoaded, isSignedIn]);
 
@@ -247,21 +254,29 @@ export function AIStudyAssistantPanel({
   }, [draft]);
 
   async function reloadCurrent() {
-    if (!conversationId) return;
+    if (!conversationId || deleting || creating || sending || panelLoading) return;
+    const targetConversationId = conversationId;
+    const activeRequestId = requestIdRef.current;
     setError(null);
     try {
       const token = await getToken({ skipCache: true });
       if (!token) throw new Error("Your session is unavailable.");
-      await loadConversation(conversationId, token);
+      if (requestIdRef.current !== activeRequestId) return;
+      await loadConversation(targetConversationId, token);
+      if (requestIdRef.current !== activeRequestId) return;
       setReconciliationRequired(false);
       setNotice(null);
     } catch (reloadError) {
       if (reloadError instanceof Error && reloadError.name === "AbortError") return;
-      setError(reloadError instanceof Error ? reloadError.message : "Conversation could not be reloaded.");
+      if (requestIdRef.current === activeRequestId) {
+        setError(reloadError instanceof Error ? reloadError.message : "Conversation could not be reloaded.");
+      }
     }
   }
 
   async function chooseConversation(id: string) {
+    if (deleting || creating || sending || panelLoading) return;
+    setConfirmingDelete(false);
     setConversationId(id);
     setPendingContext({ source: "general", selectedText: "" });
     setContextExpanded(false);
@@ -283,7 +298,8 @@ export function AIStudyAssistantPanel({
   }
 
   async function createNewChat() {
-    if (creating) return;
+    if (creating || deleting) return;
+    setConfirmingDelete(false);
     setCreating(true);
     setError(null);
     try {
@@ -307,11 +323,102 @@ export function AIStudyAssistantPanel({
     }
   }
 
+  async function deleteCurrentChat() {
+    if (!conversationId || deleting || sending || creating || panelLoading) return;
+    const targetId = conversationId;
+    const activeRequestId = requestIdRef.current;
+    const deleteController = new AbortController();
+    deleteAbortRef.current?.abort();
+    deleteAbortRef.current = deleteController;
+    setDeleting(true);
+    setError(null);
+    loadAbortRef.current?.abort();
+    try {
+      const token = await getToken({ skipCache: true });
+      if (!token) throw new Error("Your session is unavailable.");
+      await deleteAIConversation(targetId, token, deleteController.signal);
+      if (requestIdRef.current !== activeRequestId) return;
+      loadAbortRef.current?.abort();
+      setConfirmingDelete(false);
+      setReconciliationRequired(false);
+      setNotice(null);
+      setError(null);
+      setRetryQuestion(null);
+      setPendingContext({ source: "general", selectedText: "" });
+      setContextExpanded(false);
+
+      const remaining = conversations.filter((item) => item.id !== targetId);
+      setConversations(remaining);
+
+      if (remaining.length > 0) {
+        const nextConversationId = remaining[0].id;
+        setConversationId(nextConversationId);
+        setMessages([]);
+        setNextBefore(null);
+        try {
+          await loadConversation(nextConversationId, token, { forceLatest: true });
+        } catch (loadError) {
+          if (
+            requestIdRef.current === activeRequestId
+            && !(loadError instanceof Error && loadError.name === "AbortError")
+          ) {
+            setError(loadError instanceof Error ? loadError.message : "Conversation could not be loaded.");
+          }
+        }
+        if (requestIdRef.current === activeRequestId) {
+          requestAnimationFrame(() => composerRef.current?.focus());
+        }
+      } else {
+        setConversationId(null);
+        setMessages([]);
+        setNextBefore(null);
+        try {
+          const created = await createAIConversation(documentId, token, deleteController.signal);
+          if (requestIdRef.current !== activeRequestId) return;
+          loadAbortRef.current?.abort();
+          setConversations([created]);
+          setConversationId(created.id);
+          setMessages([]);
+          setNextBefore(null);
+          setDraft(initialQuestion(mode, suppliedQuestion));
+          requestAnimationFrame(() => composerRef.current?.focus());
+        } catch (createError) {
+          if (
+            requestIdRef.current === activeRequestId
+            && !(createError instanceof Error && createError.name === "AbortError")
+          ) {
+            setError(
+              createError instanceof Error
+                ? createError.message
+                : "Session deleted, but a new conversation could not be started. Click New to continue.",
+            );
+            requestAnimationFrame(() => {
+              document.getElementById(`ai-chat-new-${documentId}`)?.focus();
+            });
+          }
+        }
+      }
+    } catch (deleteError) {
+      if (
+        requestIdRef.current === activeRequestId
+        && !(deleteError instanceof Error && deleteError.name === "AbortError")
+      ) {
+        setError(deleteError instanceof Error ? deleteError.message : "Conversation could not be deleted.");
+      }
+    } finally {
+      if (deleteAbortRef.current === deleteController) {
+        deleteAbortRef.current = null;
+      }
+      setDeleting(false);
+    }
+  }
+
   const effectiveRetrievalMode: AIRetrievalMode = webGroundingEnabled ? retrievalMode : "document";
 
   async function submit(question: string) {
     const normalized = question.trim();
-    if (!normalized || !conversationId || sending || reconciliationRequired) return;
+    if (!normalized || !conversationId || sending || deleting || reconciliationRequired) return;
+    setConfirmingDelete(false);
     const selected = contextText(pendingContext);
     const activeMode = effectiveRetrievalMode;
     const optimisticId = `pending-${Date.now()}`;
@@ -415,7 +522,7 @@ export function AIStudyAssistantPanel({
   }
 
   async function loadEarlier() {
-    if (!conversationId || !nextBefore || loadingEarlier) return;
+    if (!conversationId || !nextBefore || loadingEarlier || deleting || creating || panelLoading) return;
     setLoadingEarlier(true);
     setError(null);
     try {
@@ -475,7 +582,7 @@ export function AIStudyAssistantPanel({
           <select
             id={`ai-conversation-${documentId}`}
             value={conversationId ?? ""}
-            disabled={panelLoading || sending || conversations.length === 0}
+            disabled={panelLoading || sending || creating || deleting || conversations.length === 0}
             onChange={(event) => void chooseConversation(event.target.value)}
           >
             {conversations.map((item, index) => (
@@ -490,7 +597,7 @@ export function AIStudyAssistantPanel({
           <select
             id={`ai-retrieval-mode-${documentId}`}
             value={effectiveRetrievalMode}
-            disabled={panelLoading || sending}
+            disabled={panelLoading || sending || creating || deleting}
             aria-describedby={`ai-retrieval-mode-help-${documentId}`}
             onChange={(event) => {
               const nextMode = event.target.value;
@@ -513,10 +620,50 @@ export function AIStudyAssistantPanel({
               : "Document is selected. Web and hybrid sources are disabled until verified web grounding is available."}
           </span>
         </div>
-        <Button type="button" variant="outline" size="sm" onClick={() => void createNewChat()} disabled={creating || sending}>
+        <Button id={`ai-chat-new-${documentId}`} type="button" variant="outline" size="sm" onClick={() => void createNewChat()} disabled={panelLoading || creating || sending || deleting}>
           <MessageSquarePlus size={15} /> {creating ? "Creating…" : "New"}
         </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Delete current conversation"
+          aria-expanded={confirmingDelete}
+          title="Delete current conversation"
+          onClick={() => setConfirmingDelete((current) => !current)}
+          disabled={panelLoading || sending || creating || deleting || !conversationId}
+        >
+          <Trash2 size={15} />
+        </Button>
       </header>
+
+      {confirmingDelete && conversationId ? (
+        <section className="ai-chat-delete-banner" role="region" aria-label="Confirm conversation deletion">
+          <p>
+            Delete this chat session from your list? StudFlow AI will still remember what you discussed.
+          </p>
+          <div className="ai-chat-delete-actions">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={deleting}
+              onClick={() => setConfirmingDelete(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              disabled={deleting}
+              onClick={() => void deleteCurrentChat()}
+            >
+              {deleting ? "Deleting…" : "Delete session"}
+            </Button>
+          </div>
+        </section>
+      ) : null}
 
       {selectedContext ? (
         <section className="ai-chat-context-banner" aria-label="Pending study context">
@@ -525,11 +672,11 @@ export function AIStudyAssistantPanel({
             <p className={contextExpanded ? "" : "ai-chat-context-preview"}>{selectedContext}</p>
           </div>
           <div className="ai-chat-context-actions">
-            <Button type="button" variant="ghost" size="sm" onClick={() => setContextExpanded((value) => !value)}>
+            <Button type="button" variant="ghost" size="sm" disabled={deleting} onClick={() => setContextExpanded((value) => !value)}>
               {contextExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
               {contextExpanded ? "Collapse" : "Expand"}
             </Button>
-            <Button type="button" variant="ghost" size="sm" onClick={() => setPendingContext({ source: "general", selectedText: "" })}>Clear</Button>
+            <Button type="button" variant="ghost" size="sm" disabled={deleting} onClick={() => setPendingContext({ source: "general", selectedText: "" })}>Clear</Button>
           </div>
         </section>
       ) : null}
@@ -547,7 +694,7 @@ export function AIStudyAssistantPanel({
         aria-busy={panelLoading || sending}
       >
         {nextBefore ? (
-          <Button type="button" variant="ghost" size="sm" onClick={() => void loadEarlier()} disabled={loadingEarlier} className="ai-chat-load-earlier">
+          <Button type="button" variant="ghost" size="sm" onClick={() => void loadEarlier()} disabled={loadingEarlier || deleting} className="ai-chat-load-earlier">
             {loadingEarlier ? "Loading…" : "Load earlier messages"}
           </Button>
         ) : null}
@@ -586,14 +733,14 @@ export function AIStudyAssistantPanel({
           <div className="ai-chat-notice" role="status">
             <span>{notice}</span>
             <div>
-              <Button type="button" variant="ghost" size="sm" onClick={() => void reloadCurrent()}><RefreshCw size={14} /> Reload</Button>
-              {retryQuestion && !reconciliationRequired ? <Button type="button" variant="ghost" size="sm" disabled={sending} onClick={() => void submit(retryQuestion)}>Retry</Button> : null}
+              <Button type="button" variant="ghost" size="sm" disabled={panelLoading || sending || creating || deleting || !conversationId} onClick={() => void reloadCurrent()}><RefreshCw size={14} /> Reload</Button>
+              {retryQuestion && !reconciliationRequired ? <Button type="button" variant="ghost" size="sm" disabled={panelLoading || sending || creating || deleting || !conversationId} onClick={() => void submit(retryQuestion)}>Retry</Button> : null}
             </div>
           </div>
         ) : null}
         {visibleError ? <div className="ai-chat-error" role="alert">{visibleError}</div> : null}
         <div className="ai-chat-quick-actions" aria-label="Quick prompts">
-          {QUICK_ACTIONS.map((action) => <button key={action.label} type="button" disabled={sending || reconciliationRequired || !conversationId} onClick={() => void submit(action.question)}>{action.label}</button>)}
+          {QUICK_ACTIONS.map((action) => <button key={action.label} type="button" disabled={sending || deleting || reconciliationRequired || !conversationId} onClick={() => void submit(action.question)}>{action.label}</button>)}
         </div>
         <label htmlFor={`ai-chat-composer-${documentId}`} className="sr-only">Ask a study question or follow-up</label>
         <div className="ai-chat-composer">
@@ -604,7 +751,7 @@ export function AIStudyAssistantPanel({
             maxLength={4000}
             rows={2}
             placeholder="Ask a follow-up…"
-            disabled={!conversationId || panelLoading}
+            disabled={!conversationId || panelLoading || deleting}
             onChange={(event) => {
               setDraft(event.target.value);
               setRetryQuestion(null);
@@ -617,7 +764,7 @@ export function AIStudyAssistantPanel({
               {sending ? (
                 <Button type="button" variant="outline" size="icon" onClick={stopWaiting} aria-label="Stop waiting for this response"><Square size={14} /></Button>
               ) : (
-                <Button type="button" size="icon" onClick={() => void submit(draft)} disabled={!conversationId || reconciliationRequired || !draft.trim()} aria-label="Send message"><Send size={16} /></Button>
+                <Button type="button" size="icon" onClick={() => void submit(draft)} disabled={!conversationId || deleting || reconciliationRequired || !draft.trim()} aria-label="Send message"><Send size={16} /></Button>
               )}
             </div>
           </div>
