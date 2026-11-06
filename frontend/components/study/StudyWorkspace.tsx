@@ -160,7 +160,7 @@ export function StudyWorkspace({
           {/* 1. STUDYING CONTAINER */}
           <section
             aria-labelledby="study-material-heading"
-            className="flex flex-col justify-between gap-2.5 rounded-2xl border border-border/80 bg-card p-3.5 shadow-xs xl:col-span-4"
+            className="flex flex-col justify-between gap-2.5 rounded-2xl border border-border/80 bg-card p-3.5 shadow-xs xl:col-span-3"
           >
             <div className="flex items-center justify-between px-0.5">
               <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
@@ -207,7 +207,7 @@ export function StudyWorkspace({
           {/* 2 & 3. TOOL GROUPS (LEARN & PRACTICE) CONTAINERS */}
           <nav
             aria-label="Study tools"
-            className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 md:col-span-1 xl:col-span-5 xl:grid-cols-5"
+            className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 md:col-span-1 xl:col-span-6 xl:grid-cols-6"
           >
             {TOOL_GROUPS.map((group) => {
               const isPractice = group.label === "Practice";
@@ -216,7 +216,7 @@ export function StudyWorkspace({
                   key={group.label}
                   aria-label={group.label}
                   className={`flex flex-col justify-between gap-2.5 rounded-2xl border border-border/80 bg-card p-3.5 shadow-xs ${
-                    isPractice ? "xl:col-span-3" : "xl:col-span-2"
+                    isPractice ? "xl:col-span-4" : "xl:col-span-2"
                   }`}
                 >
                   <div className="flex items-center justify-between px-0.5">
@@ -242,7 +242,7 @@ export function StudyWorkspace({
                           onClick={() => navigateToTab(tool.key)}
                           aria-current={isActive ? "page" : undefined}
                           aria-keyshortcuts={tool.shortcut}
-                          className={`group flex min-h-[54px] w-full items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)] ${
+                          className={`group flex min-h-[54px] w-full items-center gap-2 rounded-xl border px-2.5 sm:px-3 py-2.5 text-left text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)] ${
                             isActive
                               ? "border-[var(--theme-primary)]/50 bg-[var(--theme-soft)] text-[var(--theme-primary)] shadow-xs"
                               : "border-border/60 bg-muted/20 text-muted-foreground hover:border-border hover:bg-muted/50 hover:text-foreground"
@@ -264,7 +264,7 @@ export function StudyWorkspace({
 
                           {count !== undefined ? (
                             <span
-                              className={`rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${
+                              className={`rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums shrink-0 ${
                                 isActive
                                   ? "bg-[var(--theme-primary)]/15 text-[var(--theme-primary)]"
                                   : "border border-border/40 bg-muted text-muted-foreground"
@@ -293,33 +293,33 @@ export function StudyWorkspace({
               </p>
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
-              <div className="flex items-center justify-between gap-1.5 rounded-xl border border-border/50 bg-muted/20 px-2.5 py-2.5 text-xs text-muted-foreground transition-colors hover:border-border hover:text-foreground">
+            <div className="flex items-center gap-1.5">
+              <div className="flex flex-1 min-w-0 items-center justify-between gap-1 rounded-xl border border-border/50 bg-muted/20 px-2 py-2 text-xs text-muted-foreground transition-colors hover:border-border hover:text-foreground">
                 <span className="flex min-w-0 items-center gap-1.5">
                   <SparklesIcon aria-hidden="true" className="size-3.5 shrink-0 text-amber-500" />
-                  <span className="truncate font-medium">Summary</span>
+                  <span className="truncate font-medium text-[11px] sm:text-xs">Summary</span>
                 </span>
-                <kbd className="rounded border border-border bg-background px-1.5 py-0.5 font-mono text-[10px] font-bold text-foreground shadow-2xs">
+                <kbd className="shrink-0 rounded border border-border bg-background px-1.5 py-0.5 font-mono text-[10px] font-bold text-foreground shadow-2xs">
                   1
                 </kbd>
               </div>
 
-              <div className="flex items-center justify-between gap-1.5 rounded-xl border border-border/50 bg-muted/20 px-2.5 py-2.5 text-xs text-muted-foreground transition-colors hover:border-border hover:text-foreground">
+              <div className="flex flex-1 min-w-0 items-center justify-between gap-1 rounded-xl border border-border/50 bg-muted/20 px-2 py-2 text-xs text-muted-foreground transition-colors hover:border-border hover:text-foreground">
                 <span className="flex min-w-0 items-center gap-1.5">
                   <BrainIcon aria-hidden="true" className="size-3.5 shrink-0 text-purple-600 dark:text-purple-400" />
-                  <span className="truncate font-medium">Cards</span>
+                  <span className="truncate font-medium text-[11px] sm:text-xs">Cards</span>
                 </span>
-                <kbd className="rounded border border-border bg-background px-1.5 py-0.5 font-mono text-[10px] font-bold text-foreground shadow-2xs">
+                <kbd className="shrink-0 rounded border border-border bg-background px-1.5 py-0.5 font-mono text-[10px] font-bold text-foreground shadow-2xs">
                   2
                 </kbd>
               </div>
 
-              <div className="flex items-center justify-between gap-1.5 rounded-xl border border-border/50 bg-muted/20 px-2.5 py-2.5 text-xs text-muted-foreground transition-colors hover:border-border hover:text-foreground">
+              <div className="flex flex-1 min-w-0 items-center justify-between gap-1 rounded-xl border border-border/50 bg-muted/20 px-2 py-2 text-xs text-muted-foreground transition-colors hover:border-border hover:text-foreground">
                 <span className="flex min-w-0 items-center gap-1.5">
                   <CircleHelpIcon aria-hidden="true" className="size-3.5 shrink-0 text-blue-500" />
-                  <span className="truncate font-medium">Quiz</span>
+                  <span className="truncate font-medium text-[11px] sm:text-xs">Quiz</span>
                 </span>
-                <kbd className="rounded border border-border bg-background px-1.5 py-0.5 font-mono text-[10px] font-bold text-foreground shadow-2xs">
+                <kbd className="shrink-0 rounded border border-border bg-background px-1.5 py-0.5 font-mono text-[10px] font-bold text-foreground shadow-2xs">
                   3
                 </kbd>
               </div>
