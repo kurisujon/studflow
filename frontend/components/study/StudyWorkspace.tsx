@@ -42,7 +42,6 @@ const TOOL_GROUPS: Array<{
   },
 ];
 
-const ALL_TOOLS = TOOL_GROUPS.flatMap((group) => group.tools);
 
 function isTypingTarget(target: EventTarget | null) {
   return (
@@ -125,8 +124,7 @@ export function StudyWorkspace({
   const isFailed = document.status === "FAILED";
   const isCompleted = document.status === "COMPLETED";
   const isProcessing = !isFailed && !isCompleted;
-  const activeTool = ALL_TOOLS.find((tool) => tool.key === currentTab) ?? ALL_TOOLS[0];
-  const ActiveIcon = activeTool.icon;
+
 
   const counts: Partial<Record<StudyTab, number>> = {
     flashcards: document.flashcards?.length ?? 0,
@@ -328,57 +326,104 @@ export function StudyWorkspace({
         </div>
       </aside>
 
-      {/* MAIN WORKSPACE */}
-      <section
-        aria-labelledby="study-workspace-heading"
-        className="flex min-h-[480px] w-full min-w-0 flex-1 flex-col rounded-xl border border-[var(--theme-border)] bg-[var(--card)] lg:rounded-2xl"
-      >
-        <header className="flex items-center gap-2 rounded-t-xl border-b border-[var(--theme-border)] px-4 py-3 lg:rounded-t-2xl lg:px-6 lg:py-4">
-          <ActiveIcon aria-hidden="true" className="size-4 text-[var(--theme-primary)] lg:size-5" />
-          <h2 id="study-workspace-heading" className="text-base font-semibold text-foreground lg:text-lg">
-            {activeTool.title}
-          </h2>
-        </header>
+      {/* MAIN WORKSPACE AREA */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        {isProcessing ? (
+          <section
+            aria-labelledby="study-processing-heading"
+            className="flex min-h-[480px] w-full flex-col items-center justify-center gap-4 rounded-xl border border-[var(--theme-border)] bg-[var(--card)] p-8 text-center lg:rounded-2xl"
+            role="status"
+          >
+            <Loader2Icon aria-hidden="true" className="size-8 animate-spin text-[var(--theme-primary)]" />
+            <div>
+              <p id="study-processing-heading" className="text-base font-semibold text-foreground">
+                This material is still being processed
+              </p>
+              <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
+                Your summary, flashcards, and quiz will appear here once processing finishes. Refresh this page in a moment to check again.
+              </p>
+            </div>
+          </section>
+        ) : isFailed ? (
+          <section
+            aria-labelledby="study-failed-heading"
+            className="flex min-h-[480px] w-full flex-col items-center justify-center gap-4 rounded-xl border border-[var(--theme-border)] bg-[var(--card)] p-8 text-center lg:rounded-2xl"
+          >
+            <AlertCircleIcon aria-hidden="true" className="size-8 text-destructive" />
+            <div>
+              <p id="study-failed-heading" className="text-base font-semibold text-foreground">
+                We couldn&apos;t process this material
+              </p>
+              <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
+                Study tools are unavailable until processing succeeds.
+              </p>
+            </div>
+            <div className="w-full max-w-xs">
+              <RetryDocumentButton documentId={document.id} />
+            </div>
+          </section>
+        ) : (
+          <>
+            {/* Summary Tab: Renders two dedicated sibling containers (Document Summary Card + AI Assistant Card) */}
+            <div
+              hidden={currentTab !== "summary"}
+              aria-hidden={currentTab !== "summary"}
+              className="w-full"
+            >
+              <SummaryStudy
+                documentId={document.id}
+                summary={document.summary_data}
+                initialPanel={initialPanel}
+                active={currentTab === "summary"}
+              />
+            </div>
 
-        <div className="flex flex-1 flex-col">
-          {isProcessing ? (
-            <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center" role="status">
-              <Loader2Icon aria-hidden="true" className="size-8 animate-spin text-[var(--theme-primary)]" />
-              <div>
-                <p className="text-base font-semibold text-foreground">This material is still being processed</p>
-                <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
-                  Your summary, flashcards, and quiz will appear here once processing finishes. Refresh this page in a moment to check again.
-                </p>
-              </div>
+            {/* Flashcards Tab: Independent card container */}
+            <div
+              hidden={currentTab !== "flashcards"}
+              aria-hidden={currentTab !== "flashcards"}
+              className="w-full"
+            >
+              <section
+                aria-labelledby="study-flashcards-heading"
+                className="flex min-h-[480px] w-full min-w-0 flex-col rounded-xl border border-[var(--theme-border)] bg-[var(--card)] lg:rounded-2xl"
+              >
+                <header className="flex items-center gap-2 rounded-t-xl border-b border-[var(--theme-border)] px-4 py-3 lg:rounded-t-2xl lg:px-6 lg:py-4">
+                  <BrainIcon aria-hidden="true" className="size-4 text-purple-600 dark:text-purple-400 lg:size-5" />
+                  <h2 id="study-flashcards-heading" className="text-base font-semibold text-foreground lg:text-lg">
+                    Flashcards
+                  </h2>
+                </header>
+                <div className="flex-1 p-4 md:p-6 lg:p-8">
+                  <FlashcardStudy flashcards={document.flashcards} active={currentTab === "flashcards"} />
+                </div>
+              </section>
             </div>
-          ) : isFailed ? (
-            <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
-              <AlertCircleIcon aria-hidden="true" className="size-8 text-destructive" />
-              <div>
-                <p className="text-base font-semibold text-foreground">We couldn&apos;t process this material</p>
-                <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
-                  Study tools are unavailable until processing succeeds.
-                </p>
-              </div>
-              <div className="w-full max-w-xs">
-                <RetryDocumentButton documentId={document.id} />
-              </div>
+
+            {/* Quiz Tab: Independent card container */}
+            <div
+              hidden={currentTab !== "quiz"}
+              aria-hidden={currentTab !== "quiz"}
+              className="w-full"
+            >
+              <section
+                aria-labelledby="study-quiz-heading"
+                className="flex min-h-[480px] w-full min-w-0 flex-col rounded-xl border border-[var(--theme-border)] bg-[var(--card)] lg:rounded-2xl"
+              >
+                <header className="flex items-center gap-2 rounded-t-xl border-b border-[var(--theme-border)] px-4 py-3 lg:rounded-t-2xl lg:px-6 lg:py-4">
+                  <CircleHelpIcon aria-hidden="true" className="size-4 text-blue-500 lg:size-5" />
+                  <h2 id="study-quiz-heading" className="text-base font-semibold text-foreground lg:text-lg">
+                    Practice quiz
+                  </h2>
+                </header>
+                <div className="flex-1 p-4 md:p-6 lg:p-8">
+                  <QuizStudy documentId={document.id} questions={document.quiz} active={currentTab === "quiz"} />
+                </div>
+              </section>
             </div>
-          ) : (
-            <div className="flex-1 p-4 md:p-6 lg:p-8">
-              <div hidden={currentTab !== "summary"} aria-hidden={currentTab !== "summary"}>
-                <SummaryStudy documentId={document.id} summary={document.summary_data} initialPanel={initialPanel} active={currentTab === "summary"} />
-              </div>
-              <div hidden={currentTab !== "flashcards"} aria-hidden={currentTab !== "flashcards"}>
-                <FlashcardStudy flashcards={document.flashcards} active={currentTab === "flashcards"} />
-              </div>
-              <div hidden={currentTab !== "quiz"} aria-hidden={currentTab !== "quiz"}>
-                <QuizStudy documentId={document.id} questions={document.quiz} active={currentTab === "quiz"} />
-              </div>
-            </div>
-          )}
-        </div>
-      </section>
+          </>
+        )}
+      </div>
     </div>
   );
 }

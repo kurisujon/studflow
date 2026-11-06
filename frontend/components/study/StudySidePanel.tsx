@@ -105,8 +105,8 @@ export function StudySidePanel({
             type="button"
             onClick={() => openWithTab("ai")}
             className="study-collapsed-rail-btn study-collapsed-rail-btn-primary"
-            aria-label="Expand AI Study Assistant (1/4 container size)"
-            title="Open AI Chatbot (1/4 split view)"
+            aria-label="Expand AI Assistant container"
+            title="Open AI Assistant container"
           >
             <span className="study-collapsed-rail-icon">
               <Bot size={18} />
@@ -118,8 +118,8 @@ export function StudySidePanel({
             type="button"
             onClick={() => openWithTab("notes")}
             className="study-collapsed-rail-btn"
-            aria-label="Expand Notes sidebar (1/4 container size)"
-            title="Open Study Notes"
+            aria-label="Expand Notes container"
+            title="Open Notes container"
           >
             <span className="study-collapsed-rail-icon">
               <MessageSquareText size={16} />
@@ -184,8 +184,8 @@ export function StudySidePanel({
                 type="button"
                 onClick={onToggleOpen}
                 className="study-panel-collapse-btn"
-                aria-label="Collapse AI and Notes sidebar"
-                title="Collapse sidebar to 100% summary"
+                aria-label="Collapse AI and Notes container"
+                title="Collapse container to full width summary"
               >
                 <span>Collapse</span>
                 {isCompactLayout ? <ChevronUp size={15} /> : <ChevronDown size={15} className="-rotate-90" />}

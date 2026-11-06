@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { Bot } from "lucide-react";
+import { SparklesIcon } from "@/components/home/icon-registry";
 
 import { AnnotatableTextBlock } from "@/components/study/AnnotatableTextBlock";
 import { RelatedLearningVideos } from "@/components/study/RelatedLearningVideos";
@@ -714,7 +715,7 @@ export function InteractiveSummaryReader({
         pulse={pulse}
         onSelection={handleTextSelection}
         onNoteClick={handleNoteMarkerClick}
-        className="leading-relaxed text-muted-foreground my-2"
+        className="text-justify text-pretty leading-relaxed text-muted-foreground my-2"
       />
     );
   }
@@ -737,7 +738,7 @@ export function InteractiveSummaryReader({
         termLabelEnd={formatted.label.length}
         onSelection={handleTextSelection}
         onNoteClick={handleNoteMarkerClick}
-        className="leading-relaxed text-muted-foreground my-2"
+        className="text-justify text-pretty leading-relaxed text-muted-foreground my-2"
       />
     );
   }
@@ -779,40 +780,38 @@ export function InteractiveSummaryReader({
   }
 
   return (
-    <section
+    <div
       className="study-split-workspace relative flex w-full flex-col gap-6 pb-20 lg:flex-row lg:items-start lg:gap-6"
       data-side-open={drawerOpen ? "true" : "false"}
     >
-      {/* LEFT SIDE: Summary Lesson Content (Takes 3/4 when side open, full width when collapsed) */}
-      <div
-        ref={rootRef}
-        className={`study-summary-main w-full min-w-0 transition-all duration-200 px-2 sm:px-4 md:px-6 pt-2 lg:pt-4 ${
-          drawerOpen ? "lg:w-3/4 flex-1" : "w-full max-w-5xl mx-auto"
+      {/* CONTAINER 1: Document Summary Card Container */}
+      <section
+        aria-labelledby="study-summary-heading"
+        className={`study-summary-card flex min-h-[520px] min-w-0 flex-col rounded-xl border border-[var(--theme-border)] bg-[var(--card)] shadow-xs transition-all duration-200 lg:rounded-2xl ${
+          drawerOpen ? "w-full lg:w-[68%] xl:w-[70%]" : "w-full"
         }`}
-        style={{ cursor: "text" }}
       >
-        {annotationError && (
-          <div className="mb-8 p-4 rounded-xl bg-red-50 text-red-700 text-sm border border-red-200">
-            {annotationError}
+        <header className="flex flex-wrap items-center justify-between gap-3 rounded-t-xl border-b border-[var(--theme-border)] px-4 py-3 sm:px-6 sm:py-4 lg:rounded-t-2xl">
+          <div className="flex items-center gap-2.5">
+            <SparklesIcon aria-hidden="true" className="size-4 text-[var(--theme-primary)] lg:size-5" />
+            <h2 id="study-summary-heading" className="text-base font-semibold text-foreground lg:text-lg">
+              Study guide & summary
+            </h2>
           </div>
-        )}
 
-        <article className="prose prose-slate dark:prose-invert max-w-none">
-          <div className="mb-14 flex flex-col md:flex-row md:items-center gap-6 justify-between">
-            <h1 className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight m-0">Document Summary</h1>
-            
-            <div className="flex items-center gap-3 w-full md:w-auto">
-              <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-muted-foreground whitespace-nowrap">
                 {activeIndex + 1} / {sections.length}
               </span>
-              <div className="flex-1 flex gap-1 items-center h-[24px] min-w-[120px] md:min-w-[160px]">
+              <div className="flex items-center gap-1 h-5 min-w-[70px] sm:min-w-[110px]">
                 {sections.map((_, i) => (
                   <button
                     key={i}
                     type="button"
                     aria-label={`Go to topic ${i + 1}`}
                     onClick={() => setActiveIndex(i)}
-                    className="flex-1 h-1.5 rounded-full border-none cursor-pointer p-0 transition-all duration-250 ease-out"
+                    className="flex-1 h-1.5 rounded-full border-none cursor-pointer p-0 transition-all duration-200"
                     style={{
                       background:
                         i < activeIndex
@@ -821,44 +820,62 @@ export function InteractiveSummaryReader({
                           ? "linear-gradient(90deg, var(--theme-primary), color-mix(in srgb, var(--theme-primary) 60%, var(--theme-soft)))"
                           : "color-mix(in srgb, var(--theme-soft) 72%, var(--border))",
                       opacity: i === activeIndex ? 1 : i < activeIndex ? 0.85 : 0.45,
-                      transform: i === activeIndex ? "scaleY(1.5)" : "scaleY(1)",
+                      transform: i === activeIndex ? "scaleY(1.4)" : "scaleY(1)",
                     }}
                   />
                 ))}
               </div>
-
-              {/* Quick AI Assistant collapse/expand toggle */}
-              <button
-                type="button"
-                onClick={handleBubbleHeadClick}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
-                  drawerOpen
-                    ? "border-border bg-muted/40 text-muted-foreground hover:bg-muted/70 hover:text-foreground"
-                    : "border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 shadow-2xs"
-                }`}
-                aria-label={drawerOpen ? "Collapse AI Chatbot" : "Open AI Chatbot (1/4 container size)"}
-                title={drawerOpen ? "Collapse AI Chatbot to 100% summary width" : "Open AI Chatbot (1/4 container size)"}
-              >
-                <Bot size={14} className={drawerOpen ? "text-muted-foreground" : "text-primary"} />
-                <span>{drawerOpen ? "Hide AI" : "AI Assistant"}</span>
-                <span className="hidden sm:inline-block text-[10px] opacity-75 font-mono px-1 py-0.5 rounded bg-background/60 border border-border/50">Alt+M</span>
-              </button>
             </div>
-          </div>
 
-          <div className="mb-14 text-lg text-muted-foreground leading-relaxed">
-            <AnnotatableTextBlock
-              as="p"
-              blockId={overviewBlockId}
-              text={summary.overall_overview}
-              annotations={topicAnnotations.filter((a) => a.blockId === overviewBlockId)}
-              pendingSelection={pendingSelectionForBlock(overviewBlockId)}
-              onSelection={handleTextSelection}
-              onNoteClick={handleNoteMarkerClick}
-            />
+            {/* Quick AI Assistant collapse/expand toggle */}
+            <button
+              type="button"
+              onClick={handleBubbleHeadClick}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                drawerOpen
+                  ? "border-border bg-muted/40 text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+                  : "border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 shadow-2xs"
+              }`}
+              aria-label={drawerOpen ? "Collapse AI Chatbot" : "Open AI Chatbot"}
+              title={drawerOpen ? "Collapse AI Chatbot to 100% summary width" : "Open AI Chatbot"}
+            >
+              <Bot size={14} className={drawerOpen ? "text-muted-foreground" : "text-primary"} />
+              <span>{drawerOpen ? "Hide AI" : "AI Assistant"}</span>
+              <span className="hidden sm:inline-block text-[10px] opacity-75 font-mono px-1 py-0.5 rounded bg-background/60 border border-border/50">Alt+M</span>
+            </button>
           </div>
+        </header>
 
-          <div className="w-full h-px bg-border/60 my-12" />
+        <div
+          ref={rootRef}
+          className="study-summary-body flex-1 p-4 sm:p-6 md:p-8"
+          style={{ cursor: "text" }}
+        >
+          {annotationError && (
+            <div className="mb-6 p-4 rounded-xl bg-red-50 text-red-700 text-sm border border-red-200">
+              {annotationError}
+            </div>
+          )}
+
+          <article className="prose prose-slate dark:prose-invert max-w-none">
+            <div className="mb-8">
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight m-0">Document Summary</h1>
+            </div>
+
+            <div className="mb-8">
+              <AnnotatableTextBlock
+                as="p"
+                blockId={overviewBlockId}
+                text={summary.overall_overview}
+                annotations={topicAnnotations.filter((a) => a.blockId === overviewBlockId)}
+                pendingSelection={pendingSelectionForBlock(overviewBlockId)}
+                onSelection={handleTextSelection}
+                onNoteClick={handleNoteMarkerClick}
+                className="text-justify text-pretty text-base sm:text-lg text-muted-foreground leading-relaxed"
+              />
+            </div>
+
+            <div className="w-full h-px bg-border/60 my-8" />
 
           <div className="space-y-16">
             <section key={activeIndex} className="scroll-mt-24">
@@ -1010,9 +1027,10 @@ export function InteractiveSummaryReader({
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
+        </div>
+      </section>
 
-      {/* RIGHT SIDE: Collapsible AI Chatbot & Notes Sidebar */}
+      {/* CONTAINER 2: Collapsible AI Chatbot & Notes Sidebar */}
       <StudySidePanel
         open={drawerOpen}
         onToggleOpen={handleBubbleHeadClick}
@@ -1071,6 +1089,6 @@ export function InteractiveSummaryReader({
           );
         }}
       />
-    </section>
+    </div>
   );
 }

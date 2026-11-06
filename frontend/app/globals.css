@@ -557,12 +557,14 @@ textarea {
     width: 100%;
   }
 
+  .study-split-workspace[data-side-open="true"] > .study-summary-card,
   .study-split-workspace[data-side-open="true"] > .study-summary-main {
-    width: calc(75% - 0.75rem);
+    width: calc(68% - 0.75rem);
     flex: 1 1 0%;
     min-width: 0;
   }
 
+  .study-split-workspace[data-side-open="false"] > .study-summary-card,
   .study-split-workspace[data-side-open="false"] > .study-summary-main {
     width: 100%;
     flex: 1 1 100%;
@@ -572,9 +574,9 @@ textarea {
   .study-left-sidebar-wrapper[data-open="true"] {
     position: sticky;
     top: calc(var(--nav-height) + 16px);
-    width: calc(25% - 0.75rem);
-    min-width: 290px;
-    max-width: 380px;
+    width: calc(32% - 0.75rem);
+    min-width: 340px;
+    max-width: 480px;
     flex: none;
     z-index: 20;
   }
@@ -586,6 +588,14 @@ textarea {
     flex: none;
     z-index: 20;
   }
+}
+
+.study-summary-card article p,
+.study-summary-card article li,
+.study-summary-card .text-justify {
+  text-align: justify;
+  text-justify: inter-word;
+  hyphens: auto;
 }
 
 .study-left-sidebar-collapsed {
