@@ -9,7 +9,8 @@ import {
   type KeyboardEvent,
 } from "react";
 import { useAuth } from "@clerk/nextjs";
-import { ChevronDown, ChevronUp, MessageSquarePlus, RefreshCw, Send, Square, Trash2 } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Check, ChevronDown, ChevronUp, MessageSquarePlus, RefreshCw, Send, Square, Trash2 } from "lucide-react";
 
 import { AIConversationMessage } from "@/components/study/AIConversationMessage";
 import { Button } from "@/components/ui/button";
@@ -123,6 +124,24 @@ export function AIStudyAssistantPanel({
   const [webGroundingDailyLimit, setWebGroundingDailyLimit] = useState(0);
   const [retrievalMode, setRetrievalMode] = useState<AIRetrievalMode>("document");
   const [searchAttributionByMessageId, setSearchAttributionByMessageId] = useState<Record<string, string>>({});
+  const [threadMenuOpen, setThreadMenuOpen] = useState(false);
+  const [sourceMenuOpen, setSourceMenuOpen] = useState(false);
+  const threadMenuRef = useRef<HTMLDivElement | null>(null);
+  const sourceMenuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (threadMenuRef.current && !threadMenuRef.current.contains(event.target as Node)) {
+        setThreadMenuOpen(false);
+      }
+      if (sourceMenuRef.current && !sourceMenuRef.current.contains(event.target as Node)) {
+        setSourceMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const listRef = useRef<HTMLDivElement | null>(null);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
   const loadAbortRef = useRef<AbortController | null>(null);
@@ -574,67 +593,212 @@ export function AIStudyAssistantPanel({
   const panelLoading = !isLoaded || (Boolean(isSignedIn) && loading);
   const visibleError = isLoaded && !isSignedIn ? "Sign in to use StudFlow AI." : error;
 
+  const activeConversation = conversations.find((c) => c.id === conversationId);
+  const activeConversationIndex = activeConversation ? conversations.indexOf(activeConversation) : -1;
+  const currentConversationLabel = activeConversation
+    ? conversationLabel(activeConversation, conversations, activeConversationIndex)
+    : conversations.length > 0
+      ? "Select conversation"
+      : "No conversations";
+
   return (
     <div className="ai-chat-shell">
-      <header className="ai-chat-header">
-        <div className="ai-chat-thread-picker">
-          <label htmlFor={`ai-conversation-${documentId}`} className="sr-only">Conversation</label>
-          <select
+      <header className="ai-chat-header flex flex-wrap items-center justify-between gap-1.5 py-1.5 px-0.5">
+        {/* Custom Conversation Thread Dropdown */}
+        <div ref={threadMenuRef} className="relative flex-1 min-w-[130px]">
+          <button
+            type="button"
             id={`ai-conversation-${documentId}`}
-            value={conversationId ?? ""}
-            disabled={panelLoading || sending || creating || deleting || conversations.length === 0}
-            onChange={(event) => void chooseConversation(event.target.value)}
-          >
-            {conversations.map((item, index) => (
-              <option key={item.id} value={item.id}>{conversationLabel(item, conversations, index)}</option>
-            ))}
-          </select>
-        </div>
-        <div className="ai-chat-thread-picker ai-chat-source-picker">
-          <label htmlFor={`ai-retrieval-mode-${documentId}`} className="sr-only">
-            Sources
-          </label>
-          <select
-            id={`ai-retrieval-mode-${documentId}`}
-            value={effectiveRetrievalMode}
-            disabled={panelLoading || sending || creating || deleting}
-            aria-describedby={`ai-retrieval-mode-help-${documentId}`}
-            onChange={(event) => {
-              const nextMode = event.target.value;
-              if (nextMode === "document" || nextMode === "web" || nextMode === "hybrid") {
-                setRetrievalMode(nextMode);
-              }
+            onClick={() => {
+              setThreadMenuOpen((prev) => !prev);
+              setSourceMenuOpen(false);
             }}
+            disabled={panelLoading || sending || creating || deleting || conversations.length === 0}
+            aria-haspopup="listbox"
+            aria-expanded={threadMenuOpen}
+            className="flex w-full items-center justify-between gap-1.5 rounded-lg border border-border/80 bg-muted/40 px-2.5 py-1.5 text-[11.5px] font-semibold text-foreground transition-all hover:bg-muted/70 hover:border-border disabled:opacity-50"
+            title={currentConversationLabel}
           >
-            <option value="document">Document</option>
-            <option value="web" disabled={!webGroundingEnabled}>
-              {webGroundingEnabled ? "Web (verified)" : "Web — coming later"}
-            </option>
-            <option value="hybrid" disabled={!webGroundingEnabled}>
-              {webGroundingEnabled ? "Hybrid (doc + web)" : "Hybrid — coming later"}
-            </option>
-          </select>
+            <span className="truncate text-left font-medium">
+              {currentConversationLabel}
+            </span>
+            <ChevronDown
+              size={12}
+              className={`shrink-0 text-muted-foreground transition-transform duration-200 ${
+                threadMenuOpen ? "rotate-180 text-foreground" : ""
+              }`}
+            />
+          </button>
+
+          <AnimatePresence>
+            {threadMenuOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                transition={{ duration: 0.14 }}
+                role="listbox"
+                aria-label="Select conversation thread"
+                className="absolute left-0 top-[calc(100%+4px)] z-50 max-h-60 w-full min-w-[210px] max-w-[320px] overflow-y-auto rounded-xl border border-border bg-popover/95 p-1 shadow-xl backdrop-blur-md"
+              >
+                {conversations.map((item, index) => {
+                  const isSelected = item.id === conversationId;
+                  const label = conversationLabel(item, conversations, index);
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      role="option"
+                      aria-selected={isSelected}
+                      onClick={() => {
+                        setThreadMenuOpen(false);
+                        void chooseConversation(item.id);
+                      }}
+                      className={`flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs text-left transition-colors ${
+                        isSelected
+                          ? "bg-primary/10 text-primary font-semibold"
+                          : "text-foreground hover:bg-muted/80"
+                      }`}
+                    >
+                      <span className="truncate">{label}</span>
+                      {isSelected && <Check size={13} className="shrink-0 text-primary" />}
+                    </button>
+                  );
+                })}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Custom Sources Dropdown */}
+        <div ref={sourceMenuRef} className="relative shrink-0">
+          <button
+            type="button"
+            id={`ai-retrieval-mode-${documentId}`}
+            onClick={() => {
+              setSourceMenuOpen((prev) => !prev);
+              setThreadMenuOpen(false);
+            }}
+            disabled={panelLoading || sending || creating || deleting}
+            aria-haspopup="listbox"
+            aria-expanded={sourceMenuOpen}
+            aria-describedby={`ai-retrieval-mode-help-${documentId}`}
+            className="flex items-center gap-1.5 rounded-lg border border-border/80 bg-muted/40 px-2.5 py-1.5 text-[11.5px] font-semibold text-foreground transition-all hover:bg-muted/70 hover:border-border disabled:opacity-50"
+          >
+            <span className="capitalize">{effectiveRetrievalMode}</span>
+            <ChevronDown
+              size={12}
+              className={`shrink-0 text-muted-foreground transition-transform duration-200 ${
+                sourceMenuOpen ? "rotate-180 text-foreground" : ""
+              }`}
+            />
+          </button>
           <span id={`ai-retrieval-mode-help-${documentId}`} className="sr-only">
             {webGroundingEnabled
               ? `Selected source mode: ${effectiveRetrievalMode}. Web and hybrid searches are limited to ${webGroundingDailyLimit} per day and never send your document text.`
               : "Document is selected. Web and hybrid sources are disabled until verified web grounding is available."}
           </span>
+
+          <AnimatePresence>
+            {sourceMenuOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                transition={{ duration: 0.14 }}
+                role="listbox"
+                aria-label="Select source retrieval mode"
+                className="absolute right-0 top-[calc(100%+4px)] z-50 min-w-[170px] rounded-xl border border-border bg-popover/95 p-1 shadow-xl backdrop-blur-md"
+              >
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={effectiveRetrievalMode === "document"}
+                  onClick={() => {
+                    setRetrievalMode("document");
+                    setSourceMenuOpen(false);
+                  }}
+                  className={`flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs text-left transition-colors ${
+                    effectiveRetrievalMode === "document"
+                      ? "bg-primary/10 text-primary font-semibold"
+                      : "text-foreground hover:bg-muted/80"
+                  }`}
+                >
+                  <span>Document</span>
+                  {effectiveRetrievalMode === "document" && <Check size={13} className="shrink-0 text-primary" />}
+                </button>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={effectiveRetrievalMode === "web"}
+                  disabled={!webGroundingEnabled}
+                  onClick={() => {
+                    if (webGroundingEnabled) {
+                      setRetrievalMode("web");
+                      setSourceMenuOpen(false);
+                    }
+                  }}
+                  className={`flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs text-left transition-colors ${
+                    effectiveRetrievalMode === "web"
+                      ? "bg-primary/10 text-primary font-semibold"
+                      : "text-foreground hover:bg-muted/80 disabled:opacity-40 disabled:hover:bg-transparent"
+                  }`}
+                >
+                  <span>Web (verified)</span>
+                  {effectiveRetrievalMode === "web" && <Check size={13} className="shrink-0 text-primary" />}
+                </button>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={effectiveRetrievalMode === "hybrid"}
+                  disabled={!webGroundingEnabled}
+                  onClick={() => {
+                    if (webGroundingEnabled) {
+                      setRetrievalMode("hybrid");
+                      setSourceMenuOpen(false);
+                    }
+                  }}
+                  className={`flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs text-left transition-colors ${
+                    effectiveRetrievalMode === "hybrid"
+                      ? "bg-primary/10 text-primary font-semibold"
+                      : "text-foreground hover:bg-muted/80 disabled:opacity-40 disabled:hover:bg-transparent"
+                  }`}
+                >
+                  <span>Hybrid (doc + web)</span>
+                  {effectiveRetrievalMode === "hybrid" && <Check size={13} className="shrink-0 text-primary" />}
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
-        <Button id={`ai-chat-new-${documentId}`} type="button" variant="outline" size="sm" onClick={() => void createNewChat()} disabled={panelLoading || creating || sending || deleting}>
-          <MessageSquarePlus size={15} /> {creating ? "Creating…" : "New"}
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Delete current conversation"
-          aria-expanded={confirmingDelete}
-          title="Delete current conversation"
-          onClick={() => setConfirmingDelete((current) => !current)}
-          disabled={panelLoading || sending || creating || deleting || !conversationId}
-        >
-          <Trash2 size={15} />
-        </Button>
+
+        {/* Action Buttons: New & Delete */}
+        <div className="flex items-center gap-1 shrink-0">
+          <Button
+            id={`ai-chat-new-${documentId}`}
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => void createNewChat()}
+            disabled={panelLoading || creating || sending || deleting}
+            className="h-7 px-2 text-xs font-semibold gap-1"
+          >
+            <MessageSquarePlus size={13} /> {creating ? "Creating…" : "New"}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Delete current conversation"
+            aria-expanded={confirmingDelete}
+            title="Delete current conversation"
+            onClick={() => setConfirmingDelete((current) => !current)}
+            disabled={panelLoading || sending || creating || deleting || !conversationId}
+            className="size-7 p-0 text-muted-foreground hover:text-destructive"
+          >
+            <Trash2 size={13} />
+          </Button>
+        </div>
       </header>
 
       {confirmingDelete && conversationId ? (

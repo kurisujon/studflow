@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type KeyboardEvent } from "react";
+import { motion } from "framer-motion";
 import { Bot, ChevronDown, ChevronUp, MessageSquareText } from "lucide-react";
 
 import { AIStudyAssistantPanel } from "@/components/study/AIStudyAssistantPanel";
@@ -155,8 +156,17 @@ export function StudySidePanel({
               className="study-segmented-pill"
               data-active={activeTab === "ai" ? "true" : "false"}
             >
-              <Bot size={15} />
-              <span>AI Assistant</span>
+              {activeTab === "ai" && (
+                <motion.div
+                  layoutId={`study-side-pill-${documentId}`}
+                  className="study-tab-active-bg"
+                  transition={{ type: "spring", stiffness: 480, damping: 34 }}
+                />
+              )}
+              <span className="relative z-10 flex items-center gap-1.5">
+                <Bot size={15} />
+                <span>AI Assistant</span>
+              </span>
             </button>
             <button
               type="button"
@@ -170,11 +180,20 @@ export function StudySidePanel({
               className="study-segmented-pill"
               data-active={activeTab === "notes" ? "true" : "false"}
             >
-              <MessageSquareText size={14} />
-              <span>Notes</span>
-              {notes.length > 0 ? (
-                <span className="study-tab-count-pill">{notes.length}</span>
-              ) : null}
+              {activeTab === "notes" && (
+                <motion.div
+                  layoutId={`study-side-pill-${documentId}`}
+                  className="study-tab-active-bg"
+                  transition={{ type: "spring", stiffness: 480, damping: 34 }}
+                />
+              )}
+              <span className="relative z-10 flex items-center gap-1.5">
+                <MessageSquareText size={14} />
+                <span>Notes</span>
+                {notes.length > 0 ? (
+                  <span className="study-tab-count-pill">{notes.length}</span>
+                ) : null}
+              </span>
             </button>
           </div>
 
@@ -185,10 +204,9 @@ export function StudySidePanel({
                 onClick={onToggleOpen}
                 className="study-panel-collapse-btn"
                 aria-label="Collapse AI and Notes container"
-                title="Collapse container to full width summary"
+                title="Collapse to full width summary"
               >
-                <span>Collapse</span>
-                {isCompactLayout ? <ChevronUp size={15} /> : <ChevronDown size={15} className="-rotate-90" />}
+                {isCompactLayout ? <ChevronUp size={16} /> : <ChevronDown size={16} className="-rotate-90" />}
               </button>
             ) : null}
           </div>

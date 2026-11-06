@@ -715,7 +715,7 @@ export function InteractiveSummaryReader({
         pulse={pulse}
         onSelection={handleTextSelection}
         onNoteClick={handleNoteMarkerClick}
-        className="text-justify text-pretty leading-relaxed text-muted-foreground my-2"
+        className="text-justify text-pretty text-[14px] sm:text-[14.5px] leading-[1.65] text-muted-foreground my-2"
       />
     );
   }
@@ -738,7 +738,7 @@ export function InteractiveSummaryReader({
         termLabelEnd={formatted.label.length}
         onSelection={handleTextSelection}
         onNoteClick={handleNoteMarkerClick}
-        className="text-justify text-pretty leading-relaxed text-muted-foreground my-2"
+        className="text-justify text-pretty text-[14px] sm:text-[14.5px] leading-[1.65] text-muted-foreground my-2"
       />
     );
   }
@@ -781,14 +781,14 @@ export function InteractiveSummaryReader({
 
   return (
     <div
-      className="study-split-workspace relative flex w-full flex-col gap-6 pb-20 lg:flex-row lg:items-start lg:gap-6"
+      className="study-split-workspace relative flex w-full flex-col gap-3.5 pb-20 lg:flex-row lg:items-start lg:gap-3.5"
       data-side-open={drawerOpen ? "true" : "false"}
     >
       {/* CONTAINER 1: Document Summary Card Container */}
       <section
         aria-labelledby="study-summary-heading"
         className={`study-summary-card flex min-h-[520px] min-w-0 flex-col rounded-xl border border-[var(--theme-border)] bg-[var(--card)] shadow-xs transition-all duration-200 lg:rounded-2xl ${
-          drawerOpen ? "w-full lg:w-[68%] xl:w-[70%]" : "w-full"
+          drawerOpen ? "w-full lg:w-[64%] xl:w-[64%]" : "w-full"
         }`}
       >
         <header className="flex flex-wrap items-center justify-between gap-3 rounded-t-xl border-b border-[var(--theme-border)] px-4 py-3 sm:px-6 sm:py-4 lg:rounded-t-2xl">
@@ -858,8 +858,8 @@ export function InteractiveSummaryReader({
           )}
 
           <article className="prose prose-slate dark:prose-invert max-w-none">
-            <div className="mb-8">
-              <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight m-0">Document Summary</h1>
+            <div className="mb-6">
+              <h1 className="text-2xl sm:text-[1.65rem] font-bold text-foreground tracking-tight m-0">Document Summary</h1>
             </div>
 
             <div className="mb-8">
@@ -871,26 +871,26 @@ export function InteractiveSummaryReader({
                 pendingSelection={pendingSelectionForBlock(overviewBlockId)}
                 onSelection={handleTextSelection}
                 onNoteClick={handleNoteMarkerClick}
-                className="text-justify text-pretty text-base sm:text-lg text-muted-foreground leading-relaxed"
+                className="text-justify text-pretty text-[15px] sm:text-base leading-[1.7] text-muted-foreground"
               />
             </div>
 
             <div className="w-full h-px bg-border/60 my-8" />
 
-          <div className="space-y-16">
-            <section key={activeIndex} className="scroll-mt-24">
-              <div className="mb-6">
-                <AnnotatableTextBlock
-                  as="h2"
-                  blockId={titleBlockId}
-                  text={activeSection.topic_title}
-                  annotations={topicAnnotations.filter((a) => a.blockId === titleBlockId)}
-                  pendingSelection={pendingSelectionForBlock(titleBlockId)}
-                  onSelection={handleTextSelection}
-                  onNoteClick={handleNoteMarkerClick}
-                  className="text-2xl sm:text-3xl font-bold text-foreground mb-6 tracking-tight"
-                />
-              </div>
+            <div className="space-y-12">
+              <section key={activeIndex} className="scroll-mt-24">
+                <div className="mb-5">
+                  <AnnotatableTextBlock
+                    as="h2"
+                    blockId={titleBlockId}
+                    text={activeSection.topic_title}
+                    annotations={topicAnnotations.filter((a) => a.blockId === titleBlockId)}
+                    pendingSelection={pendingSelectionForBlock(titleBlockId)}
+                    onSelection={handleTextSelection}
+                    onNoteClick={handleNoteMarkerClick}
+                    className="text-xl sm:text-2xl font-bold text-foreground mb-4 tracking-tight"
+                  />
+                </div>
 
               <div className="space-y-8">
                 <div>
