@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
+import { Bot } from "lucide-react";
 
 import { AnnotatableTextBlock } from "@/components/study/AnnotatableTextBlock";
 import { RelatedLearningVideos } from "@/components/study/RelatedLearningVideos";
@@ -778,11 +779,16 @@ export function InteractiveSummaryReader({
   }
 
   return (
-    <section className="study-split-workspace relative flex w-full flex-col gap-6 pb-20 lg:flex-row lg:items-start lg:gap-7">
-      {/* LEFT SIDE: Summary Lesson Content */}
+    <section
+      className="study-split-workspace relative flex w-full flex-col gap-6 pb-20 lg:flex-row lg:items-start lg:gap-6"
+      data-side-open={drawerOpen ? "true" : "false"}
+    >
+      {/* LEFT SIDE: Summary Lesson Content (Takes 3/4 when side open, full width when collapsed) */}
       <div
         ref={rootRef}
-        className="mx-auto w-full min-w-0 max-w-4xl flex-1 px-2 sm:px-4 md:px-6 pt-2 lg:pt-4"
+        className={`study-summary-main w-full min-w-0 transition-all duration-200 px-2 sm:px-4 md:px-6 pt-2 lg:pt-4 ${
+          drawerOpen ? "lg:w-3/4 flex-1" : "w-full max-w-5xl mx-auto"
+        }`}
         style={{ cursor: "text" }}
       >
         {annotationError && (
@@ -795,11 +801,11 @@ export function InteractiveSummaryReader({
           <div className="mb-14 flex flex-col md:flex-row md:items-center gap-6 justify-between">
             <h1 className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight m-0">Document Summary</h1>
             
-            <div className="flex items-center gap-4 w-full md:w-auto md:min-w-[240px]">
+            <div className="flex items-center gap-3 w-full md:w-auto">
               <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">
                 {activeIndex + 1} / {sections.length}
               </span>
-              <div className="flex-1 flex gap-1 items-center h-[24px]">
+              <div className="flex-1 flex gap-1 items-center h-[24px] min-w-[120px] md:min-w-[160px]">
                 {sections.map((_, i) => (
                   <button
                     key={i}
@@ -820,6 +826,23 @@ export function InteractiveSummaryReader({
                   />
                 ))}
               </div>
+
+              {/* Quick AI Assistant collapse/expand toggle */}
+              <button
+                type="button"
+                onClick={handleBubbleHeadClick}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                  drawerOpen
+                    ? "border-border bg-muted/40 text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+                    : "border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 shadow-2xs"
+                }`}
+                aria-label={drawerOpen ? "Collapse AI Chatbot" : "Open AI Chatbot (1/4 container size)"}
+                title={drawerOpen ? "Collapse AI Chatbot to 100% summary width" : "Open AI Chatbot (1/4 container size)"}
+              >
+                <Bot size={14} className={drawerOpen ? "text-muted-foreground" : "text-primary"} />
+                <span>{drawerOpen ? "Hide AI" : "AI Assistant"}</span>
+                <span className="hidden sm:inline-block text-[10px] opacity-75 font-mono px-1 py-0.5 rounded bg-background/60 border border-border/50">Alt+M</span>
+              </button>
             </div>
           </div>
 

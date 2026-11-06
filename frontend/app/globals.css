@@ -549,21 +549,41 @@ textarea {
 }
 
 @media (min-width: 1024px) {
+  .study-split-workspace {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 1.5rem;
+    width: 100%;
+  }
+
+  .study-split-workspace[data-side-open="true"] > .study-summary-main {
+    width: calc(75% - 0.75rem);
+    flex: 1 1 0%;
+    min-width: 0;
+  }
+
+  .study-split-workspace[data-side-open="false"] > .study-summary-main {
+    width: 100%;
+    flex: 1 1 100%;
+    max-width: none;
+  }
+
   .study-left-sidebar-wrapper[data-open="true"] {
     position: sticky;
     top: calc(var(--nav-height) + 16px);
-    width: min(440px, 42vw);
+    width: calc(25% - 0.75rem);
+    min-width: 290px;
+    max-width: 380px;
+    flex: none;
     z-index: 20;
-  }
-
-  .study-left-sidebar-wrapper[data-open="true"][data-wide="true"] {
-    width: min(560px, 50vw);
   }
 
   .study-left-sidebar-wrapper[data-open="false"] {
     position: sticky;
     top: calc(var(--nav-height) + 16px);
     width: auto;
+    flex: none;
     z-index: 20;
   }
 }
@@ -573,18 +593,18 @@ textarea {
   flex-direction: row;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem;
-  border: 1px solid color-mix(in srgb, var(--theme-border) 68%, var(--border));
-  border-radius: 16px;
+  padding: 0.45rem;
+  border: 1px solid color-mix(in srgb, var(--theme-border) 60%, var(--border));
+  border-radius: 14px;
   background: var(--card);
-  box-shadow: 0 8px 24px -10px color-mix(in srgb, var(--theme-shadow) 70%, rgba(15, 23, 42, 0.08));
+  box-shadow: 0 4px 12px -6px rgba(15, 23, 42, 0.06);
 }
 
 @media (min-width: 1024px) {
   .study-left-sidebar-collapsed {
     flex-direction: column;
-    width: 68px;
-    padding: 0.65rem 0.45rem;
+    width: 62px;
+    padding: 0.55rem 0.35rem;
   }
 }
 
@@ -657,11 +677,11 @@ textarea {
   height: min(78dvh, 720px);
   flex-direction: column;
   overflow: hidden;
-  padding: 0.85rem 0.9rem;
-  border: 1px solid color-mix(in srgb, var(--theme-border) 55%, var(--border));
-  border-radius: 20px;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--theme-border) 60%, var(--border));
+  border-radius: 16px;
   background: var(--card);
-  box-shadow: 0 10px 30px -18px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 4px 16px -8px rgba(15, 23, 42, 0.06);
 }
 
 .study-side-panel-shell[hidden] {
@@ -804,12 +824,13 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.45rem;
-  padding: 0.55rem 0.1rem;
+  gap: 0.4rem;
+  padding: 0.5rem 0.1rem;
+  flex-wrap: wrap;
 }
 
-.ai-chat-thread-picker { display: flex; min-width: 0; flex: 1; }
-.ai-chat-source-picker { flex: 0 1 135px; }
+.ai-chat-thread-picker { display: flex; min-width: 0; flex: 1 1 110px; }
+.ai-chat-source-picker { flex: 0 1 125px; }
 .ai-chat-thread-picker select {
   width: 100%;
   min-height: 32px;

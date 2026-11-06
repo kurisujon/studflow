@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type KeyboardEvent } from "react";
-import { Bot, ChevronDown, ChevronUp, Maximize2, MessageSquareText, Minus } from "lucide-react";
+import { Bot, ChevronDown, ChevronUp, MessageSquareText } from "lucide-react";
 
 import { AIStudyAssistantPanel } from "@/components/study/AIStudyAssistantPanel";
 import { NotesPanel } from "@/components/study/NotesPanel";
@@ -53,7 +53,6 @@ export function StudySidePanel({
   onAskAINote: (note: StudyNote) => void;
 }) {
   const [isCompactLayout, setIsCompactLayout] = useState(false);
-  const [isWideLayout, setIsWideLayout] = useState(false);
   const [aiInitialized, setAiInitialized] = useState(open && activeTab === "ai");
 
   useEffect(() => {
@@ -95,7 +94,7 @@ export function StudySidePanel({
   }
 
   return (
-    <div className="study-left-sidebar-wrapper" data-open={open ? "true" : "false"} data-wide={isWideLayout ? "true" : "false"}>
+    <div className="study-left-sidebar-wrapper" data-open={open ? "true" : "false"}>
       {!open ? (
         <aside
           aria-label="Collapsed AI and Notes sidebar"
@@ -106,8 +105,8 @@ export function StudySidePanel({
             type="button"
             onClick={() => openWithTab("ai")}
             className="study-collapsed-rail-btn study-collapsed-rail-btn-primary"
-            aria-label="Expand AI Study Assistant sidebar"
-            title="Open AI Study Assistant"
+            aria-label="Expand AI Study Assistant (1/4 container size)"
+            title="Open AI Chatbot (1/4 split view)"
           >
             <span className="study-collapsed-rail-icon">
               <Bot size={18} />
@@ -119,7 +118,7 @@ export function StudySidePanel({
             type="button"
             onClick={() => openWithTab("notes")}
             className="study-collapsed-rail-btn"
-            aria-label="Expand Notes sidebar"
+            aria-label="Expand Notes sidebar (1/4 container size)"
             title="Open Study Notes"
           >
             <span className="study-collapsed-rail-icon">
@@ -139,7 +138,6 @@ export function StudySidePanel({
         aria-hidden={!open}
         inert={!open ? true : undefined}
         data-study-bubble="true"
-        data-wide={isWideLayout ? "true" : "false"}
         hidden={!open}
         className="study-side-panel-shell"
       >
@@ -181,26 +179,15 @@ export function StudySidePanel({
           </div>
 
           <div className="study-side-panel-actions">
-            {!isCompactLayout ? (
-              <button
-                type="button"
-                onClick={() => setIsWideLayout((prev) => !prev)}
-                className="study-panel-expand-btn"
-                aria-label={isWideLayout ? "Restore standard panel width" : "Expand panel for wider reading"}
-                title={isWideLayout ? "Standard width" : "Wider split view"}
-              >
-                {isWideLayout ? <Minus size={14} /> : <Maximize2 size={14} />}
-              </button>
-            ) : null}
             {onToggleOpen ? (
               <button
                 type="button"
                 onClick={onToggleOpen}
                 className="study-panel-collapse-btn"
                 aria-label="Collapse AI and Notes sidebar"
-                title="Collapse sidebar"
+                title="Collapse sidebar to 100% summary"
               >
-                <span>Hide</span>
+                <span>Collapse</span>
                 {isCompactLayout ? <ChevronUp size={15} /> : <ChevronDown size={15} className="-rotate-90" />}
               </button>
             ) : null}
