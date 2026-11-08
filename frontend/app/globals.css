@@ -1805,7 +1805,9 @@ a.ai-chat-source-card:hover {
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  *, *::before, *::after {
+  *:not(.study-left-sidebar-wrapper):not(.study-side-panel-shell):not(.study-left-sidebar-collapsed):not(.study-collapsed-rail-btn):not(.study-panel-collapse-btn),
+  *:not(.study-left-sidebar-wrapper):not(.study-side-panel-shell):not(.study-left-sidebar-collapsed):not(.study-collapsed-rail-btn):not(.study-panel-collapse-btn)::before,
+  *:not(.study-left-sidebar-wrapper):not(.study-side-panel-shell):not(.study-left-sidebar-collapsed):not(.study-collapsed-rail-btn):not(.study-panel-collapse-btn)::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;

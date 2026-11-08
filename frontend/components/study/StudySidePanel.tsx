@@ -96,12 +96,34 @@ export function StudySidePanel({
 
   return (
     <div className="study-left-sidebar-wrapper" data-open={open ? "true" : "false"}>
-      <aside
+      <motion.aside
         aria-label="Collapsed AI and Notes sidebar"
         aria-hidden={open}
         inert={open ? true : undefined}
         data-study-bubble="true"
         data-state={open ? "hidden" : "visible"}
+        initial={false}
+        animate={
+          open
+            ? {
+                opacity: 0,
+                scale: 0.9,
+                x: isCompactLayout ? 0 : -10,
+                y: isCompactLayout ? -8 : 0,
+              }
+            : {
+                opacity: 1,
+                scale: 1,
+                x: 0,
+                y: 0,
+              }
+        }
+        transition={{
+          type: "spring",
+          stiffness: 360,
+          damping: 28,
+          delay: open ? 0 : 0.06,
+        }}
         className="study-left-sidebar-collapsed"
       >
         <button
@@ -132,15 +154,36 @@ export function StudySidePanel({
             <span className="study-collapsed-rail-badge">{notes.length}</span>
           ) : null}
         </button>
-      </aside>
+      </motion.aside>
 
-      <aside
+      <motion.aside
         id={`study-side-panel-${documentId}`}
         aria-label="Notes and AI study tools"
         aria-hidden={!open}
         inert={!open ? true : undefined}
         data-study-bubble="true"
         data-state={open ? "open" : "collapsed"}
+        initial={false}
+        animate={
+          open
+            ? {
+                opacity: 1,
+                scale: 1,
+                x: 0,
+                y: 0,
+              }
+            : {
+                opacity: 0,
+                scale: 0.96,
+                x: isCompactLayout ? 0 : 24,
+                y: isCompactLayout ? -14 : -6,
+              }
+        }
+        transition={{
+          type: "spring",
+          stiffness: 320,
+          damping: 30,
+        }}
         className="study-side-panel-shell"
       >
         <div className="study-side-panel-topbar">
@@ -242,7 +285,7 @@ export function StudySidePanel({
             />
           </div>
         </div>
-      </aside>
+      </motion.aside>
     </div>
   );
 }
