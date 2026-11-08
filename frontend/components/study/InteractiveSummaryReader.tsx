@@ -787,9 +787,7 @@ export function InteractiveSummaryReader({
       {/* CONTAINER 1: Document Summary Card Container */}
       <section
         aria-labelledby="study-summary-heading"
-        className={`study-summary-card flex min-h-[520px] min-w-0 flex-col rounded-xl border border-[var(--theme-border)] bg-[var(--card)] shadow-xs transition-all duration-200 lg:rounded-2xl ${
-          drawerOpen ? "w-full lg:w-[64%] xl:w-[64%]" : "w-full"
-        }`}
+        className="study-summary-card flex w-full min-h-[520px] min-w-0 flex-1 flex-col rounded-xl border border-[var(--theme-border)] bg-[var(--card)] shadow-xs lg:rounded-2xl"
       >
         <header className="flex flex-wrap items-center justify-between gap-3 rounded-t-xl border-b border-[var(--theme-border)] px-4 py-3 sm:px-6 sm:py-4 lg:rounded-t-2xl">
           <div className="flex items-center gap-2.5">

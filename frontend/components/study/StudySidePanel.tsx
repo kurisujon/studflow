@@ -96,42 +96,43 @@ export function StudySidePanel({
 
   return (
     <div className="study-left-sidebar-wrapper" data-open={open ? "true" : "false"}>
-      {!open ? (
-        <aside
-          aria-label="Collapsed AI and Notes sidebar"
-          data-study-bubble="true"
-          className="study-left-sidebar-collapsed"
+      <aside
+        aria-label="Collapsed AI and Notes sidebar"
+        aria-hidden={open}
+        inert={open ? true : undefined}
+        data-study-bubble="true"
+        data-state={open ? "hidden" : "visible"}
+        className="study-left-sidebar-collapsed"
+      >
+        <button
+          type="button"
+          onClick={() => openWithTab("ai")}
+          className="study-collapsed-rail-btn study-collapsed-rail-btn-primary"
+          aria-label="Expand AI Assistant container"
+          title="Open AI Assistant container"
         >
-          <button
-            type="button"
-            onClick={() => openWithTab("ai")}
-            className="study-collapsed-rail-btn study-collapsed-rail-btn-primary"
-            aria-label="Expand AI Assistant container"
-            title="Open AI Assistant container"
-          >
-            <span className="study-collapsed-rail-icon">
-              <Bot size={18} />
-            </span>
-            <span className="study-collapsed-rail-label">AI Chatbot</span>
-          </button>
+          <span className="study-collapsed-rail-icon">
+            <Bot size={18} />
+          </span>
+          <span className="study-collapsed-rail-label">AI Chatbot</span>
+        </button>
 
-          <button
-            type="button"
-            onClick={() => openWithTab("notes")}
-            className="study-collapsed-rail-btn"
-            aria-label="Expand Notes container"
-            title="Open Notes container"
-          >
-            <span className="study-collapsed-rail-icon">
-              <MessageSquareText size={16} />
-            </span>
-            <span className="study-collapsed-rail-label">Notes</span>
-            {notes.length > 0 ? (
-              <span className="study-collapsed-rail-badge">{notes.length}</span>
-            ) : null}
-          </button>
-        </aside>
-      ) : null}
+        <button
+          type="button"
+          onClick={() => openWithTab("notes")}
+          className="study-collapsed-rail-btn"
+          aria-label="Expand Notes container"
+          title="Open Notes container"
+        >
+          <span className="study-collapsed-rail-icon">
+            <MessageSquareText size={16} />
+          </span>
+          <span className="study-collapsed-rail-label">Notes</span>
+          {notes.length > 0 ? (
+            <span className="study-collapsed-rail-badge">{notes.length}</span>
+          ) : null}
+        </button>
+      </aside>
 
       <aside
         id={`study-side-panel-${documentId}`}
@@ -139,7 +140,7 @@ export function StudySidePanel({
         aria-hidden={!open}
         inert={!open ? true : undefined}
         data-study-bubble="true"
-        hidden={!open}
+        data-state={open ? "open" : "collapsed"}
         className="study-side-panel-shell"
       >
         <div className="study-side-panel-topbar">
@@ -213,7 +214,7 @@ export function StudySidePanel({
         </div>
 
         <div className="study-side-panel-content">
-          <div role="tabpanel" id={`study-ai-panel-${documentId}`} aria-labelledby={`study-ai-tab-${documentId}`} className="study-side-tab-panel" hidden={!open || activeTab !== "ai"} inert={!open || activeTab !== "ai" ? true : undefined}>
+          <div role="tabpanel" id={`study-ai-panel-${documentId}`} aria-labelledby={`study-ai-tab-${documentId}`} className="study-side-tab-panel" hidden={activeTab !== "ai"} inert={!open || activeTab !== "ai" ? true : undefined}>
             {aiInitialized ? (
               <AIStudyAssistantPanel
                 documentId={documentId}
@@ -223,7 +224,7 @@ export function StudySidePanel({
               />
             ) : null}
           </div>
-          <div role="tabpanel" id={`study-notes-panel-${documentId}`} aria-labelledby={`study-notes-tab-${documentId}`} className="study-side-tab-panel study-side-notes-panel" hidden={!open || activeTab !== "notes"} inert={!open || activeTab !== "notes" ? true : undefined}>
+          <div role="tabpanel" id={`study-notes-panel-${documentId}`} aria-labelledby={`study-notes-tab-${documentId}`} className="study-side-tab-panel study-side-notes-panel" hidden={activeTab !== "notes"} inert={!open || activeTab !== "notes" ? true : undefined}>
             <NotesPanel
               notes={notes}
               deletedNotes={deletedNotes}
