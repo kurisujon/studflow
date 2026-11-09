@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { motion } from "framer-motion";
+import { FileText, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import type { StudyNote } from "@/types/annotations";
@@ -57,35 +59,53 @@ export function NotesPanel({
         <p className="study-meta-label">
           Notes
         </p>
-        <div style={{ display: "flex", gap: "0.45rem" }}>
-          <Button
-            variant={view === "active" ? "default" : "outline"}
-            size="sm"
+        <div role="tablist" aria-label="Notes view" className="study-side-panel-tabs">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === "active"}
             onClick={() => setView("active")}
-            style={{
-              minHeight: "38px",
-              minWidth: "78px",
-              paddingInline: "14px",
-              borderRadius: "999px",
-              color: view === "active" ? "var(--theme-on-primary)" : "var(--foreground)",
-            }}
+            className="study-segmented-pill"
+            data-active={view === "active" ? "true" : "false"}
           >
-            Active
-          </Button>
-          <Button
-            variant={view === "trash" ? "default" : "outline"}
-            size="sm"
+            {view === "active" && (
+              <motion.div
+                layoutId="study-notes-view-pill"
+                className="study-tab-active-bg"
+                transition={{ type: "spring", stiffness: 480, damping: 34 }}
+              />
+            )}
+            <span className="relative z-10 flex items-center gap-1.5">
+              <FileText size={13.5} />
+              <span>Active</span>
+              {notes.length > 0 ? (
+                <span className="study-tab-count-pill">{notes.length}</span>
+              ) : null}
+            </span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === "trash"}
             onClick={() => setView("trash")}
-            style={{
-              minHeight: "38px",
-              minWidth: "78px",
-              paddingInline: "14px",
-              borderRadius: "999px",
-              color: view === "trash" ? "var(--theme-on-primary)" : "var(--foreground)",
-            }}
+            className="study-segmented-pill"
+            data-active={view === "trash" ? "true" : "false"}
           >
-            Trash {deletedNotes.length > 0 ? `(${deletedNotes.length})` : ""}
-          </Button>
+            {view === "trash" && (
+              <motion.div
+                layoutId="study-notes-view-pill"
+                className="study-tab-active-bg"
+                transition={{ type: "spring", stiffness: 480, damping: 34 }}
+              />
+            )}
+            <span className="relative z-10 flex items-center gap-1.5">
+              <Trash2 size={13.5} />
+              <span>Trash</span>
+              {deletedNotes.length > 0 ? (
+                <span className="study-tab-count-pill">{deletedNotes.length}</span>
+              ) : null}
+            </span>
+          </button>
         </div>
       </div>
 

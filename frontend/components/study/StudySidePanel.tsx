@@ -136,7 +136,6 @@ export function StudySidePanel({
           <span className="study-collapsed-rail-icon">
             <Bot size={18} />
           </span>
-          <span className="study-collapsed-rail-label">AI Chatbot</span>
         </button>
 
         <button
@@ -149,7 +148,6 @@ export function StudySidePanel({
           <span className="study-collapsed-rail-icon">
             <MessageSquareText size={16} />
           </span>
-          <span className="study-collapsed-rail-label">Notes</span>
           {notes.length > 0 ? (
             <span className="study-collapsed-rail-badge">{notes.length}</span>
           ) : null}
