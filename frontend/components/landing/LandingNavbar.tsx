@@ -66,19 +66,14 @@ export function LandingNavbar() {
               Go to Dashboard
             </LandingButton>
           ) : (
-            <>
-              <LandingButton href="/sign-in" variant="ghost" size="md">
-                Sign In
-              </LandingButton>
-              <LandingButton
-                href="/sign-up"
-                variant="primary"
-                size="md"
-                icon={<ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />}
-              >
-                Get Started
-              </LandingButton>
-            </>
+            <LandingButton
+              href="/sign-in"
+              variant="primary"
+              size="md"
+              icon={<ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />}
+            >
+              Sign In
+            </LandingButton>
           )}
         </div>
 
@@ -129,27 +124,16 @@ export function LandingNavbar() {
                   Go to Dashboard
                 </LandingButton>
               ) : (
-                <>
-                  <LandingButton
-                    href="/sign-in"
-                    variant="outline"
-                    size="lg"
-                    className="w-full"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Sign In
-                  </LandingButton>
-                  <LandingButton
-                    href="/sign-up"
-                    variant="primary"
-                    size="lg"
-                    className="w-full"
-                    icon={<ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />}
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Get Started
-                  </LandingButton>
-                </>
+                <LandingButton
+                  href="/sign-in"
+                  variant="primary"
+                  size="lg"
+                  className="w-full"
+                  icon={<ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Sign In
+                </LandingButton>
               )}
             </div>
           </motion.div>

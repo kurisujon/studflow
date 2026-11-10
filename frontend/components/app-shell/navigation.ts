@@ -1,9 +1,19 @@
 import {
   BookMarkedIcon, BrainIcon, CalendarCheckIcon, ChartNoAxesColumnIncreasingIcon,
-  CircleHelpIcon, HomeIcon, LibraryIcon, MessagesSquareIcon, SettingsIcon, StickyNoteIcon,
+  CircleHelpIcon, HomeIcon, LibraryIcon, MessagesSquareIcon, SettingsIcon, ShieldIcon, StickyNoteIcon,
 } from "@/components/home/icon-registry";
 
-export const navigationGroups = [
+export type NavigationItem = {
+  label: string;
+  href: string;
+  icon: typeof HomeIcon;
+  adminOnly?: boolean;
+};
+
+export const navigationGroups: ReadonlyArray<{
+  label: string;
+  items: ReadonlyArray<NavigationItem>;
+}> = [
   { label: "Workspace", items: [
     { label: "Overview", href: "/dashboard", icon: HomeIcon },
     { label: "My Library", href: "/dashboard/docs", icon: LibraryIcon },
@@ -19,8 +29,9 @@ export const navigationGroups = [
   { label: "Progress & account", items: [
     { label: "My Progress", href: "/dashboard/progress", icon: ChartNoAxesColumnIncreasingIcon },
     { label: "Settings", href: "/dashboard/settings", icon: SettingsIcon },
+    { label: "User Management", href: "/dashboard/admin", icon: ShieldIcon, adminOnly: true },
   ] },
-] as const;
+];
 
 export const routeLabels: Record<string, string> = Object.fromEntries(
   navigationGroups.flatMap((group) => group.items.map((item) => [item.href, item.label])),

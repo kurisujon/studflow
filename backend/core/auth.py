@@ -11,14 +11,18 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt, JWTError
 
 from core.config import settings
+from services.clerk_users import get_user_access_profile
 
 logger = logging.getLogger(__name__)
 
 security = HTTPBearer()
 
+
 class CurrentUser(BaseModel):
     clerk_user_id: str
     email: str | None = None
+    role: str = "user"
+    is_admin: bool = False
 
 
 def _derive_clerk_issuer_from_publishable_key() -> str | None:
@@ -153,15 +157,61 @@ def verify_clerk_token(token: str) -> dict[str, Any]:
             detail="Invalid token",
         )
 
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> CurrentUser:
+async def get_authenticated_user_id(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+) -> str:
     token = credentials.credentials
     payload = verify_clerk_token(token)
-    
+
     user_id = payload.get("sub")
     if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token missing subject",
         )
-        
-    return CurrentUser(clerk_user_id=user_id)
+    return str(user_id)
+
+
+async def get_current_user(
+    user_id: str = Depends(get_authenticated_user_id),
+) -> CurrentUser:
+    profile = get_user_access_profile(user_id)
+
+    if profile.suspended:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "ACCOUNT_SUSPENDED",
+                "message": "Your account has been suspended by an administrator.",
+            },
+        )
+
+    if not profile.approved:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "ACCOUNT_NOT_APPROVED",
+                "message": "Your account is not registered for access. Please contact an administrator.",
+            },
+        )
+
+    return CurrentUser(
+        clerk_user_id=user_id,
+        email=profile.email,
+        role=profile.role,
+        is_admin=(profile.role == "admin"),
+    )
+
+
+async def get_current_admin(
+    current_user: CurrentUser = Depends(get_current_user),
+) -> CurrentUser:
+    if not current_user.is_admin and current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "ADMIN_REQUIRED",
+                "message": "Administrator privileges are required.",
+            },
+        )
+    return current_user

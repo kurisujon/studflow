@@ -1,5 +1,16 @@
 import { API_BASE_URL, readAPIErrorDetail } from "@/lib/api";
-import type { DocumentListItem, StudyDocument, StudyFlashcard, StudyQuizQuestion, SummaryLibraryItem, UserStats, UserQueue, UserPreferences } from "@/lib/types";
+import type {
+  AdminUsersOverview,
+  DocumentListItem,
+  StudyDocument,
+  StudyFlashcard,
+  StudyQuizQuestion,
+  SummaryLibraryItem,
+  UserAccessStatus,
+  UserPreferences,
+  UserQueue,
+  UserStats,
+} from "@/lib/types";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 
@@ -20,8 +31,11 @@ async function fetchJSON<T>(path: string): Promise<T> {
   if (!response.ok) {
     const detail = await readAPIErrorDetail(response);
 
-    if (response.status === 401 || response.status === 403) {
+    if (response.status === 401) {
       redirect("/sign-in");
+    }
+    if (response.status === 403) {
+      redirect("/access-restricted");
     }
 
     throw new Error(
@@ -70,8 +84,11 @@ export async function reviewFlashcard(
 
   if (!response.ok) {
     const detail = await readAPIErrorDetail(response);
-    if (response.status === 401 || response.status === 403) {
+    if (response.status === 401) {
       redirect("/sign-in");
+    }
+    if (response.status === 403) {
+      redirect("/access-restricted");
     }
     throw new Error(`Review failed: ${response.status} ${detail}`);
   }
@@ -93,4 +110,12 @@ export function fetchUserQueue(): Promise<UserQueue> {
 
 export function fetchUserPreferences(): Promise<UserPreferences> {
   return fetchJSON<UserPreferences>("/api/user/preferences");
+}
+
+export function fetchUserAccessStatus(): Promise<UserAccessStatus> {
+  return fetchJSON<UserAccessStatus>("/api/user/access-status");
+}
+
+export function fetchAdminUsersOverview(): Promise<AdminUsersOverview> {
+  return fetchJSON<AdminUsersOverview>("/api/admin/users");
 }

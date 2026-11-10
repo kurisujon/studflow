@@ -12,7 +12,15 @@ import { getPageLabel, isNavigationItemActive, navigationGroups } from "./naviga
 
 const SIDEBAR_KEY = "studflow-sidebar-collapsed";
 
-export function AppShell({ children, documents }: { children: React.ReactNode; documents: DocumentListItem[] }) {
+export function AppShell({
+  children,
+  documents,
+  isAdmin = false,
+}: {
+  children: React.ReactNode;
+  documents: DocumentListItem[];
+  isAdmin?: boolean;
+}) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -100,13 +108,34 @@ export function AppShell({ children, documents }: { children: React.ReactNode; d
         </div>
         <div className="px-3 pb-3"><Link href="/upload" aria-label="Upload material" className="sidebar-upload"><UploadIcon className="size-4 shrink-0" aria-hidden="true" /><span className="sidebar-copy">Upload material</span></Link></div>
         <nav className="flex-1 overflow-y-auto px-3 pb-4" aria-label="Primary">
-          {navigationGroups.map((group) => <div key={group.label} className="mb-5">
-            <p className="sidebar-copy mb-1.5 px-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground/80">{group.label}</p>
-            <div className="space-y-0.5">{group.items.map((item) => {
-              const active = isNavigationItemActive(pathname, item.href); const Icon = item.icon;
-              return <Link key={item.href} href={item.href} aria-label={item.label} title={collapsed ? item.label : undefined} aria-current={active ? "page" : undefined} className={`sidebar-link ${active ? "sidebar-link-active" : ""}`}><Icon className="size-[18px] shrink-0" aria-hidden="true" /><span className="sidebar-copy truncate">{item.label}</span></Link>;
-            })}</div>
-          </div>)}
+          {navigationGroups.map((group) => {
+            const visibleItems = group.items.filter((item) => !item.adminOnly || isAdmin);
+            if (!visibleItems.length) return null;
+            return (
+              <div key={group.label} className="mb-5">
+                <p className="sidebar-copy mb-1.5 px-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground/80">{group.label}</p>
+                <div className="space-y-0.5">
+                  {visibleItems.map((item) => {
+                    const active = isNavigationItemActive(pathname, item.href);
+                    const Icon = item.icon;
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        aria-label={item.label}
+                        title={collapsed ? item.label : undefined}
+                        aria-current={active ? "page" : undefined}
+                        className={`sidebar-link ${active ? "sidebar-link-active" : ""}`}
+                      >
+                        <Icon className="size-[18px] shrink-0" aria-hidden="true" />
+                        <span className="sidebar-copy truncate">{item.label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
         </nav>
         <div className="hidden border-t border-border p-3 lg:block"><button type="button" onClick={toggleCollapsed} className="sidebar-link w-full" aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} aria-expanded={!collapsed}>{collapsed ? <PanelLeftOpenIcon className="size-[18px] shrink-0" /> : <PanelLeftCloseIcon className="size-[18px] shrink-0" />}<span className="sidebar-copy">Collapse sidebar</span></button></div>
       </aside>

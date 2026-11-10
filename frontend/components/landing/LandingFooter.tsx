@@ -36,7 +36,6 @@ export function LandingFooter() {
             <ul className="space-y-3">
               <li><Link href="#faq" className="text-[#64748B] hover:text-[#168BFF] text-sm transition-colors">FAQ</Link></li>
               <li><Link href="/sign-in" className="text-[#64748B] hover:text-[#4F46E5] text-sm transition-colors">Sign in</Link></li>
-              <li><Link href="/sign-up" className="text-[#64748B] hover:text-[#4F46E5] text-sm transition-colors">Create account</Link></li>
             </ul>
           </div>
 

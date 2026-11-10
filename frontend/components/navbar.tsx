@@ -105,22 +105,10 @@ export function Navbar() {
             <>
             <Link
               href="/sign-in"
-              style={{
-                padding: "0.375rem 0.875rem",
-                borderRadius: "6px",
-                fontSize: "0.875rem",
-                fontWeight: 500,
-                color: "var(--distill-text-secondary)",
-              }}
-            >
-              Sign In
-            </Link>
-            <Link
-              href="/sign-up"
               className="btn-primary"
               style={{ marginLeft: "0.75rem" }}
             >
-              Get Started
+              Sign In
             </Link>
             <ThemeSettings />
             </>

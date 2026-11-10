@@ -16,9 +16,19 @@ export async function readAPIErrorDetail(response: Response): Promise<string> {
   const fallback = response.statusText || "Request failed.";
 
   try {
-    const payload = (await response.clone().json()) as { detail?: unknown };
+    const payload = (await response.clone().json()) as {
+      detail?: unknown;
+    };
     if (typeof payload.detail === "string" && payload.detail.trim()) {
       return payload.detail;
+    }
+    if (
+      payload.detail &&
+      typeof payload.detail === "object" &&
+      "message" in payload.detail &&
+      typeof (payload.detail as { message?: unknown }).message === "string"
+    ) {
+      return (payload.detail as { message: string }).message;
     }
   } catch {
     // Fall through to plain-text parsing when the backend does not return JSON.

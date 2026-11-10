@@ -5,10 +5,39 @@ from pydantic import BaseModel
 from sqlmodel import Session, select
 from sqlalchemy import text, func
 from core.database import engine, get_session, commit_and_reassert_rls
-from core.auth import get_current_user, CurrentUser
+from core.auth import get_authenticated_user_id, get_current_user, CurrentUser
 from models.tables import UserPreferences, Document, Flashcard, QuizAttempt, QuizQuestion
+from services.clerk_users import get_user_access_profile
 
 router = APIRouter()
+
+
+class UserAccessStatusResponse(BaseModel):
+    clerk_user_id: str
+    email: str | None = None
+    full_name: str
+    role: str
+    is_admin: bool
+    approved: bool
+    suspended: bool
+    status: str
+
+
+@router.get("/user/access-status", response_model=UserAccessStatusResponse)
+def get_user_access_status(
+    user_id: str = Depends(get_authenticated_user_id),
+) -> UserAccessStatusResponse:
+    profile = get_user_access_profile(user_id)
+    return UserAccessStatusResponse(
+        clerk_user_id=profile.clerk_user_id,
+        email=profile.email,
+        full_name=profile.full_name,
+        role=profile.role,
+        is_admin=(profile.role == "admin"),
+        approved=profile.approved,
+        suspended=profile.suspended,
+        status=profile.status,
+    )
 
 class UserPreferencesResponse(BaseModel):
     id: uuid.UUID

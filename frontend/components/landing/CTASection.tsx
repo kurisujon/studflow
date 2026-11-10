@@ -54,13 +54,13 @@ export function CTASection() {
 
             <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto z-10">
               <LandingButton
-                href="/sign-up"
+                href="/sign-in"
                 variant="primary"
                 size="lg"
                 className="w-full sm:w-fit"
                 icon={<ArrowRight className="w-5 h-5 transition-transform duration-300 group-hover:translate-x-1.5 shrink-0" />}
               >
-                Start Learning Free
+                Sign In to Workspace
               </LandingButton>
             </div>
           </LandingCard>

@@ -108,3 +108,56 @@ export type UserPreferences = {
   daily_review_goal: number;
   sm2_aggressiveness: number;
 };
+
+export type UserRole = "admin" | "user";
+export type AccountAccessState = "active" | "pending" | "suspended";
+
+export type UserAccessStatus = {
+  clerk_user_id: string;
+  email: string | null;
+  full_name: string;
+  role: UserRole;
+  is_admin: boolean;
+  approved: boolean;
+  suspended: boolean;
+  status: AccountAccessState;
+};
+
+export type ManagedUser = {
+  clerk_user_id: string;
+  email: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  full_name: string;
+  image_url: string | null;
+  role: UserRole;
+  approved: boolean;
+  suspended: boolean;
+  status: AccountAccessState;
+  created_at: string | null;
+  last_sign_in_at: string | null;
+};
+
+export type PendingInvitation = {
+  id: string;
+  email_address: string;
+  role: UserRole;
+  status: string;
+  created_at: string | null;
+  expires_at: string | null;
+};
+
+export type AdminUserSummaryCounts = {
+  total_users: number;
+  active_users: number;
+  pending_users: number;
+  suspended_users: number;
+  admin_users: number;
+  pending_invitations: number;
+};
+
+export type AdminUsersOverview = {
+  users: ManagedUser[];
+  invitations: PendingInvitation[];
+  counts: AdminUserSummaryCounts;
+};
