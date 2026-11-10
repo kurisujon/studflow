@@ -15,6 +15,10 @@ export default function SignInPage() {
             borderRadius: "0.75rem",
           },
           elements: {
+            socialButtons: { display: "none" },
+            socialButtonsBlockButton: { display: "none" },
+            socialButtonsRoot: { display: "none" },
+            dividerRow: { display: "none" },
             footerAction: { display: "none" },
           },
         }}
