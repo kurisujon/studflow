@@ -92,28 +92,6 @@ class Settings(BaseSettings):
     clerk_jwks_url: str = ""
     clerk_issuer: str = ""
     clerk_audience: str = ""
-    admin_emails: str = ""
-    admin_clerk_user_ids: str = ""
-
-    @property
-    def admin_email_set(self) -> set[str]:
-        if not self.admin_emails:
-            return set()
-        return {
-            email.strip().lower()
-            for email in self.admin_emails.split(",")
-            if email.strip()
-        }
-
-    @property
-    def admin_clerk_user_id_set(self) -> set[str]:
-        if not self.admin_clerk_user_ids:
-            return set()
-        return {
-            uid.strip()
-            for uid in self.admin_clerk_user_ids.split(",")
-            if uid.strip()
-        }
 
     # CORS
     allowed_origins: list[str] = ["http://localhost:3000", "http://localhost:3002"]

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import time
 from datetime import datetime, timezone
 from threading import RLock
@@ -179,10 +180,24 @@ def _extract_primary_email(raw_user: dict[str, Any]) -> str | None:
     return None
 
 
+def _get_configured_admin_emails() -> set[str]:
+    raw = os.getenv("ADMIN_EMAILS", "")
+    if not raw:
+        return set()
+    return {email.strip().lower() for email in raw.split(",") if email.strip()}
+
+
+def _get_configured_admin_user_ids() -> set[str]:
+    raw = os.getenv("ADMIN_CLERK_USER_IDS", "")
+    if not raw:
+        return set()
+    return {uid.strip() for uid in raw.split(",") if uid.strip()}
+
+
 def _is_configured_admin(clerk_user_id: str, email: str | None) -> bool:
-    if clerk_user_id in settings.admin_clerk_user_id_set:
+    if clerk_user_id in _get_configured_admin_user_ids():
         return True
-    if email and email.lower() in settings.admin_email_set:
+    if email and email.lower() in _get_configured_admin_emails():
         return True
     return False
 
@@ -392,7 +407,7 @@ def _ensure_initial_admin_bootstrapped() -> None:
         if user_profile.approved and not user_profile.suspended and user_profile.email:
             add_email_to_allowlist(user_profile.email, notify=False)
 
-    for configured_email in settings.admin_email_set:
+    for configured_email in _get_configured_admin_emails():
         add_email_to_allowlist(configured_email, notify=False)
 
     enable_clerk_allowlist_restriction()
