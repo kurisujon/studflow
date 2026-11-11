@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { ChevronRightIcon, FileTextIcon, MenuIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, SearchIcon, UploadIcon, XIcon } from "@/components/home/icon-registry";
 import { ThemeSettings } from "@/components/theme/ThemeSettings";
 import type { DocumentListItem } from "@/lib/types";
@@ -97,16 +98,64 @@ export function AppShell({
 
   return (
     <div className="app-shell" data-sidebar-collapsed={collapsed ? "true" : "false"}>
-      {mobileOpen ? <div className="fixed inset-0 z-40 bg-slate-950/35 backdrop-blur-[2px] lg:hidden" aria-hidden="true" onClick={() => setMobileOpen(false)} /> : null}
-      <aside ref={sidebarRef} id="app-sidebar" aria-label="Application navigation" role={desktopNavigation ? undefined : "dialog"} aria-modal={desktopNavigation ? undefined : true} inert={!desktopNavigation && !mobileOpen ? true : undefined} className={`app-sidebar ${mobileOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}>
+      <AnimatePresence>
+        {mobileOpen && (
+          <motion.div
+            key="mobile-sidebar-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.22, ease: "easeOut" }}
+            className="fixed inset-0 z-40 bg-slate-950/45 backdrop-blur-[2.5px] lg:hidden"
+            aria-hidden="true"
+            onClick={() => setMobileOpen(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      <aside
+        ref={sidebarRef}
+        id="app-sidebar"
+        data-mobile-open={mobileOpen ? "true" : "false"}
+        aria-label="Application navigation"
+        role={desktopNavigation ? undefined : "dialog"}
+        aria-modal={desktopNavigation ? undefined : true}
+        inert={!desktopNavigation && !mobileOpen ? true : undefined}
+        className={`app-sidebar ${mobileOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
+      >
         <div className="flex h-16 items-center gap-3 px-4">
-          <Link href="/dashboard" aria-label="StudFlow dashboard" className="flex min-w-0 items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <Link
+            href="/dashboard"
+            onClick={() => setMobileOpen(false)}
+            aria-label="StudFlow dashboard"
+            className="flex min-w-0 items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
             <Image src="/studflow_logo.png" alt="" width={30} height={30} priority className="shrink-0" />
             <span className="sidebar-copy truncate text-[15px] font-bold tracking-tight">StudFlow</span>
           </Link>
-          <button type="button" onClick={() => setMobileOpen(false)} className="ml-auto grid size-10 place-items-center rounded-lg text-muted-foreground hover:bg-muted lg:hidden" aria-label="Close navigation"><XIcon className="size-5" /></button>
+          <motion.button
+            type="button"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.92 }}
+            transition={{ type: "spring", stiffness: 450, damping: 25 }}
+            onClick={() => setMobileOpen(false)}
+            className="ml-auto grid size-10 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground active:bg-muted/80 lg:hidden"
+            aria-label="Close navigation"
+          >
+            <XIcon className="size-5" />
+          </motion.button>
         </div>
-        <div className="px-3 pb-3"><Link href="/upload" aria-label="Upload material" className="sidebar-upload"><UploadIcon className="size-4 shrink-0" aria-hidden="true" /><span className="sidebar-copy">Upload material</span></Link></div>
+        <div className="px-3 pb-3">
+          <Link
+            href="/upload"
+            onClick={() => setMobileOpen(false)}
+            aria-label="Upload material"
+            className="sidebar-upload"
+          >
+            <UploadIcon className="size-4 shrink-0" aria-hidden="true" />
+            <span className="sidebar-copy">Upload material</span>
+          </Link>
+        </div>
         <nav className="flex-1 overflow-y-auto px-3 pb-4" aria-label="Primary">
           {navigationGroups.map((group) => {
             const visibleItems = group.items.filter((item) => !item.adminOnly || isAdmin);
@@ -122,6 +171,7 @@ export function AppShell({
                       <Link
                         key={item.href}
                         href={item.href}
+                        onClick={() => setMobileOpen(false)}
                         aria-label={item.label}
                         title={collapsed ? item.label : undefined}
                         aria-current={active ? "page" : undefined}
@@ -142,7 +192,20 @@ export function AppShell({
 
       <div ref={appContentRef} className="app-content">
         <header className="app-header">
-          <button ref={mobileTriggerRef} type="button" className="grid size-10 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-muted lg:hidden" aria-label="Open navigation" aria-controls="app-sidebar" aria-expanded={mobileOpen} onClick={() => setMobileOpen(true)}><MenuIcon className="size-5" /></button>
+          <motion.button
+            ref={mobileTriggerRef}
+            type="button"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.92 }}
+            transition={{ type: "spring", stiffness: 450, damping: 25 }}
+            className="grid size-10 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground active:bg-muted/80 lg:hidden cursor-pointer"
+            aria-label="Open navigation"
+            aria-controls="app-sidebar"
+            aria-expanded={mobileOpen}
+            onClick={() => setMobileOpen(true)}
+          >
+            <MenuIcon className="size-5" />
+          </motion.button>
           <div className="hidden min-w-0 items-center gap-2 text-sm sm:flex"><span className="text-muted-foreground">Workspace</span><ChevronRightIcon className="size-3.5 text-muted-foreground/60" aria-hidden="true" /><span className="truncate font-semibold text-foreground">{getPageLabel(pathname)}</span></div>
           <div ref={searchRef} className="relative ml-auto min-w-0 flex-1 sm:w-full sm:max-w-sm sm:flex-none">
             <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
