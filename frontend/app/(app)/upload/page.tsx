@@ -10,6 +10,49 @@ import { useDocumentStatus } from "@/hooks/use-document-status";
 import { DocumentProcessingStatus } from "@/components/document-processing-status";
 import { UploadIcon, FileTextIcon, XIcon, AlertCircleIcon, Loader2Icon } from "@/components/home/icon-registry";
 
+const ALLOWED_EXTENSIONS = [
+  "pdf",
+  "docx",
+  "pptx",
+  "epub",
+  "txt",
+  "md",
+  "csv",
+  "rtf",
+  "html",
+  "htm",
+] as const;
+
+function getFileTypeLabel(fileName: string, mimeType?: string): string {
+  const ext = fileName.split(".").pop()?.toLowerCase();
+  switch (ext) {
+    case "pdf":
+      return "PDF Document";
+    case "pptx":
+      return "PowerPoint Presentation";
+    case "docx":
+      return "Word Document";
+    case "epub":
+      return "EPUB E-Book";
+    case "md":
+      return "Markdown Notes";
+    case "txt":
+      return "Plain Text Notes";
+    case "csv":
+      return "CSV Spreadsheet";
+    case "rtf":
+      return "Rich Text Document";
+    case "html":
+    case "htm":
+      return "HTML Document";
+    default:
+      if (mimeType?.includes("pdf")) return "PDF Document";
+      if (mimeType?.includes("presentation")) return "PowerPoint Presentation";
+      if (mimeType?.includes("word")) return "Word Document";
+      return "Document";
+  }
+}
+
 type UploadResponse = { document_id: string };
 
 function isUploadResponse(payload: unknown): payload is UploadResponse {
@@ -132,9 +175,9 @@ export default function UploadPage() {
       return;
     }
 
-    const extension = file.name.split(".").pop()?.toLocaleLowerCase();
-    if (extension !== "pdf" && extension !== "docx") {
-      setError("Choose a PDF or DOCX file.");
+    const extension = file.name.split(".").pop()?.toLowerCase();
+    if (!extension || !ALLOWED_EXTENSIONS.includes(extension as (typeof ALLOWED_EXTENSIONS)[number])) {
+      setError("Please choose a supported study file: PDF, PPTX, DOCX, EPUB, TXT, MD, CSV, RTF, or HTML.");
       return;
     }
 
@@ -221,7 +264,7 @@ export default function UploadPage() {
             Upload material
           </h1>
           <p className="mt-2 text-base text-[var(--muted-foreground)]">
-            Add a PDF or DOCX. StudFlow will process the source into a summary, flashcards, quiz, and a grounded study workspace.
+            Upload study material (PDF, PPTX, DOCX, EPUB, TXT, MD, CSV, RTF, HTML). StudFlow will process the source into a summary, flashcards, quiz, and a grounded study workspace.
           </p>
         </div>
 
@@ -245,14 +288,14 @@ export default function UploadPage() {
                     Select a document to upload
                   </span>
                   <span className="mt-1 block text-sm text-[var(--muted-foreground)]">
-                    Supported formats: PDF and DOCX
+                    Supported: PDF, PPTX, DOCX, EPUB, TXT, MD, CSV, RTF, HTML
                   </span>
                 </div>
                 <input
                   id="document-upload"
                   ref={fileInputRef}
                   type="file"
-                  accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  accept=".pdf,.docx,.pptx,.epub,.txt,.md,.csv,.rtf,.html,.htm,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/epub+zip,text/plain,text/markdown,text/csv,application/rtf,text/html"
                   onChange={(event) => {
                     setFile(event.target.files?.[0] ?? null);
                     setError(null);
@@ -271,7 +314,7 @@ export default function UploadPage() {
                       {file.name}
                     </p>
                     <p className="mt-0.5 text-xs text-[var(--muted-foreground)]">
-                      {formatBytes(file.size)} &bull; {file.type.includes('pdf') ? 'PDF Document' : 'Word Document'}
+                      {formatBytes(file.size)} &bull; {getFileTypeLabel(file.name, file.type)}
                     </p>
                   </div>
                 </div>

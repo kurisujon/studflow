@@ -83,7 +83,7 @@ export function DashboardOverview({ documents, stats, dueCount }: DashboardOverv
               <div>
                 <p className="bento-kicker">Your next learning space</p>
                 <h2 id="continue-studying-title" className="mt-2 text-2xl font-bold tracking-[-0.035em] text-foreground sm:text-[1.9rem]">Start with a source</h2>
-                <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">Upload a PDF or DOCX and StudFlow will prepare its summary, flashcards, and quiz when processing is complete.</p>
+                <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">Upload study material (PDF, PPTX, DOCX, EPUB, TXT, MD, CSV, RTF) and StudFlow will prepare its summary, flashcards, and quiz when processing is complete.</p>
               </div>
               <div className="mt-6"><Link href="/upload" className="bento-primary-action">Upload material <UploadIcon className="size-4" aria-hidden="true" /></Link></div>
             </div>

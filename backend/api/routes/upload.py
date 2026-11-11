@@ -24,11 +24,68 @@ from core.task_provenance import build_task_headers
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-ALLOWED_EXTENSIONS = {".pdf", ".docx"}
-ALLOWED_CONTENT_TYPES = {
-    "application/pdf",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+ALLOWED_EXTENSIONS = {
+    ".pdf",
+    ".docx",
+    ".pptx",
+    ".epub",
+    ".txt",
+    ".md",
+    ".csv",
+    ".rtf",
+    ".html",
+    ".htm",
 }
+
+EXTENSION_CONTENT_TYPES: dict[str, set[str]] = {
+    ".pdf": {"application/pdf"},
+    ".docx": {
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/zip",
+    },
+    ".pptx": {
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "application/zip",
+    },
+    ".epub": {
+        "application/epub+zip",
+        "application/zip",
+    },
+    ".txt": {
+        "text/plain",
+    },
+    ".md": {
+        "text/markdown",
+        "text/x-markdown",
+        "text/plain",
+    },
+    ".csv": {
+        "text/csv",
+        "application/csv",
+        "text/comma-separated-values",
+        "text/plain",
+    },
+    ".rtf": {
+        "application/rtf",
+        "text/rtf",
+        "text/richtext",
+        "text/plain",
+    },
+    ".html": {
+        "text/html",
+    },
+    ".htm": {
+        "text/html",
+    },
+}
+
+GENERIC_CONTENT_TYPES = {
+    "application/octet-stream",
+    "application/x-zip-compressed",
+    "binary/octet-stream",
+}
+
+ALLOWED_CONTENT_TYPES = set().union(*EXTENSION_CONTENT_TYPES.values(), GENERIC_CONTENT_TYPES)
 
 
 class UploadResponse(BaseModel):
@@ -38,24 +95,21 @@ class UploadResponse(BaseModel):
 
 
 def validate_upload(file: UploadFile, file_bytes: bytes) -> None:
-    extension = Path(file.filename or "").suffix.lower()
-
     if not file.filename:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="A filename is required.",
         )
 
+    extension = Path(file.filename).suffix.lower()
+
     if extension not in ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only PDF and DOCX files are allowed.",
-        )
-
-    if file.content_type not in ALLOWED_CONTENT_TYPES:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid file content type.",
+            detail=(
+                "Unsupported file format. Supported formats: "
+                "PDF, PPTX, DOCX, EPUB, TXT, MD, CSV, RTF, HTML."
+            ),
         )
 
     if not file_bytes:
@@ -63,6 +117,50 @@ def validate_upload(file: UploadFile, file_bytes: bytes) -> None:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Uploaded file is empty.",
         )
+
+    content_type = (file.content_type or "").lower().split(";")[0].strip()
+    allowed_types = EXTENSION_CONTENT_TYPES.get(extension, set())
+    is_generic = content_type in GENERIC_CONTENT_TYPES or not content_type
+    is_text_type = content_type.startswith("text/") and extension in {
+        ".txt",
+        ".md",
+        ".csv",
+        ".rtf",
+        ".html",
+        ".htm",
+    }
+
+    if content_type not in allowed_types and not is_generic and not is_text_type:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid file content type '{file.content_type}' for {extension} file.",
+        )
+
+    # Magic byte and structural sanity checks
+    if extension == ".pdf":
+        if not file_bytes.startswith(b"%PDF") and b"%PDF" not in file_bytes[:1024]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="File content does not appear to be a valid PDF.",
+            )
+    elif extension in {".docx", ".pptx", ".epub"}:
+        if not file_bytes.startswith(b"PK\x03\x04"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"File content does not appear to be a valid {extension.lstrip('.').upper()} archive.",
+            )
+    elif extension == ".rtf":
+        if b"{\\rtf" not in file_bytes[:128]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="File content does not appear to be a valid RTF document.",
+            )
+    else:  # txt, md, csv, html, htm
+        if file_bytes.count(b"\x00") > 10:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="File contains binary data. Please upload a plain text study material.",
+            )
 
 
 @router.post("/upload", response_model=UploadResponse, status_code=status.HTTP_201_CREATED)

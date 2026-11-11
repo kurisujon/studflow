@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import uuid
 from collections.abc import Sequence
+from pathlib import Path
 
 from celery import Task
 from sqlmodel import Session, select
@@ -34,6 +35,9 @@ from services.document_processing import (
     chunk_docx_text,
     chunk_pdf_pages,
     extract_docx_text,
+    extract_epub_pages,
+    extract_pptx_pages,
+    extract_text_document,
     get_pdf_page_count,
     iter_pdf_pages,
 )
@@ -78,13 +82,14 @@ def _get_document(session: Session, document_id: str) -> Document:
 def _extract_and_persist_chunks(session: Session, document: Document) -> list[DocumentChunk]:
     generation = document.active_index_generation
     filename = document.filename.lower()
+    extension = Path(filename).suffix.lower()
     existing_chunks = get_document_chunks(
         session=session,
         document_id=document.id,
         index_generation=generation,
     )
     if existing_chunks and (
-        not filename.endswith(".pdf")
+        extension != ".pdf"
         or any(chunk.page_number is None for chunk in existing_chunks)
     ):
         # Preserve compatibility for DOCX and pre-page-aware PDF attempts. Mixing
@@ -98,7 +103,7 @@ def _extract_and_persist_chunks(session: Session, document: Document) -> list[Do
     )
     file_bytes = download_file_from_storage(document.file_url)
 
-    if filename.endswith(".pdf"):
+    if extension == ".pdf":
         page_count = get_pdf_page_count(file_bytes)
         for page in iter_pdf_pages(
             file_bytes,
@@ -121,11 +126,20 @@ def _extract_and_persist_chunks(session: Session, document: Document) -> list[Do
             document_id=document.id,
             index_generation=generation,
         )
-    elif filename.endswith(".docx"):
+    elif extension == ".pptx":
+        pages, page_count = extract_pptx_pages(file_bytes)
+        chunks = chunk_pdf_pages(pages, chunk_size=2000, overlap=200)
+    elif extension == ".epub":
+        pages, page_count = extract_epub_pages(file_bytes)
+        chunks = chunk_pdf_pages(pages, chunk_size=2000, overlap=200)
+    elif extension == ".docx":
         extracted_text, page_count = extract_docx_text(file_bytes)
         chunks = chunk_docx_text(extracted_text, chunk_size=2000, overlap=200)
+    elif extension in {".txt", ".md", ".csv", ".rtf", ".html", ".htm"}:
+        extracted_text, page_count = extract_text_document(file_bytes, extension)
+        chunks = chunk_docx_text(extracted_text, chunk_size=2000, overlap=200)
     else:
-        raise DocumentProcessingError("Unsupported document type for processing.")
+        raise DocumentProcessingError(f"Unsupported document type '{extension}' for processing.")
 
     update_document_status(
         session=session,
@@ -136,7 +150,7 @@ def _extract_and_persist_chunks(session: Session, document: Document) -> list[Do
     if not chunks:
         raise DocumentProcessingError("No extractable text chunks were produced.")
 
-    if filename.endswith(".pdf"):
+    if extension == ".pdf":
         return chunks
     return save_document_chunks(
         session=session,
