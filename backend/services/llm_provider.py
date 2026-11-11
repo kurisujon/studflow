@@ -98,13 +98,15 @@ def _candidate_models() -> list[str]:
         if model.strip()
     ]
     primary = os.getenv("GEMINI_MODEL") or settings.gemini_model
+
+    # If fallback models are not explicitly configured, provide modern resilient defaults
+    if not fallback_models:
+        fallback_models = [
+            m for m in ["gemini-3-flash-preview", "gemini-3.5-flash", "gemini-3.7-flash"]
+            if m != primary
+        ]
+
     models = [primary, *fallback_models]
-
-    # Provide modern, high-quota, resilient flash models as built-in candidate fallbacks
-    for default_candidate in ["gemini-3-flash-preview", "gemini-3.5-flash", "gemini-3.7-flash"]:
-        if default_candidate not in models:
-            models.append(default_candidate)
-
     clean_models = [m for m in models if m]
     active = [m for m in clean_models if not _is_model_cooling_down(m)]
     cooling = [m for m in clean_models if _is_model_cooling_down(m)]
