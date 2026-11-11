@@ -7,7 +7,7 @@ from core.config import settings
 logger = logging.getLogger(__name__)
 
 
-def search_related_videos(query: str, max_results: int = 3) -> list[dict[str, str]]:
+def search_related_videos(query: str, max_results: int = 4) -> list[dict[str, str]]:
     if not settings.youtube_api_key:
         logger.warning("YOUTUBE_API_KEY is not set. Skipping YouTube search.")
         return []

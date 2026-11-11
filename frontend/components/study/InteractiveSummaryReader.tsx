@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { Bot } from "lucide-react";
-import { SparklesIcon } from "@/components/home/icon-registry";
+import { ChevronLeftIcon, ChevronRightIcon, SparklesIcon } from "@/components/home/icon-registry";
 
 import { AnnotatableTextBlock } from "@/components/study/AnnotatableTextBlock";
 import { RelatedLearningVideos } from "@/components/study/RelatedLearningVideos";
@@ -146,6 +146,20 @@ export function InteractiveSummaryReader({
 }) {
   const noteComposerTextareaId = `study-note-composer-${documentId}`;
   const [activeIndex, setActiveIndex] = useState(0);
+  const [direction, setDirection] = useState<1 | -1>(1);
+  const topicSectionRef = useRef<HTMLDivElement>(null);
+
+  function goToTopic(index: number) {
+    if (index === activeIndex || index < 0 || !summary?.detailed_sections || index >= summary.detailed_sections.length) return;
+    setDirection(index > activeIndex ? 1 : -1);
+    setActiveIndex(index);
+    if (topicSectionRef.current) {
+      const rect = topicSectionRef.current.getBoundingClientRect();
+      if (rect.top < 90) {
+        topicSectionRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
+  }
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [notes, setNotes] = useState<StudyNote[]>([]);
   const [selectionState, setSelectionState] = useState<SelectionState | null>(null);
@@ -798,30 +812,41 @@ export function InteractiveSummaryReader({
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
               <span className="text-xs font-semibold text-muted-foreground whitespace-nowrap">
                 {activeIndex + 1} / {sections.length}
               </span>
-              <div className="flex items-center gap-1 h-5 min-w-[70px] sm:min-w-[110px]">
-                {sections.map((_, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    aria-label={`Go to topic ${i + 1}`}
-                    onClick={() => setActiveIndex(i)}
-                    className="flex-1 h-1.5 rounded-full border-none cursor-pointer p-0 transition-all duration-200"
-                    style={{
-                      background:
-                        i < activeIndex
-                          ? "var(--theme-primary)"
-                          : i === activeIndex
-                          ? "linear-gradient(90deg, var(--theme-primary), color-mix(in srgb, var(--theme-primary) 60%, var(--theme-soft)))"
-                          : "color-mix(in srgb, var(--theme-soft) 72%, var(--border))",
-                      opacity: i === activeIndex ? 1 : i < activeIndex ? 0.85 : 0.45,
-                      transform: i === activeIndex ? "scaleY(1.4)" : "scaleY(1)",
-                    }}
-                  />
-                ))}
+              <div
+                role="tablist"
+                aria-label="Topic navigation"
+                className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-muted/40 border border-border/50 shadow-2xs"
+              >
+                {sections.map((section, i) => {
+                  const isActive = i === activeIndex;
+                  const isCompleted = i < activeIndex;
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      role="tab"
+                      aria-selected={isActive}
+                      aria-label={`Go to topic ${i + 1}: ${section.topic_title || ""}`}
+                      title={`Topic ${i + 1}: ${section.topic_title || ""}`}
+                      onClick={() => goToTopic(i)}
+                      className="group relative flex h-5 items-center justify-center cursor-pointer px-0.5 rounded-full transition-transform duration-150 hover:scale-115 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)]"
+                    >
+                      <span
+                        className={`block rounded-full transition-all duration-300 ${
+                          isActive
+                            ? "h-2.5 w-6 sm:w-7 bg-[var(--theme-primary)] shadow-xs ring-2 ring-[var(--theme-primary)]/30"
+                            : isCompleted
+                            ? "h-2.5 w-2.5 sm:w-3 bg-[var(--theme-primary)]/75 group-hover:bg-[var(--theme-primary)]"
+                            : "h-2.5 w-2.5 sm:w-3 bg-muted-foreground/30 group-hover:bg-muted-foreground/60"
+                        }`}
+                      />
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -875,63 +900,75 @@ export function InteractiveSummaryReader({
 
             <div className="w-full h-px bg-border/60 my-8" />
 
-            <div className="space-y-12">
-              <section key={activeIndex} className="scroll-mt-24">
-                <div className="mb-5">
-                  <AnnotatableTextBlock
-                    as="h2"
-                    blockId={titleBlockId}
-                    text={activeSection.topic_title}
-                    annotations={topicAnnotations.filter((a) => a.blockId === titleBlockId)}
-                    pendingSelection={pendingSelectionForBlock(titleBlockId)}
-                    onSelection={handleTextSelection}
-                    onNoteClick={handleNoteMarkerClick}
-                    className="text-xl sm:text-2xl font-bold text-foreground mb-4 tracking-tight"
-                  />
-                </div>
-
-              <div className="space-y-8">
-                <div>
-                  <h3 className="text-xs font-bold text-theme-primary uppercase tracking-wider mb-4">Key Points</h3>
-                  <ul className="space-y-3 list-disc pl-5 m-0">
-                    {activeSection.key_points.map((point, pointIndex) =>
-                      renderPoint(point, pointIndex)
-                    )}
-                  </ul>
-                </div>
-
-                {activeSection.important_terms_and_definitions.length > 0 && (
-                  <div>
-                    <h3 className="text-xs font-bold text-theme-primary uppercase tracking-wider mb-4 mt-8">Terms & Definitions</h3>
-                    <ul className="space-y-3 list-none pl-0 m-0">
-                      {activeSection.important_terms_and_definitions.map((term, termIndex) =>
-                        renderTerm(term, termIndex)
-                      )}
-                    </ul>
+            <div ref={topicSectionRef} className="space-y-12 overflow-hidden">
+              <AnimatePresence mode="wait" custom={direction} initial={false}>
+                <motion.section
+                  key={activeIndex}
+                  custom={direction}
+                  initial={{ opacity: 0, x: direction > 0 ? 32 : -32 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: direction > 0 ? -32 : 32 }}
+                  transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                  className="scroll-mt-24"
+                >
+                  <div className="mb-5">
+                    <AnnotatableTextBlock
+                      as="h2"
+                      blockId={titleBlockId}
+                      text={activeSection.topic_title}
+                      annotations={topicAnnotations.filter((a) => a.blockId === titleBlockId)}
+                      pendingSelection={pendingSelectionForBlock(titleBlockId)}
+                      onSelection={handleTextSelection}
+                      onNoteClick={handleNoteMarkerClick}
+                      className="text-xl sm:text-2xl font-bold text-foreground mb-4 tracking-tight"
+                    />
                   </div>
-                )}
-              </div>
-            </section>
-          </div>
+
+                  <div className="space-y-8">
+                    <div>
+                      <h3 className="text-xs font-bold text-theme-primary uppercase tracking-wider mb-4">Key Points</h3>
+                      <ul className="space-y-3 list-disc pl-5 m-0">
+                        {activeSection.key_points.map((point, pointIndex) =>
+                          renderPoint(point, pointIndex)
+                        )}
+                      </ul>
+                    </div>
+
+                    {activeSection.important_terms_and_definitions.length > 0 && (
+                      <div>
+                        <h3 className="text-xs font-bold text-theme-primary uppercase tracking-wider mb-4 mt-8">Terms & Definitions</h3>
+                        <ul className="space-y-3 list-none pl-0 m-0">
+                          {activeSection.important_terms_and_definitions.map((term, termIndex) =>
+                            renderTerm(term, termIndex)
+                          )}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </motion.section>
+              </AnimatePresence>
+            </div>
           
-          <div className="flex flex-wrap gap-4 items-center justify-between mt-12 pt-8">
-            <Button
-              variant="outline"
-              disabled={activeIndex === 0}
-              onClick={() => setActiveIndex((current) => current - 1)}
-              className="min-h-[42px] min-w-[148px] px-6 rounded-full"
-            >
-              Previous Topic
-            </Button>
-            <Button
-              disabled={activeIndex === sections.length - 1}
-              onClick={() => setActiveIndex((current) => current + 1)}
-              className="min-h-[42px] min-w-[128px] px-6 rounded-full"
-            >
-              Next Topic
-            </Button>
-          </div>
-        </article>
+            <div className="flex flex-wrap gap-4 items-center justify-between mt-12 pt-8">
+              <Button
+                variant="outline"
+                disabled={activeIndex === 0}
+                onClick={() => goToTopic(activeIndex - 1)}
+                className="min-h-[42px] min-w-[148px] px-6 rounded-full inline-flex items-center gap-2 cursor-pointer transition-all hover:bg-muted"
+              >
+                <ChevronLeftIcon className="size-4" />
+                <span>Previous Topic</span>
+              </Button>
+              <Button
+                disabled={activeIndex === sections.length - 1}
+                onClick={() => goToTopic(activeIndex + 1)}
+                className="min-h-[42px] min-w-[128px] px-6 rounded-full inline-flex items-center gap-2 cursor-pointer shadow-sm transition-all hover:brightness-105"
+              >
+                <span>Next Topic</span>
+                <ChevronRightIcon className="size-4" />
+              </Button>
+            </div>
+          </article>
 
         <div className="mt-20 pt-10 border-t border-border/40">
           <RelatedLearningVideos documentId={documentId} />

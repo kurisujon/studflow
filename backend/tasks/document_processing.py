@@ -299,9 +299,20 @@ def _save_optional_related_videos(
     summary: ComprehensiveSummary,
 ) -> None:
     try:
+        from models.tables import RelatedVideo
+        existing_videos = session.exec(
+            select(RelatedVideo).where(RelatedVideo.document_id == document.id)
+        ).all()
+        if len(existing_videos) >= 4:
+            return
+
         youtube_query = extract_youtube_search_query(summary.overall_overview)
-        videos = search_related_videos(youtube_query.search_query, max_results=3)
+        videos = search_related_videos(youtube_query.search_query, max_results=4)
         if videos:
+            if existing_videos:
+                for ev in existing_videos:
+                    session.delete(ev)
+                session.commit()
             save_related_videos(
                 session=session,
                 document_id=document.id,
