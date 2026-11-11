@@ -189,7 +189,13 @@ export default function UploadPage() {
     setIsUploading(true);
 
     try {
-      const token = await getToken();
+      const token = await (async () => {
+        try {
+          return await getToken({ skipCache: true });
+        } catch {
+          return await getToken();
+        }
+      })();
       const headers: HeadersInit = {};
       if (token) {
         headers["Authorization"] = `Bearer ${token}`;

@@ -137,7 +137,10 @@ def verify_clerk_token(token: str) -> dict[str, Any]:
             algorithms=["RS256"],
             audience=settings.clerk_audience if settings.clerk_audience else None,
             issuer=clerk_issuer,
-            options={"verify_aud": bool(settings.clerk_audience)}
+            options={
+                "verify_aud": bool(settings.clerk_audience),
+                "leeway": 180,
+            },
         )
         return payload
     except jwt.ExpiredSignatureError:
