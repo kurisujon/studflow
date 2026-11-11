@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import io
+import logging
 import math
 import re
 import subprocess
@@ -12,6 +13,8 @@ from html.parser import HTMLParser
 from xml.etree import ElementTree
 
 import fitz
+
+logger = logging.getLogger(__name__)
 
 
 class DocumentProcessingError(Exception):
@@ -37,18 +40,24 @@ def _ocr_pdf_page(
     dpi: int,
 ) -> str:
     try:
-        image_bytes = page.get_pixmap(dpi=dpi, alpha=False).tobytes("png")
+        safe_dpi = min(dpi, 200)
+        image_bytes = page.get_pixmap(dpi=safe_dpi, alpha=False).tobytes("png")
         result = subprocess.run(
             ["tesseract", "stdin", "stdout", "-l", language],
             input=image_bytes,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             check=True,
-            timeout=120,
+            timeout=60,
         )
-    except (OSError, subprocess.SubprocessError) as exc:
-        raise DocumentProcessingError("Failed to OCR a PDF page.") from exc
-    return normalize_text(result.stdout.decode("utf-8", errors="replace"))
+        return normalize_text(result.stdout.decode("utf-8", errors="replace"))
+    except Exception as exc:
+        logger.warning(
+            "OCR failed for PDF page %s: %s; falling back to native text",
+            getattr(page, "number", "unknown"),
+            exc,
+        )
+        return ""
 
 
 def extract_pdf_pages(

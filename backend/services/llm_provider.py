@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import itertools
 import logging
+import os
 import threading
 import time
 from collections.abc import Sequence
@@ -38,7 +39,14 @@ class AIServiceError(Exception):
 # ---------------------------------------------------------------------------
 
 _key_iterator = None
+_bad_keys: dict[str, float] = {}
 _key_lock = threading.Lock()
+
+
+def _mark_key_error(api_key: str, status_code: int | None = None) -> None:
+    duration = 600.0 if status_code in {401, 403} else 120.0
+    with _key_lock:
+        _bad_keys[api_key] = time.time() + duration
 
 
 def _get_api_key() -> str:
@@ -48,9 +56,10 @@ def _get_api_key() -> str:
         raise AIServiceError("Gemini is not configured. Set GEMINI_API_KEY.")
 
     with _key_lock:
-        if _key_iterator is None:
-            _key_iterator = itertools.cycle(keys)
-
+        now = time.time()
+        valid_keys = [k for k in keys if _bad_keys.get(k, 0.0) < now]
+        candidate_keys = valid_keys or keys
+        _key_iterator = itertools.cycle(candidate_keys)
         return next(_key_iterator)
 
 
@@ -63,13 +72,43 @@ def _get_client(api_key: str | None = None) -> genai.Client:
     return genai.Client(api_key=key_to_use)
 
 
+_model_cooldowns: dict[str, float] = {}
+_cooldown_lock = threading.Lock()
+
+
+def _mark_model_cooldown(model_name: str, duration_seconds: float = 300.0) -> None:
+    with _cooldown_lock:
+        _model_cooldowns[model_name] = time.time() + duration_seconds
+
+
+def _is_model_cooling_down(model_name: str) -> bool:
+    with _cooldown_lock:
+        expires = _model_cooldowns.get(model_name, 0.0)
+        return time.time() < expires
+
+
 def _candidate_models() -> list[str]:
+    raw_fallbacks = os.getenv("GEMINI_FALLBACK_MODELS")
+    if raw_fallbacks is None:
+        raw_fallbacks = settings.gemini_fallback_models
+
     fallback_models = [
         model.strip()
-        for model in settings.gemini_fallback_models.split(",")
+        for model in raw_fallbacks.split(",")
         if model.strip()
     ]
-    return [settings.gemini_model, *fallback_models]
+    primary = os.getenv("GEMINI_MODEL") or settings.gemini_model
+    models = [primary, *fallback_models]
+
+    # Provide modern, high-quota, resilient flash models as built-in candidate fallbacks
+    for default_candidate in ["gemini-3-flash-preview", "gemini-3.5-flash", "gemini-3.7-flash"]:
+        if default_candidate not in models:
+            models.append(default_candidate)
+
+    clean_models = [m for m in models if m]
+    active = [m for m in clean_models if not _is_model_cooling_down(m)]
+    cooling = [m for m in clean_models if _is_model_cooling_down(m)]
+    return active + cooling
 
 
 def _is_retryable_error(exc: Exception) -> bool:
@@ -129,6 +168,7 @@ def _generate_structured(
                     status_code = getattr(exc, "code", getattr(exc, "status_code", None))
                     if status_code in {401, 403, 429}:
                         # Immediately rotate to the next key
+                        _mark_key_error(current_key, status_code)
                         current_key = _get_api_key()
                         key_rotated = True
                         time.sleep(0.5)  # Brief pause before retrying with new key
@@ -173,6 +213,7 @@ def _generate_structured(
                     model_index < total_models - 1,
                     exc,
                 )
+                _mark_model_cooldown(model_name, duration_seconds=300.0)
                 break
 
             duration_ms = (time.monotonic_ns() - start_ns) / 1_000_000
@@ -333,6 +374,7 @@ def _generate_with_search(
                 if _is_retryable_error(exc) and attempt < max_retries - 1:
                     status_code = getattr(exc, "code", getattr(exc, "status_code", None))
                     if status_code in {401, 403, 429}:
+                        _mark_key_error(current_key, status_code)
                         current_key = _get_api_key()
                         key_rotated = True
                         time.sleep(0.5)
@@ -375,6 +417,7 @@ def _generate_with_search(
                     model_index < total_models - 1,
                     exc,
                 )
+                _mark_model_cooldown(model_name, duration_seconds=300.0)
                 break
 
             duration_ms = (time.monotonic_ns() - start_ns) / 1_000_000
@@ -475,6 +518,7 @@ def _embed_contents(
             if _is_retryable_error(exc) and attempt < max_retries - 1:
                 status_code = getattr(exc, "code", getattr(exc, "status_code", None))
                 if status_code in {401, 403, 429}:
+                    _mark_key_error(current_key, status_code)
                     current_key = _get_api_key()
                     key_rotated = True
                     time.sleep(0.5)

@@ -91,9 +91,10 @@ def _extract_and_persist_chunks(session: Session, document: Document) -> list[Do
     if existing_chunks and (
         extension != ".pdf"
         or any(chunk.page_number is None for chunk in existing_chunks)
+        or (document.page_count is not None and document.active_index_page_cursor >= document.page_count)
     ):
-        # Preserve compatibility for DOCX and pre-page-aware PDF attempts. Mixing
-        # page-local chunks into a flat/null-page generation would corrupt ordering.
+        # Preserve compatibility for DOCX, pre-page-aware PDF attempts,
+        # or PDF documents whose pages have already been completely checkpointed.
         return existing_chunks
 
     update_document_status(

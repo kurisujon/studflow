@@ -207,8 +207,20 @@ def _summary_guides_to_text(guides: Iterable[ComprehensiveSummary]) -> str:
 def generate_summary(chunks: list[str], *, semantic_clusters: list[list[str]] | None=None) -> ComprehensiveSummary:
     if not chunks:
         raise AIServiceError('Cannot generate a summary without document chunks.')
+
+    total_chars = sum(len(c) for c in chunks)
+    # When document text fits within direct context (< 120,000 characters / ~30,000 words),
+    # generate a unified comprehensive study guide in a single high-fidelity, coherent pass.
+    # This avoids burning daily free-tier quotas and avoids Celery task timeout.
+    if total_chars <= 120_000:
+        prompt = _summary_prompt(
+            f'Extract every major concept, important detail, formulas, and key definitions across all topics in the study document.\n\nStudy document text:\n{_join_chunks(chunks)}'
+        )
+        response = _generate_structured(prompt=prompt, response_schema=ComprehensiveSummary)
+        return ComprehensiveSummary.model_validate_json(response.text)
+
     chunk_guides: list[ComprehensiveSummary] = []
-    cluster_groups = semantic_clusters or [chunks[index:index + 4] for index in range(0, len(chunks), 4)]
+    cluster_groups = semantic_clusters or [chunks[index:index + 8] for index in range(0, len(chunks), 8)]
     for index, cluster in enumerate(cluster_groups, start=1):
         prompt = _summary_prompt(f'Semantic document cluster {index}. Cover every provided chunk, retaining details that distinguish one topic from another.\n\nStudy document text:\n{_join_chunks(cluster)}')
         response = _generate_structured(prompt=prompt, response_schema=ComprehensiveSummary)
