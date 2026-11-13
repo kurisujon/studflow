@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function PageHeader({ eyebrow, title, description, action, aside }: {
   eyebrow?: string;
@@ -16,6 +17,34 @@ export function PageHeader({ eyebrow, title, description, action, aside }: {
         <p className="mt-1.5 max-w-2xl text-sm leading-6 text-muted-foreground">{description}</p>
       </div>
       <div className="flex shrink-0 items-center gap-3">{aside}{action ? <Link href={action.href} className="inline-flex min-h-10 items-center justify-center rounded-xl bg-[var(--theme-primary)] px-4 text-sm font-semibold text-[var(--theme-on-primary)] shadow-sm transition hover:bg-[var(--theme-primary-hover)]">{action.label}</Link> : null}</div>
+    </header>
+  );
+}
+
+export function PageHeaderSkeleton({
+  hasEyebrow = true,
+  hasAction = false,
+  hasAside = false,
+  titleWidth = "w-44",
+  descWidth = "w-96",
+}: {
+  hasEyebrow?: boolean;
+  hasAction?: boolean;
+  hasAside?: boolean;
+  titleWidth?: string;
+  descWidth?: string;
+} = {}) {
+  return (
+    <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="min-w-0 space-y-2">
+        {hasEyebrow ? <Skeleton className="h-3.5 w-24" /> : null}
+        <Skeleton className={`h-8 ${titleWidth} max-w-full`} />
+        <Skeleton className={`h-4 ${descWidth} max-w-full`} />
+      </div>
+      <div className="flex shrink-0 items-center gap-3">
+        {hasAside ? <Skeleton className="h-8 w-36 rounded-full" /> : null}
+        {hasAction ? <Skeleton className="h-10 w-32 rounded-xl" /> : null}
+      </div>
     </header>
   );
 }

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowRightIcon, BrainIcon, CircleHelpIcon, FileTextIcon, MessageCircleIcon, StickyNoteIcon } from "@/components/home/icon-registry";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { DocumentListItem } from "@/lib/types";
 
 function formatDate(value: string) {
@@ -20,4 +21,46 @@ export function DocumentLearningCard({ document, mode = "set" }: { document: Doc
     </div>
     <div className="mt-auto pt-5">{ready ? <Link href={href} className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-border bg-background px-3 text-sm font-semibold text-foreground transition group-hover:border-[var(--theme-border)] group-hover:text-[var(--theme-primary)]">{mode === "assistant" ? "Open assistant" : mode === "flashcards" ? "Study cards" : mode === "quiz" ? "Start quiz" : "Open learning space"}<ArrowRightIcon className="size-4" /></Link> : <span className="inline-flex min-h-10 w-full items-center justify-center rounded-xl bg-muted px-3 text-sm font-semibold text-muted-foreground">{document.status === "FAILED" ? "Processing failed" : "Processing material"}</span>}</div>
   </article>;
+}
+
+export function DocumentLearningCardSkeleton({ hasAssistantBadge = false }: { hasAssistantBadge?: boolean } = {}) {
+  return (
+    <article className="flex min-w-0 flex-col rounded-2xl border border-border bg-card p-5 shadow-[0_10px_26px_-24px_rgba(15,23,42,0.45)]">
+      <div className="flex items-start gap-3">
+        <Skeleton className="size-10 shrink-0 rounded-xl" />
+        <div className="min-w-0 flex-1 space-y-2">
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-3 w-1/3" />
+        </div>
+      </div>
+      <div className="mt-5 flex flex-wrap gap-2">
+        <Skeleton className="h-6 w-24 rounded-lg" />
+        <Skeleton className="h-6 w-20 rounded-lg" />
+        <Skeleton className="h-6 w-20 rounded-lg" />
+        {hasAssistantBadge ? <Skeleton className="h-6 w-24 rounded-lg" /> : null}
+      </div>
+      <div className="mt-auto pt-5">
+        <Skeleton className="h-10 w-full rounded-xl" />
+      </div>
+    </article>
+  );
+}
+
+export function DocumentGridSkeleton({
+  count = 6,
+  hasAssistantBadge = false,
+}: {
+  count?: number;
+  hasAssistantBadge?: boolean;
+} = {}) {
+  return (
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      {Array.from({ length: count }).map((_, index) => (
+        <DocumentLearningCardSkeleton
+          key={index}
+          hasAssistantBadge={hasAssistantBadge}
+        />
+      ))}
+    </div>
+  );
 }
