@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 
+import { invalidateAppCache } from "@/app/actions/cache";
 import { API_BASE_URL, buildAPIError } from "@/lib/api";
 
 type DeleteDocumentButtonProps = {
@@ -20,7 +20,6 @@ export function DeleteDocumentButton({
   variant = "default",
 }: DeleteDocumentButtonProps) {
   const { getToken } = useAuth();
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -78,7 +77,7 @@ export function DeleteDocumentButton({
       }
       setOpen(false);
       onSuccess?.(documentId);
-      router.refresh();
+      await invalidateAppCache().catch(() => undefined);
     } catch (deleteError) {
       setError(
         deleteError instanceof Error

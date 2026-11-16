@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { invalidateAppCache } from "@/app/actions/cache";
 import { ArrowUpDownIcon, FileTextIcon, Grid2X2Icon, ListIcon, SearchIcon, UploadIcon } from "@/components/home/icon-registry";
 import { DeleteDocumentButton } from "@/components/delete-document-button";
 import { PageContainer, PageHeader } from "@/components/dashboard/shared/PageHeader";
 import { RetryDocumentButton } from "@/components/retry-document-button";
+import { useDocumentStatus } from "@/hooks/use-document-status";
 import type { DocumentListItem } from "@/lib/types";
 
 type Filter = "all" | "ready" | "processing" | "failed";
@@ -17,6 +19,25 @@ function formatDate(value: string) { const date = new Date(value); return Number
 
 export function DocumentListView({ documents }: { documents: DocumentListItem[] }) {
   const [query, setQuery] = useState(""); const [filter, setFilter] = useState<Filter>("all"); const [sort, setSort] = useState<Sort>("newest"); const [view, setView] = useState<View>("list"); const [removed, setRemoved] = useState<Set<string>>(() => new Set());
+  const activeProcessingId = useMemo(
+    () => documents.find((item) => !removed.has(item.id) && processing(item))?.id ?? null,
+    [documents, removed],
+  );
+  const { data: liveStatus } = useDocumentStatus(activeProcessingId, {
+    enabled: activeProcessingId !== null,
+  });
+  const refreshedDocumentIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!liveStatus) return;
+    if (
+      (liveStatus.status === "COMPLETED" || liveStatus.status === "FAILED") &&
+      refreshedDocumentIdRef.current !== liveStatus.document_id
+    ) {
+      refreshedDocumentIdRef.current = liveStatus.document_id;
+      void invalidateAppCache().catch(() => undefined);
+    }
+  }, [liveStatus]);
   const visible = useMemo(() => documents.filter((item) => !removed.has(item.id)).filter((item) => item.filename.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())).filter((item) => filter === "all" || (filter === "ready" && item.status === "COMPLETED") || (filter === "failed" && item.status === "FAILED") || (filter === "processing" && processing(item))).sort((a,b) => sort === "name" ? a.filename.localeCompare(b.filename) : sort === "oldest" ? new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime() : new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()), [documents, filter, query, removed, sort]);
   const counts = { all: documents.length - removed.size, ready: documents.filter((item) => item.status === "COMPLETED" && !removed.has(item.id)).length, processing: documents.filter((item) => processing(item) && !removed.has(item.id)).length, failed: documents.filter((item) => item.status === "FAILED" && !removed.has(item.id)).length };
 

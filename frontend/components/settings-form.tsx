@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useAuth } from "@clerk/nextjs";
+import { invalidateAppCache } from "@/app/actions/cache";
 import { ThemeSettings } from "@/components/theme/ThemeSettings";
 import { API_BASE_URL, buildAPIError } from "@/lib/api";
 import type { UserPreferences } from "@/lib/types";
@@ -26,6 +27,7 @@ export function SettingsForm({ preferences }: { preferences: UserPreferences }) 
       });
       if (!res.ok) throw await buildAPIError(res, "Failed to save preferences");
       setMessage("Preferences saved.");
+      await invalidateAppCache().catch(() => undefined);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Preferences could not be saved.");
     }

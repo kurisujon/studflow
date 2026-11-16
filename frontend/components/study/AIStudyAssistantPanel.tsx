@@ -12,6 +12,7 @@ import { useAuth } from "@clerk/nextjs";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, ChevronDown, ChevronUp, MessageSquarePlus, RefreshCw, Send, Square, Trash2 } from "lucide-react";
 
+import { invalidateAppCache } from "@/app/actions/cache";
 import { AIConversationMessage } from "@/components/study/AIConversationMessage";
 import { Button } from "@/components/ui/button";
 import {
@@ -582,6 +583,7 @@ export function AIStudyAssistantPanel({
       if (!token) throw new Error("Your session is unavailable.");
       await createFlashcard(documentId, { front: question, back: answer }, token);
       setSavedFlashcardIds((current) => new Set(current).add(message.id));
+      void invalidateAppCache().catch(() => undefined);
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Flashcard could not be saved.");
     } finally {

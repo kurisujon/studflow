@@ -4,7 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function QuizzesLoading() {
   return (
-    <PageContainer>
+    <PageContainer data-route-skeleton="" role="status" aria-label="Loading practice and quizzes">
       <PageHeaderSkeleton
         hasEyebrow={true}
         hasAction={false}

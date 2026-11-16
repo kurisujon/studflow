@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
+import type { HTMLAttributes, ReactNode } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function PageHeader({ eyebrow, title, description, action, aside }: {
@@ -49,8 +49,23 @@ export function PageHeaderSkeleton({
   );
 }
 
-export function PageContainer({ children, width = "wide" }: { children: ReactNode; width?: "wide" | "reading" }) {
-  return <div className={`mx-auto w-full ${width === "reading" ? "max-w-[1080px]" : "max-w-[1400px]"} space-y-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8`}>{children}</div>;
+export function PageContainer({
+  children,
+  width = "wide",
+  className,
+  ...props
+}: HTMLAttributes<HTMLDivElement> & {
+  children: ReactNode;
+  width?: "wide" | "reading";
+}) {
+  return (
+    <div
+      className={`mx-auto w-full ${width === "reading" ? "max-w-[1080px]" : "max-w-[1400px]"} space-y-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8${className ? ` ${className}` : ""}`}
+      {...props}
+    >
+      {children}
+    </div>
+  );
 }
 
 export function SectionHeading({ title, description, action }: { title: string; description?: string; action?: ReactNode }) {

@@ -3,8 +3,8 @@
 import { UserButton } from "@clerk/nextjs";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronRightIcon, FileTextIcon, MenuIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, SearchIcon, UploadIcon, XIcon } from "@/components/home/icon-registry";
 import { ThemeSettings } from "@/components/theme/ThemeSettings";
@@ -23,6 +23,7 @@ export function AppShell({
   isAdmin?: boolean;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -88,6 +89,12 @@ export function AppShell({
     return (normalized ? documents.filter((item) => item.filename.toLocaleLowerCase().includes(normalized)) : documents).slice(0, 6);
   }, [documents, query]);
 
+  const warmRoute = useCallback((href: string) => {
+    const conn = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
+    if (conn?.saveData) return;
+    router.prefetch(href);
+  }, [router]);
+
   function toggleCollapsed() {
     setCollapsed((current) => {
       const next = !current;
@@ -127,6 +134,9 @@ export function AppShell({
           <Link
             href="/dashboard"
             onClick={() => setMobileOpen(false)}
+            onMouseEnter={() => warmRoute("/dashboard")}
+            onFocus={() => warmRoute("/dashboard")}
+            onTouchStart={() => warmRoute("/dashboard")}
             aria-label="StudFlow dashboard"
             className="flex min-w-0 items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
@@ -149,6 +159,9 @@ export function AppShell({
           <Link
             href="/upload"
             onClick={() => setMobileOpen(false)}
+            onMouseEnter={() => warmRoute("/upload")}
+            onFocus={() => warmRoute("/upload")}
+            onTouchStart={() => warmRoute("/upload")}
             aria-label="Upload material"
             className="sidebar-upload"
           >
@@ -172,6 +185,9 @@ export function AppShell({
                         key={item.href}
                         href={item.href}
                         onClick={() => setMobileOpen(false)}
+                        onMouseEnter={() => warmRoute(item.href)}
+                        onFocus={() => warmRoute(item.href)}
+                        onTouchStart={() => warmRoute(item.href)}
                         aria-label={item.label}
                         title={collapsed ? item.label : undefined}
                         aria-current={active ? "page" : undefined}
@@ -212,10 +228,13 @@ export function AppShell({
             <input type="search" value={query} onFocus={() => setSearchOpen(true)} onChange={(event) => { setQuery(event.target.value); setSearchOpen(true); }} placeholder="Search your materials" aria-label="Search learning materials" className="h-10 w-full rounded-xl border border-border bg-background pl-9 pr-3 text-sm outline-none transition focus:border-[var(--theme-primary)] focus:ring-2 focus:ring-[var(--theme-shadow)]" />
             {searchOpen ? <div className="absolute right-0 top-[calc(100%+0.5rem)] z-50 w-full min-w-[280px] overflow-hidden rounded-xl border border-border bg-popover p-1.5 shadow-xl">
               <p className="px-2.5 py-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Materials</p>
-              {results.length ? results.map((item) => <Link key={item.id} href={item.status === "COMPLETED" ? `/dashboard/study/${item.id}` : "/dashboard/docs"} className="flex items-center gap-3 rounded-lg px-2.5 py-2.5 text-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[var(--theme-soft)] text-[var(--theme-primary)]"><FileTextIcon className="size-4" /></span><span className="min-w-0 flex-1 truncate font-medium">{item.filename}</span><span className="text-[10px] font-semibold text-muted-foreground">{item.status === "COMPLETED" ? "Ready" : item.status}</span></Link>) : <p className="px-3 py-6 text-center text-sm text-muted-foreground">No matching materials</p>}
+              {results.length ? results.map((item) => {
+                const targetHref = item.status === "COMPLETED" ? `/dashboard/study/${item.id}` : "/dashboard/docs";
+                return <Link key={item.id} href={targetHref} onMouseEnter={() => warmRoute(targetHref)} onFocus={() => warmRoute(targetHref)} onTouchStart={() => warmRoute(targetHref)} className="flex items-center gap-3 rounded-lg px-2.5 py-2.5 text-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[var(--theme-soft)] text-[var(--theme-primary)]"><FileTextIcon className="size-4" /></span><span className="min-w-0 flex-1 truncate font-medium">{item.filename}</span><span className="text-[10px] font-semibold text-muted-foreground">{item.status === "COMPLETED" ? "Ready" : item.status}</span></Link>;
+              }) : <p className="px-3 py-6 text-center text-sm text-muted-foreground">No matching materials</p>}
             </div> : null}
           </div>
-          <Link href="/upload" className="hidden h-10 shrink-0 items-center gap-2 rounded-xl bg-[var(--theme-primary)] px-3.5 text-sm font-semibold text-[var(--theme-on-primary)] shadow-sm transition hover:bg-[var(--theme-primary-hover)] md:inline-flex lg:hidden"><UploadIcon className="size-4" aria-hidden="true" />Upload</Link>
+          <Link href="/upload" onMouseEnter={() => warmRoute("/upload")} onFocus={() => warmRoute("/upload")} onTouchStart={() => warmRoute("/upload")} className="hidden h-10 shrink-0 items-center gap-2 rounded-xl bg-[var(--theme-primary)] px-3.5 text-sm font-semibold text-[var(--theme-on-primary)] shadow-sm transition hover:bg-[var(--theme-primary-hover)] md:inline-flex lg:hidden"><UploadIcon className="size-4" aria-hidden="true" />Upload</Link>
           <ThemeSettings /><UserButton />
         </header>
         <main id="main-content" className="min-w-0 flex-1">{children}</main>

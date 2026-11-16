@@ -4,7 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function FlashcardsLoading() {
   return (
-    <PageContainer>
+    <PageContainer data-route-skeleton="" role="status" aria-label="Loading flashcards">
       <PageHeaderSkeleton
         hasEyebrow={true}
         hasAction={false}

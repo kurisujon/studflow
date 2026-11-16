@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffectEvent } from "react";
 import { useAuth } from "@clerk/nextjs";
 
+import { invalidateAppCache } from "@/app/actions/cache";
 import { API_BASE_URL, buildAPIError } from "@/lib/api";
 import { useDocumentStatus } from "@/hooks/use-document-status";
 import { DocumentProcessingStatus } from "@/components/document-processing-status";
@@ -106,18 +107,19 @@ export default function UploadPage() {
     });
   });
 
-  const handleTerminalStatus = useEffectEvent((status: "COMPLETED" | "FAILED", completedDocumentId?: string) => {
+  const handleTerminalStatus = useEffectEvent(async (status: "COMPLETED" | "FAILED", completedDocumentId?: string) => {
+    setPollingEnabled(false);
+    setIsUploading(false);
+
     if (status === "COMPLETED" && completedDocumentId) {
-      setPollingEnabled(false);
-      setIsUploading(false);
+      await invalidateAppCache().catch(() => undefined);
       redirectToStudy(completedDocumentId);
       return;
     }
 
-    setPollingEnabled(false);
-    setIsUploading(false);
     setRetryQueued(false);
     setError("Processing failed. Your file is saved and can be retried.");
+    void invalidateAppCache().catch(() => undefined);
   });
 
   useEffect(() => {
@@ -128,7 +130,7 @@ export default function UploadPage() {
     if (statusData.status === "COMPLETED") {
       const completedDocumentId = statusData.document_id;
       const timeoutId = window.setTimeout(() => {
-        handleTerminalStatus("COMPLETED", completedDocumentId);
+        void handleTerminalStatus("COMPLETED", completedDocumentId);
       }, 0);
 
       return () => {
@@ -141,7 +143,7 @@ export default function UploadPage() {
     }
 
     const timeoutId = window.setTimeout(() => {
-      handleTerminalStatus("FAILED");
+      void handleTerminalStatus("FAILED");
     }, 0);
 
     return () => {

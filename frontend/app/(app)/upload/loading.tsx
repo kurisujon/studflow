@@ -4,6 +4,7 @@ export default function UploadLoading() {
   return (
     <section
       className="flex min-h-[calc(100dvh-var(--nav-height))] flex-col items-center justify-center p-4 sm:p-6 bg-[var(--background)]"
+      data-route-skeleton=""
       role="status"
       aria-label="Loading upload page"
     >

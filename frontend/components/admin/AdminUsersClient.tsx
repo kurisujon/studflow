@@ -2,6 +2,7 @@
 
 import { useAuth } from "@clerk/nextjs";
 import { useMemo, useState } from "react";
+import { invalidateAppCache } from "@/app/actions/cache";
 import {
   AlertCircleIcon,
   BanIcon,
@@ -112,6 +113,7 @@ export function AdminUsersClient({
       const token = await getToken();
       const latest = await getAdminUsersOverview(token);
       setOverview(latest);
+      void invalidateAppCache().catch(() => undefined);
     } catch (error) {
       setBanner({
         type: "error",

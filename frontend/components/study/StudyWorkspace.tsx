@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
+import { invalidateAppCache } from "@/app/actions/cache";
 import { FlashcardStudy } from "@/components/flashcard-study";
 import { QuizStudy } from "@/components/quiz-study";
 import { SummaryStudy } from "@/components/summary-study";
 import { RetryDocumentButton } from "@/components/retry-document-button";
+import { useDocumentStatus } from "@/hooks/use-document-status";
 import type { StudyDocument } from "@/lib/types";
 import {
   FileTextIcon,
@@ -124,6 +126,17 @@ export function StudyWorkspace({
   const isFailed = document.status === "FAILED";
   const isCompleted = document.status === "COMPLETED";
   const isProcessing = !isFailed && !isCompleted;
+
+  const { data: liveStatus } = useDocumentStatus(document.id, { enabled: isProcessing });
+  const refreshedTerminalRef = useRef(false);
+
+  useEffect(() => {
+    if (!isProcessing || refreshedTerminalRef.current || !liveStatus) return;
+    if (liveStatus.status === "COMPLETED" || liveStatus.status === "FAILED") {
+      refreshedTerminalRef.current = true;
+      void invalidateAppCache().catch(() => undefined);
+    }
+  }, [isProcessing, liveStatus]);
 
 
   const counts: Partial<Record<StudyTab, number>> = {

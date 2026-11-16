@@ -3,7 +3,12 @@ import { Loader2Icon as Loader2 } from "@/components/home/icon-registry";
 
 export default function StudyWorkspaceLoading() {
   return (
-    <div aria-hidden="true" className="flex w-full flex-1 flex-col gap-5 pb-10">
+    <div
+      data-route-skeleton=""
+      role="status"
+      aria-label="Loading study workspace"
+      className="flex w-full flex-1 flex-col gap-5 pb-10"
+    >
       {/* TOP BAR CARDS SKELETON */}
       <aside className="flex w-full flex-col gap-3">
         <Skeleton className="h-5 w-32 rounded" />

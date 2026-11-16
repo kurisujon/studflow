@@ -3,7 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function DocsLoading() {
   return (
-    <PageContainer>
+    <PageContainer data-route-skeleton="" role="status" aria-label="Loading library">
       <PageHeaderSkeleton
         hasEyebrow={true}
         hasAction={true}

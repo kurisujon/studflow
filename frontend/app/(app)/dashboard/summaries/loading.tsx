@@ -2,12 +2,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function SummariesLoading() {
   return (
-    <div className="relative min-h-[calc(100dvh-var(--nav-height))]">
-      <div
-        className="relative mx-auto w-full max-w-[1440px] space-y-7 px-4 py-6 sm:px-6 lg:px-8 lg:py-8"
-        role="status"
-        aria-label="Loading summary library"
-      >
+    <div
+      className="relative min-h-[calc(100dvh-var(--nav-height))]"
+      data-route-skeleton=""
+      role="status"
+      aria-label="Loading summary library"
+    >
+      <div className="relative mx-auto w-full max-w-[1440px] space-y-7 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
         {/* Header */}
         <header className="relative flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
           <div className="flex min-w-0 items-start gap-4">

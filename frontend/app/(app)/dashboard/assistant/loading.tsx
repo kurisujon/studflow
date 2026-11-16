@@ -4,7 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function AssistantLoading() {
   return (
-    <PageContainer>
+    <PageContainer data-route-skeleton="" role="status" aria-label="Loading AI Study Assistant">
       <PageHeaderSkeleton
         hasEyebrow={true}
         hasAction={false}

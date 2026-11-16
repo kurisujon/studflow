@@ -4,6 +4,7 @@ export default function AdminLoading() {
   return (
     <div
       className="mx-auto w-full max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8"
+      data-route-skeleton=""
       role="status"
       aria-label="Loading user management"
     >

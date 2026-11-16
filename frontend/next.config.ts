@@ -11,6 +11,10 @@ const nextConfig: NextConfig = {
   experimental: {
     proxyClientMaxBodySize: "50mb",
     proxyTimeout: 180_000,
+    staleTimes: {
+      dynamic: 120,
+      static: 300,
+    },
   },
   turbopack: {
     root: path.resolve(__dirname),

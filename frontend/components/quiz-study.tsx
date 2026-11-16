@@ -5,6 +5,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { invalidateAppCache } from "@/app/actions/cache";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@clerk/nextjs";
 import { createQuizAttempt, getQuizAttempts } from "@/lib/api/quiz-attempts";
@@ -151,6 +152,7 @@ export function QuizStudy({
         );
         setAttempts((current) => [savedAttempt, ...current]);
         setAttemptError(null);
+        void invalidateAppCache().catch(() => undefined);
       } catch (error) {
         console.error(error);
         setAttemptError("Quiz attempt could not be saved.");

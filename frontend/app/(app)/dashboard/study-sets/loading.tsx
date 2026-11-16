@@ -3,7 +3,7 @@ import { DocumentGridSkeleton } from "@/components/dashboard/shared/DocumentLear
 
 export default function StudySetsLoading() {
   return (
-    <PageContainer>
+    <PageContainer data-route-skeleton="" role="status" aria-label="Loading study sets">
       <PageHeaderSkeleton
         hasEyebrow={true}
         hasAction={true}

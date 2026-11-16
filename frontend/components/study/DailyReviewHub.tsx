@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 
+import { invalidateAppCache } from "@/app/actions/cache";
 import { Button } from "@/components/ui/button";
 import type { StudyFlashcard } from "@/lib/types";
 import { reviewFlashcardAction } from "@/app/actions/study";
@@ -23,6 +24,25 @@ export function DailyReviewHub({
   const router = useRouter();
   const reduceMotion = useReducedMotion();
   const flipDurationMs = reduceMotion ? 0 : CARD_FLIP_DURATION_MS;
+  const hasRatedRef = useRef(false);
+
+  const flushInvalidation = useCallback(() => {
+    if (!hasRatedRef.current) return;
+    hasRatedRef.current = false;
+    void invalidateAppCache().catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    if (flashcards.length === 0) {
+      flushInvalidation();
+    }
+  }, [flashcards.length, flushInvalidation]);
+
+  useEffect(() => {
+    return () => {
+      flushInvalidation();
+    };
+  }, [flushInvalidation]);
 
   const handleReview = useCallback(
     async (rating: "again" | "hard" | "good" | "easy") => {
@@ -32,6 +52,7 @@ export function DailyReviewHub({
       setReviewError(null);
       try {
         await reviewFlashcardAction(flashcards[0].id, rating);
+        hasRatedRef.current = true;
 
         setIsChangingCard(true);
         setIsFlipped(false);

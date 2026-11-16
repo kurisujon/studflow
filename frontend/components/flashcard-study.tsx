@@ -16,6 +16,7 @@ import {
   VolumeXIcon,
 } from "@/components/home/icon-registry";
 
+import { invalidateAppCache } from "@/app/actions/cache";
 import { reviewFlashcardAction } from "@/app/actions/study";
 import { Button } from "@/components/ui/button";
 import type { StudyFlashcard } from "@/lib/types";
@@ -91,8 +92,25 @@ export function FlashcardStudy({
   const reduceMotion = useReducedMotion();
   const flipDurationMs = reduceMotion ? 0 : CARD_FLIP_DURATION_MS;
   const cardChangeTimeoutRef = useRef<number | null>(null);
+  const hasRatedRef = useRef(false);
+  const lastReviewPromiseRef = useRef<Promise<unknown> | null>(null);
 
-  // Clean up timers on unmount
+  const flushInvalidation = useCallback(() => {
+    if (!hasRatedRef.current) return;
+    hasRatedRef.current = false;
+    const pending = lastReviewPromiseRef.current;
+    void (pending ? pending.catch(() => undefined) : Promise.resolve()).then(() =>
+      invalidateAppCache().catch(() => undefined),
+    );
+  }, []);
+
+  useEffect(() => {
+    if (isCompleted) {
+      flushInvalidation();
+    }
+  }, [flushInvalidation, isCompleted]);
+
+  // Clean up timers and flush any rated flashcard cache invalidation on unmount
   useEffect(() => {
     return () => {
       if (cardChangeTimeoutRef.current) {
@@ -101,8 +119,9 @@ export function FlashcardStudy({
       if (typeof window !== "undefined" && "speechSynthesis" in window) {
         window.speechSynthesis.cancel();
       }
+      flushInvalidation();
     };
-  }, []);
+  }, [flushInvalidation]);
 
   // Base deck: shuffled if enabled, else input flashcards
   const deck = isShuffled && shuffledDeck ? shuffledDeck : flashcards;
@@ -228,8 +247,9 @@ export function FlashcardStudy({
         [rating]: prev[rating] + 1,
       }));
 
+      hasRatedRef.current = true;
       // Fire server action in background without blocking UI
-      reviewFlashcardAction(activeCard.id, rating).catch((err: unknown) => {
+      lastReviewPromiseRef.current = reviewFlashcardAction(activeCard.id, rating).catch((err: unknown) => {
         console.warn("Could not save flashcard review rating:", err);
       });
 

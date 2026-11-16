@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { API_BASE_URL, readAPIErrorDetail } from "@/lib/api";
 import type {
   AdminUsersOverview,
@@ -14,9 +15,13 @@ import type {
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 
-async function fetchJSON<T>(path: string): Promise<T> {
+const getAuthToken = cache(async (): Promise<string | null> => {
   const { getToken } = await auth();
-  const token = await getToken();
+  return getToken();
+});
+
+const fetchJSON = cache(async <T>(path: string): Promise<T> => {
+  const token = await getAuthToken();
 
   const headers: HeadersInit = {};
   if (token) {
@@ -44,7 +49,7 @@ async function fetchJSON<T>(path: string): Promise<T> {
   }
 
   return (await response.json()) as T;
-}
+});
 
 export function fetchDocuments(): Promise<DocumentListItem[]> {
   return fetchJSON<DocumentListItem[]>("/api/documents");

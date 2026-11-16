@@ -3,7 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function ReviewLoading() {
   return (
-    <PageContainer width="reading">
+    <PageContainer width="reading" data-route-skeleton="" role="status" aria-label="Loading daily review">
       <PageHeaderSkeleton
         hasEyebrow={true}
         hasAction={false}

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
+import { invalidateAppCache } from "@/app/actions/cache";
 import { API_BASE_URL, buildAPIError } from "@/lib/api";
 import { Loader2Icon, AlertCircleIcon } from "@/components/home/icon-registry";
 
@@ -18,7 +18,6 @@ export function RetryDocumentButton({
   variant = "default",
 }: RetryDocumentButtonProps) {
   const { getToken } = useAuth();
-  const router = useRouter();
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,7 +49,7 @@ export function RetryDocumentButton({
       }
 
       onSuccess?.();
-      router.refresh();
+      await invalidateAppCache().catch(() => undefined);
     } catch (retryError) {
       setError(
         retryError instanceof Error
