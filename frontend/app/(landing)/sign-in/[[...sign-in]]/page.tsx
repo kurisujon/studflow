@@ -1,31 +1,22 @@
-import { SignIn } from "@clerk/nextjs";
+import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
+import { SignInView } from "@/components/auth/SignInView";
+import { resolveSafeRedirectPath } from "@/lib/safe-redirect";
 
-export default function SignInPage() {
-  return (
-    <div className="mt-[80px] flex min-h-[calc(100dvh-80px)] flex-col items-center justify-center p-4">
-      <SignIn
-        appearance={{
-          variables: {
-            colorPrimary: "var(--theme-primary)",
-            colorBackground: "var(--card)",
-            colorText: "var(--foreground)",
-            colorTextSecondary: "var(--muted-foreground)",
-            colorInputBackground: "var(--background)",
-            colorInputText: "var(--foreground)",
-            borderRadius: "0.75rem",
-          },
-          elements: {
-            socialButtons: { display: "none" },
-            socialButtonsBlockButton: { display: "none" },
-            socialButtonsRoot: { display: "none" },
-            dividerRow: { display: "none" },
-            footerAction: { display: "none" },
-          },
-        }}
-      />
-      <p className="mt-4 max-w-sm text-center text-xs text-muted-foreground">
-        Access is limited to registered accounts. Need an account? Contact your workspace administrator for an invitation.
-      </p>
-    </div>
-  );
+export default async function SignInPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const [{ userId }, resolvedParams] = await Promise.all([
+    auth(),
+    searchParams,
+  ]);
+  const destination = resolveSafeRedirectPath(resolvedParams?.redirect_url);
+
+  if (userId) {
+    redirect(destination);
+  }
+
+  return <SignInView fallbackRedirectUrl={destination} />;
 }
