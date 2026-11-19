@@ -136,7 +136,7 @@ Goal: replace isolated AI report sessions with durable, ownership-safe conversat
 - [x] Add page-aware PDF chunking and controlled legacy-document reindexing
 - [x] Propagate verified PDF page numbers through active-generation document citations
 - [x] Keep document retrieval selected while rejecting Web and Hybrid before AI generation or persistence
-- [ ] Add verified Google Search grounding with document, web, and hybrid modes (approved 2026-10-28 — tracked in Phase E below)
+- [x] Add verified Google Search grounding with document, web, and hybrid modes (approved 2026-10-28 — implemented and enabled in Phase E)
 - [ ] Add authenticated streaming after the synchronous contract is stable
 
 ## Phase A: AI Architecture Cleanup (Current Priority)
@@ -334,10 +334,10 @@ Goal: Begin systematic chunking experiments and threshold tuning evaluating cand
 - [x] Stop API producers and prove stable visible/unacknowledged queue drain before each worker boundary
 - [x] Restore legacy credentials before any legacy image during automatic rollback
 - [x] Add symbolic success, audit failure, drain failure, role failure, and rollback-order tests
-- [ ] Run the protected transition in an approved production maintenance window
+- [x] Run the protected transition in an approved production maintenance window (executed 2026-11-01 per `docs/roadmap.md`)
 - [ ] Rerun the unchanged strict production preflight after cutover
 
-## Phase E: Verified Web Grounding & Conversational Turns (Implemented Behind Flag — Pending Rollout)
+## Phase E: Verified Web Grounding & Conversational Turns (Merged & Active with `WEB_GROUNDING_ENABLED=true`)
 
 Goal: let the study assistant answer beyond the uploaded document using cited web sources, and reply naturally to conversational turns, without allowing uncited or invented facts. Rules are defined in `docs/GUARDRAILS.md` § Verified Web Grounding.
 
@@ -360,7 +360,7 @@ Prerequisite: the V2.1.1 RLS runtime transition and the deployment of the Phase 
 - [x] Run semantic citation evaluation and unsupported-claim filtering for web claims
 - [x] Hybrid: document retrieval first, web for the remaining gap, independently validated paths
 - [x] Keep explicit document-only requests on the strict document path with no web search
-- [x] Gate `web`/`hybrid` behind a default-disabled `WEB_GROUNDING_ENABLED` flag (preserving 409 when disabled)
+- [x] Gate `web`/`hybrid` behind `WEB_GROUNDING_ENABLED` (preserving 409 when disabled; enabled by default via #15)
 
 ### E4: Persistence, Limits, and API
 - [x] Persist web citations with `source_type="web"`, URL, title, and bounded excerpt (domain derived on read)
@@ -377,3 +377,45 @@ Prerequisite: the V2.1.1 RLS runtime transition and the deployment of the Phase 
 - [x] Confirm document-mode C6 regression gate still passes against `c3_baseline_v2`
 - [x] Backend tests, frontend lint/build, independent security review
 - [ ] Authenticated production acceptance after separate deployment approval
+
+## Post-Phase E Landings on `main` (2026-11-01 to 2026-11-17)
+
+- [x] Enable `WEB_GROUNDING_ENABLED=true` default (`#15`), parallelize `hybrid`/`web` retrieval in `backend/services/ai_chat.py`, and raise `proxyTimeout: 180_000` in `frontend/next.config.ts` (`#16`)
+- [x] Redesign Study Workspace AI assistant sidebar (docked/collapsible panel, spring animations, notes active-tab indicator, topic page navigation animations, and flashcard active-recall polish)
+- [x] Enforce admin-provisioned access, Clerk allowlist sync, `/access-restricted` gate, invite-only `/sign-up`, and `/dashboard/admin` user management (`backend/api/routes/admin.py`, `backend/services/clerk_users.py`, `GET /api/user/access-status`)
+- [x] Support multi-format study uploads (`.pdf`, `.docx`, `.pptx`, `.epub`, `.txt`, `.md`, `.csv`, `.rtf`, `.html`, `.htm`) and add JWT leeway (`180`s) + `skipCache` for large file uploads
+- [x] Optimize summary synthesis and add modern Gemini fallback model defaults with per-key and per-model cooldowns in `backend/services/llm_provider.py`
+- [x] Add route loading skeletons across `/dashboard/*` and `/upload`, enable Next.js `experimental.staleTimes` client router cache (`dynamic: 120`, `static: 300`), intent prefetching, and `invalidateAppCache` (`frontend/app/actions/cache.ts`)
+- [x] Redirect already signed-in users away from `/sign-in` safely (`resolveSafeRedirectPath`) and guard Clerk `setActive()` completion transition (`SignInView`, `f0b4948`)
+
+## Local Workspace Follow-Ups (2026-11-17)
+
+- [ ] Clean up untracked local scratch scripts/logs in repository root before committing docs updates
+
+## Phase F: Trust & Study-Loop Depth (Planned — see `docs/phase-f-spec.md`)
+
+### Prerequisite: Local RLS Test Environment
+- [ ] Add `docker-compose.test.yml` (`pgvector/pgvector:pg16` with healthcheck) and `app_role` init script matching `pipeline.yml:135-152`
+- [ ] Document the one-command local RLS test run in `docs/cicd.md`
+- [ ] Verify `backend/eval/test_rls_integration.py` and `backend/eval/test_rls_mid_request_commit.py` pass locally
+- [ ] Add a CI/unit check asserting `RUNTIME_TABLES` stays aligned across `pipeline.yml`, `scripts/runtime_database_transition.py`, `scripts/check_runtime_database.py`, and `backend/eval/test_rls_integration.py`
+
+### F1: Prompt-Injection Hardening
+- [ ] F1.1: Add `system_instruction` support to `_generate_structured` and `_generate_with_search` in `backend/services/llm_provider.py` and split all `backend/services/ai_service.py` prompt call sites
+- [ ] F1.1: Verify C3 candidate vs `c3_baseline_v2` via `backend/eval/run_c6.py`
+- [ ] F1.2: Create unified output sanitizer entry point covering all chat paths/fields (`STRICT_DOCUMENT`, `WEB`, `TEACHING`, `CLARIFICATION`, `clarification_question`, `suggested_followups`) plus `validate_summary`, `validate_flashcards`, `validate_quiz`, and `explain_selection`
+- [ ] F1.2: Fix `_MARKDOWN_LINK_RE` image-prefix leak (`![alt](...)`), block `data:`/`javascript:`/protocol-relative schemes everywhere, and strip bare `http(s)://`/`www.` URLs on chat paths only
+- [ ] F1.3: Add offline boundary/sanitizer eval fixtures and a separate live canary injection eval suite (keeping `c1-v1` and `c3_baseline_v2` untouched)
+- [ ] Update `docs/architecture.md`, `docs/tasks.md`, and `docs/roadmap.md`
+
+### F2: Citation Source Passage Drawer (Schema-Migration Release Path)
+- [ ] F2.1: Add `supporting_quote` to `RawCitationEvaluation` (`evaluate_citations`), validate server-side against `DocumentChunk.content`, and map one verified quote per unique `AIMessageCitation` row
+- [ ] F2.2: Add Alembic migration (`quote`, `quote_start`, `quote_end` + check constraint on `ai_message_citations`) and expose `AIMessageCitation.id` + quote fields in `CitationResponse`, `_citation_response`, and `AIChatCitation`
+- [ ] F2.3: Add `GET /api/ai/citations/{citation_id}/passage` under `/api/ai` with `TenantSession` authz, ±1,200-char context window, `stale` detection, and deleted-chunk `excerpt` fallback
+- [ ] F2.4: Make `[n]` chips in `SafeMessageContent.tsx` and document entries in `AIConversationSources.tsx` open `SourcePassageDrawer` (keyboard accessible, Esc close, focus trap & return)
+- [ ] F2 Tests & Eval: backend passage/offset tests, live RLS suite expansion, quote verbatim rate eval metric, and responsive/keyboard manual QA
+
+### F3–F5: Study-Loop Depth (Upcoming)
+- [ ] F3: Tutor mode generation path (Socratic prompts, hint ladder, evidence-checked answers, citations preserved)
+- [ ] F4: FSRS scheduler + `flashcard_reviews` review log (1-hop RLS, `RUNTIME_TABLES` grants, shadow rollout, progress retention curve)
+- [ ] F5: Exam planner (`study_sets` and exam/goal schema with RLS + grants, scheduler across due cards, weak quiz topics, and days remaining)
