@@ -190,3 +190,17 @@ Authenticated AI acceptance uses a designated test account and controlled docume
 Release logs contain only sanitized counts, image digests, service health, and infrastructure identifiers. They must never include production environment values, database contents, document identifiers, Celery task arguments, SSH keys, or package tokens.
 
 Earlier CI revisions sent diagnostics to `webhook.site`; current workflows contain no diagnostic webhooks or unexpected external transmission. Rotate credentials only if retained historical payloads prove that a credential was exposed.
+
+## Local RLS verification
+
+The live PostgreSQL RLS suites (`backend/eval/test_rls_integration.py` and `backend/eval/test_rls_mid_request_commit.py`) require a PostgreSQL 16 + `pgvector` database configured with the non-superuser `NOBYPASSRLS` test role (`app_role`, matching `.github/workflows/pipeline.yml:135-152`; production uses `app_user` with the same least-privilege contract).
+
+Keep the test database in `docker-compose.test.yml` (with role initialization in `deploy/postgres-test/01-init-app-role.sql`) rather than `docker-compose.yml` so migration-free application releases remain unblocked under `.github/workflows/application-release.yml:88-106`.
+
+Run both RLS suites locally against an ephemeral `pgvector/pgvector:pg16` container in one command:
+
+```bash
+.venv/bin/python scripts/run_local_rls_tests.py
+```
+
+The runner boots `postgres-test` cleanly, waits for its `pg_isready` healthcheck, runs `alembic upgrade head` as `postgres`, grants `SELECT, INSERT, UPDATE, DELETE` on `RUNTIME_TABLES` to `app_role`, executes both RLS `pytest` files under `app_role`, and tears down the container (`docker compose -f docker-compose.test.yml down -v`) unless `--keep-db` is passed.

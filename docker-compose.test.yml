@@ -1,0 +1,25 @@
+name: studflow-rls-test
+
+services:
+  postgres-test:
+    # Ephemeral PostgreSQL 16 + pgvector instance for local live app_role RLS suites.
+    # Kept separate from docker-compose.yml so migration-free application releases stay unblocked.
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: ${POSTGRES_TEST_DB:-studflow_test}
+      POSTGRES_USER: ${POSTGRES_TEST_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_TEST_PASSWORD:-testpass}
+    ports:
+      - "127.0.0.1:${POSTGRES_TEST_PORT:-55432}:5432"
+    volumes:
+      - ./deploy/postgres-test/01-init-app-role.sql:/docker-entrypoint-initdb.d/01-init-app-role.sql:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_TEST_USER:-postgres} -d ${POSTGRES_TEST_DB:-studflow_test}",
+        ]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+      start_period: 5s
