@@ -1,6 +1,6 @@
 # Studflow Roadmap and Handoff
 
-Last updated: 2026-11-05
+Last updated: 2026-11-19
 
 ## Purpose
 
@@ -56,30 +56,41 @@ Core user flow currently implemented:
 Current user-facing routes:
 
 - `/`: homepage
-- `/sign-in`
-- `/sign-up`
-- `/upload`
-- `/dashboard`
-- `/dashboard/study/[id]`
-- `/dashboard/upload`
+- `/sign-in`: custom `SignInView` wrapper with completion-resilient redirect handling and `resolveSafeRedirectPath` (`f0b4948`)
+- `/sign-up`: invite-only registration gate (renders Clerk `<SignUp>` when `__clerk_ticket` is present)
+- `/access-restricted`: pending-approval / suspended-account status gate
+- `/upload`: multi-format study material upload flow
+- `/dashboard`: overview
+- `/dashboard/docs`: My Library
+- `/dashboard/study-sets`: Study Sets
+- `/dashboard/assistant`: AI Study Assistant
+- `/dashboard/summaries`: Summaries & Notes
+- `/dashboard/flashcards`: Flashcards hub
+- `/dashboard/quizzes`: Practice & Quizzes hub
+- `/dashboard/review`: Daily Review hub
+- `/dashboard/progress`: My Progress analytics
+- `/dashboard/settings`: Settings
+- `/dashboard/admin`: Admin User Management (admin-only)
+- `/dashboard/study/[id]`: Study Workspace
+- `/dashboard/upload`: redirect alias to `/upload`
 
 Current frontend status:
 
-- Clerk auth is wired in and route protection is active in `frontend/proxy.ts`.
+- Clerk auth is wired in and route protection is active in `frontend/proxy.ts`; `frontend/app/(app)/layout.tsx` enforces backend `fetchUserAccessStatus()` approval and redirects unapproved/suspended accounts to `/access-restricted`.
 - `/dashboard/*` and `/upload/*` are protected.
-- The real upload flow lives at `/upload`.
-- `/dashboard/upload` is currently a lightweight redirect alias to `/upload`.
+- `frontend/next.config.ts` configures `experimental.staleTimes` (`dynamic: 120`, `static: 300`), `proxyClientMaxBodySize: "50mb"`, and `proxyTimeout: 180_000`; client mutations invoke `invalidateAppCache` (`frontend/app/actions/cache.ts`).
+- The real upload flow lives at `/upload` (with `/dashboard/upload` redirecting to `/upload`).
 - Dashboard fetches user-owned documents from the backend.
-- Study workspace loads a specific processed document and supports tab navigation for summary, flashcards, and quiz.
-- The summary view is not a static text block; it uses the interactive study components already present under `frontend/components/study/`.
-- The AI study panel loads and persists document-scoped conversations, supports conversation switching and backward history pagination, and renders structured source citations.
+- Study workspace loads a specific processed document and supports tab navigation for summary, flashcards, and quiz, with a collapsible/animated AI study sidebar and route loading skeletons across `/dashboard/*` and `/upload`.
+- The summary view uses the interactive study components under `frontend/components/study/`.
+- The AI study panel loads and persists document-scoped conversations, supports conversation switching, soft-delete, and backward history pagination, renders structured document/web citations, and passes sanitized Google Search attribution into a sandboxed iframe.
 
 ### Backend
 
 Current backend status:
 
-- FastAPI app boots from `backend/main.py`.
-- File upload endpoint exists at `POST /api/upload`.
+- FastAPI app boots from `backend/main.py` with routers mounted under `/api` (`health`, `admin`, `ai_chat`, `documents`, `study`, `upload`, `user`).
+- File upload endpoint exists at `POST /api/upload` supporting `.pdf`, `.docx`, `.pptx`, `.epub`, `.txt`, `.md`, `.csv`, `.rtf`, `.html`, and `.htm`.
 - Document endpoints exist for:
   - document list
   - processing status
@@ -90,12 +101,13 @@ Current backend status:
   - notes
   - AI history
   - AI explanation for selected content
-- Persistent conversation CRUD, message history, and synchronous document-grounded messaging are mounted under `/api/ai`.
+- Persistent conversation CRUD, message history, synchronous document/web/hybrid messaging, and `GET /api/ai/capabilities` (`WEB_GROUNDING_ENABLED=true` default) are mounted under `/api/ai`.
+- Admin-provisioned access status (`GET /api/user/access-status`) and Clerk user/invitation management (`/api/admin/users`, `/api/admin/invitations`) are enforced via `backend/core/auth.py` and `backend/services/clerk_users.py`.
 - Celery task `process_document_task` handles:
   - storage download
-  - PDF/DOCX text extraction
-  - chunking
-  - summary generation
+  - multi-format text extraction (with selective OCR on text-sparse PDF pages)
+  - chunking and embeddings
+  - summary generation (with per-key/model cooldowns and fallback chain in `backend/services/llm_provider.py`)
   - flashcard generation
   - quiz generation
   - optional related video enrichment
@@ -1247,3 +1259,42 @@ When a future agent completes a meaningful feature, they should update this file
 
 **What to do next:**
 - Complete human final diff review before committing, execute the V2.1.1 protected RLS runtime transition in an approved production maintenance window, and complete authenticated production acceptance for Phase E after separate deployment approval.
+
+### Update: 2026-11-17 — Post-Phase E Landings & Sign-In Resilience Sync
+
+**What Changed:**
+- Synchronized `AGENTS.md`, `GEMINI.md`, `docs/architecture.md`, `docs/tasks.md`, and `docs/roadmap.md` with verified `main` landings from `2026-11-01` through `2026-11-17` (`f0b4948`):
+  - Phase E default activation (`WEB_GROUNDING_ENABLED=true` in `backend/core/config.py`, `#15`) and parallelized `hybrid`/`web` retrieval (`ThreadPoolExecutor(max_workers=2)` in `backend/services/ai_chat.py`) paired with `proxyTimeout: 180_000` in `frontend/next.config.ts` (`#16`).
+  - Admin-provisioned access enforcement & Clerk allowlist user management (`backend/api/routes/admin.py`, `backend/services/clerk_users.py`, `backend/core/auth.py`, `GET /api/user/access-status`, `/dashboard/admin`, `/access-restricted`, invite-only `/sign-up`).
+  - Multi-format study uploads (`.pdf`, `.docx`, `.pptx`, `.epub`, `.txt`, `.md`, `.csv`, `.rtf`, `.html`, `.htm` in `backend/api/routes/upload.py` and `backend/services/document_processing.py`) plus `180`s JWT leeway and `skipCache` upload token handling (`4a4f817`).
+  - Summary synthesis optimization and Gemini per-key / per-model cooldowns with modern fallback defaults (`backend/services/llm_provider.py`).
+  - Study workspace AI sidebar dock/animations, flashcard active-recall polish, topic navigation animations, route loading skeletons, `experimental.staleTimes` (`dynamic: 120`, `static: 300`), and `invalidateAppCache` (`frontend/app/actions/cache.ts`).
+  - Sign-in completion resilience & safe-redirect handling (`f0b4948`: `frontend/components/auth/SignInView.tsx`, `frontend/lib/safe-redirect.ts`, `frontend/app/(landing)/sign-in/[[...sign-in]]/page.tsx`, `frontend/proxy.ts`).
+- Local validation on `2026-11-19` (`HEAD f0b4948`): `git diff --check` PASS, `frontend` `tsc --noEmit` PASS, `npm run lint` PASS (0 errors, 1 pre-existing unused-import warning in `frontend/app/(app)/dashboard/flashcards/loading.tsx`), `npm run build` PASS, `scripts/tests` (`66` release-tooling tests) PASS, backend unit tests (`190` passed across the 10 backend unit test files) PASS, offline `eval/` unit tests (`43` passed) PASS, and `C6` baseline integrity check PASS. Live Postgres `app_role` RLS checks (`eval/test_rls_integration.py`, `eval/test_rls_mid_request_commit.py`) require a configured PostgreSQL RLS database and failed/were skipped locally.
+
+**Contracts Changed:**
+- `WEB_GROUNDING_ENABLED` defaults to `true` in `backend/core/config.py` (with `false` retaining the 409 guard).
+- `POST /api/upload` accepts `.pdf`, `.docx`, `.pptx`, `.epub`, `.txt`, `.md`, `.csv`, `.rtf`, `.html`, and `.htm`.
+- Admin/access endpoints (`GET /api/user/access-status`, `/api/admin/users`, `/api/admin/invitations`) and frontend `experimental.staleTimes` / `invalidateAppCache` are active on `main`.
+
+**Docs Stale:**
+- No (`AGENTS.md`, `GEMINI.md`, `docs/architecture.md`, `docs/tasks.md`, and `docs/roadmap.md` synchronized; `docs/cicd.md` was not modified).
+
+**What to do next:**
+- Review and commit the synchronized docs (`AGENTS.md`, `GEMINI.md`, `docs/*`), clean up untracked root scratch scripts/logs, and close remaining unchecked follow-ups in `docs/tasks.md` (responsive summary-shell check, authenticated streaming, and remaining production verification items).
+
+### Update: 2026-11-19 — Phase F Specification & Planning Sync
+
+**What Changed:**
+- Saved the code-verified Phase F specification (`Spec v4`) to `docs/phase-f-spec.md`, covering the local RLS test prerequisite, F1 prompt-injection hardening (`F1.1` system-instruction separation, `F1.2` output sanitizer coverage with confirmed URL policy, `F1.3` offline/live injection eval separation), F2 Citation Source Passage Drawer, and outlines for F3 (Tutor Mode), F4 (FSRS + review log), and F5 (Exam Planner).
+- Locked in the confirmed F1.2 output sanitization policy: strip markdown images, unwrap `[text](url)` to `text`, and block `data:`/`javascript:`/protocol-relative schemes everywhere; strip bare `http(s)://` and `www.` URLs on chat paths only so legitimate reference URLs remain intact in summaries and flashcards.
+- Added unchecked Phase F checklist entries across Prerequisite and F1–F5 to `docs/tasks.md`.
+
+**Contracts Changed:**
+- None yet (`docs/` planning update only; no code, database schema, API, or environment contract changed).
+
+**Docs Stale:**
+- No (`docs/phase-f-spec.md`, `docs/tasks.md`, and `docs/roadmap.md` updated).
+
+**What to do next:**
+- Implement PR-0 (local `docker-compose.test.yml`, `app_role` init script, `docs/cicd.md` one-command run, and local RLS suite verification), then pause for review before starting F1.1.
