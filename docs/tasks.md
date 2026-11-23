@@ -406,6 +406,7 @@ Prerequisite: the V2.1.1 RLS runtime transition and the deployment of the Phase 
 - [ ] F1.2: Create unified output sanitizer entry point covering all chat paths/fields (`STRICT_DOCUMENT`, `WEB`, `TEACHING`, `CLARIFICATION`, `clarification_question`, `suggested_followups`) plus `validate_summary`, `validate_flashcards`, `validate_quiz`, and `explain_selection`
 - [ ] F1.2: Fix `_MARKDOWN_LINK_RE` image-prefix leak (`![alt](...)`), block `data:`/`javascript:`/protocol-relative schemes everywhere, and strip bare `http(s)://`/`www.` URLs on chat paths only
 - [ ] F1.3: Add offline boundary/sanitizer eval fixtures and a separate live canary injection eval suite (keeping `c1-v1` and `c3_baseline_v2` untouched)
+- [ ] F1.3 follow-up: Add `run_injection.py` to the `docs/agents.md` Test Matrix after F1.3 merges
 - [ ] Update `docs/architecture.md`, `docs/tasks.md`, and `docs/roadmap.md`
 
 ### F2: Citation Source Passage Drawer (Schema-Migration Release Path)
