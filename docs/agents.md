@@ -18,13 +18,14 @@ Team: **Vikir** (planner/engineer, lead), **Kayden** (programmer), **Selene** (Q
 
 1. **Shared reading list:** Read `AGENTS.md` and `docs/agents.md` before starting. Vikir's dispatch brief names any additional task-relevant documents (for example `docs/GUARDRAILS.md`, `docs/architecture.md`, `docs/tasks.md`, `docs/roadmap.md`, or `docs/ui-design-direction.md`).
 2. **Docs as source of truth & Handoff Rule:** Tick an item in `docs/tasks.md` only when it is verified in code, and state which items stay unticked and why. Offline-only passes must be noted as offline-only.
-3. **One task, one branch, serial implementation:** One task = one branch and one worktree, named `phase-<x>/<task>`. Never work on `main` directly. Implementation is strictly serial (one task at a time for Kayden).
+3. **One task, one branch, serial implementation:** One task = one branch and one worktree, named `phase-<x>/<task>`. Never work on `main` directly. Implementation is strictly serial (one task at a time for Kayden). Worktrees may disappear between steps: commit before handoff, and QA always checks out by commit SHA (for example, via `git worktree add --detach <path> <sha>`).
 4. **Preserve uncommitted changes:** Inspect the current Git state before acting, preserve any pre-existing uncommitted user changes, and record known pre-existing changes in dispatch briefs.
 5. **Commit, push, merge, and deploy authority:** Bots commit on task branches only. No bot pushes, merges to `main`, or deploys without human approval. After the trial period (the first five clean tasks), Vikir may merge Tier 0 docs-only changes once Selene passes.
 6. **Secrets:** Never read, print, or commit secrets (`.env`, API keys, deploy credentials). Production credentials are not available to any bot.
 7. **Frozen baselines & live eval quota:** Never regenerate frozen evaluation baselines/outputs. Never spend live Gemini quota unless both the Test Matrix row matches and Vikir's brief explicitly authorizes it.
 8. **Standard report format:** Every bot report uses the shared report schema below (including `Quota used`).
 9. **Stop and ask:** If a request is ambiguous or touches something outside the task, stop and ask instead of guessing.
+10. **Named-file staging:** Stage named files only; never run `git add -A` or `git add .`.
 
 ---
 
@@ -169,7 +170,7 @@ A passing review is necessary but does not replace required human merge/deploy a
 
 ## Test Matrix (Selene)
 
-All test commands run through WSL (`.venv/bin/python`), not PowerShell.
+Run git with the same git that created the worktree. Worktrees created by Windows git cannot be used by WSL git (their `.git` file stores `C:/` paths), and worktrees created by WSL git store `/mnt/c/` paths that Windows git cannot open. Run Python and tests through WSL (`.venv/bin/python`) against the `/mnt/c/...` path, not PowerShell.
 
 | Change type | Required checks |
 | --- | --- |
