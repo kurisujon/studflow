@@ -1,10 +1,10 @@
 # Phase F: Trust and Study-Loop Depth (Spec v4, verified against code)
 
-Status: v4 verified against `main` @ `f0b4948` (2026-11-19); F1.2 URL-policy decision confirmed. Follow the Handoff Rule: check off only what is verified in code.
+Status: v4 verified against `main` @ `f0b4948` (2026-11-19); F1.2 URL-policy decision confirmed; F3 section verified against `origin/main` @ `397dd36` (2026-11-26) with human amendments confirmed. Follow the Handoff Rule: check off only what is verified in code.
 
 Order: Prerequisite, F1 injection hardening, F2 citation Source Passage drawer, F3 tutor mode, F4 FSRS + review log, F5 exam planner.
 
-Release-path rule (from `.github/workflows/application-release.yml:88-106`): changes to `docker-compose.yml`, `backend/alembic`, `backend/models/tables.py`, or `backend/schemas/ai_chat.py` block the migration-free release workflow. F1 and the prerequisite must stay clear of those files so they ship on the fast path. F2, F4, and F5 ship through the schema-migration release path.
+Release-path rule (from `.github/workflows/application-release.yml:88-106`): changes to `docker-compose.yml`, `backend/alembic`, `backend/models/tables.py`, `backend/core/config.py`, or `backend/schemas/ai_chat.py` block the migration-free release workflow. F1 and the prerequisite must stay clear of those files so they ship on the fast path. F2, F3, F4, and F5 ship through the schema-migration release path.
 
 ---
 
@@ -103,9 +103,75 @@ Decision: Option A. Clicking a document citation opens a drawer showing the cite
 
 ---
 
-## F3 to F5 (outline)
+## F3: Tutor mode
 
-**F3 Tutor mode.** Third generation path beside `STRICT_DOCUMENT` and `TEACHING`: Socratic prompts, hint ladder, answer checking against retrieved evidence, citations kept. Uses the F1 system-instruction pattern from the start.
+Verified against `origin/main` @ `397dd36`.
+
+**Sequencing & Release Path:** F3 implementation waits for **F1.1, F1.2, and F2-A** to land on `main`. F3's Alembic migration chains after **F2-A's revision** (`down_revision` = F2-A's revision ID; current Alembic head on `origin/main` is `cdadb6e6d15a`). F3 ships via the **schema-migration release path** (`.github/workflows/application-release.yml:88-106` guards `backend/alembic`, `backend/models/tables.py`, `backend/core/config.py`, and `backend/schemas/ai_chat.py`).
+
+### Design decisions (confirmed)
+- **Separate `interaction_mode` from `retrieval_mode`:** Keep `retrieval_mode` (`"document" | "web" | "hybrid"` in `backend/schemas/ai_chat.py:12` and `ck_ai_messages_retrieval_mode` in `backend/models/tables.py:535-538`) orthogonal to `interaction_mode: Literal["explain", "tutor"] = "explain"`.
+- **Document-only v1:** Tutor mode runs strictly with `retrieval_mode="document"`. Requests with `interaction_mode="tutor"` and `retrieval_mode != "document"` return HTTP `409 Conflict` (`web`/`hybrid` tutoring is out of scope for v1).
+- **Server-owned deterministic hint ladder & state machine (`MAX_HINTS = 3`):** The backend owns pedagogical state transitions (`stage` in `probe | check | hint | reveal`, `hint_level` in `0..3`: `0` = Socratic probe, `1` = broad conceptual cue, `2` = narrower structural/passage clue, `3` = near-complete scaffold with explicit offer to reveal) and deterministically computes `allow_hint`, `allow_reveal`, and `allow_new_question` (no LLM intent self-routing).
+- **Server-computed action-gate enforcement (HTTP `409`):** `POST /api/ai/conversations/{conversation_id}/messages` returns HTTP **`409 Conflict`** when `tutor_action` (`"hint"`, `"reveal"`, `"new_question"`) is not allowed by the server-computed `allow_*` flags on the active ladder state; returns HTTP `422` when `tutor_action != "auto"` in Explain mode; returns HTTP `409` when `tutor_mode_enabled` is `False`.
+- **`auto`-mode clarifying-question trade-off & v1 handling:** In `tutor_action="auto"` mode, if a student asks a clarifying question mid-ladder while an unresolved tutor turn is active, the deterministic state machine routes the turn to `check` and grades it as an attempt (v1 avoids LLM intent self-routing). In v1, the student can switch to **Explain mode** for a direct explanation, click **Need a hint** (`tutor_action="hint"`), or click **Next question** (`tutor_action="new_question"`). An explicit clarifying-question action or deterministic detector is deferred to v2.
+- **Fail-closed `INSUFFICIENT_EVIDENCE` with carry-forward metadata:** When document retrieval fails (`not retrieval_passed`) or `filter_unsupported_claims` drops all claims in Tutor mode, fail closed to `INSUFFICIENT_EVIDENCE` with a user-facing message pointing the student to **Explain mode**, and **carry the previous `tutor_metadata` forward** on the persisted assistant message instead of `None` so the student keeps their active ladder position, `target_concept`, and hint count.
+- **Dedicated `TutorTurnAnswer` & `generate_tutor_turn(...)`:** Leave `ConversationAnswer` (`backend/services/ai_service.py:76-82`) and existing Explain/Web/Hybrid prompts untouched to protect `c3_baseline_v2`. Add `ConversationGenerationPath.TUTOR = "tutor"` and `ConversationAnswerMode.TUTOR = "tutor"` in `backend/schemas/domain.py`.
+- **Same fail-closed evidence & citation pipeline as `STRICT_DOCUMENT`:** `e_XX`-only `provenance="document"` claims -> `validate_tutor_answer` (applying the F1.2 unified sanitizer across `claims`, `guiding_question`, and `target_concept`) -> `evaluate_citations` (automatic F2 `supporting_quote` / `SourcePassageDrawer` compatibility) -> `apply_semantic_validation` -> `filter_unsupported_claims`.
+- **Verified `backend/services/ai_chat.py` integration traps handled:**
+  - Bypass `_is_conversational_turn` (`backend/services/ai_chat.py:527-536, 1100, 1163`) when `interaction_mode == "tutor"` so short student attempts (`"yes"`, `"no"`, `"ok"`, `"option b"`) are not hijacked by deterministic greetings/closings.
+  - Add `_tutor_retrieval_query(...)` incorporating active `target_concept`, `guiding_question`, current student attempt, and `selected_text` (replacing `_retrieval_query` at `backend/services/ai_chat.py:597-620` for tutor turns).
+  - Scope active tutor state strictly to `current_messages` (`backend/services/ai_chat.py:1127-1132`), never `prior_session_messages` (`backend/services/ai_chat.py:1133-1149`), so cross-session memory does not leak an unresolved ladder across threads.
+
+### F3.1 Prompt, provider integration, and structured contract
+- `backend/schemas/domain.py`: add `ConversationGenerationPath.TUTOR = "tutor"` (`:122-127`) and `ConversationAnswerMode.TUTOR = "tutor"` (`:106-112`), plus `TutorStage = Literal["probe", "check", "hint", "reveal"]`, `TutorAssessment = Literal["correct", "partial", "incorrect"]`, and `TutorMetadata` / `TutorTurnAnswer` structured schema (`claims: list[RawGroundedClaim]`, `evidence_sufficient: bool`, `assessment: TutorAssessment | None`, `guiding_question: str | None`, `target_concept: str`, `suggested_followups: list[str]`).
+- `backend/services/ai_service.py` & `backend/services/llm_provider.py`: add `generate_tutor_turn(...)` using the post-F1.1 `system_instruction` parameter (fixed tutor persona, anti-sycophancy rubric, no-answer-leak guard at `hint_level` `0..2`, and `e_XX`-only citation contract in `system_instruction`; `UntrustedDataBoundary`-wrapped document chunks, bounded `current_history`, server-assigned `stage` / `hint_level`, and student input in `contents`).
+
+### F3.2 Validation, sanitization, and orchestration
+- `backend/services/domain_validation.py`: add `validate_tutor_answer(...)` enforcing `e_XX`-only `provenance="document"` claims (rejecting unknown or cross-provenance `w_XX` IDs), applying the F1.2 unified sanitizer across `claims`, `guiding_question`, and `target_concept`, and enforcing stage/assessment invariants (`probe`/`hint`/`reveal` do not forge `check` assessments).
+- `backend/services/ai_chat.py`:
+  - Bypass `_is_conversational_turn` in Tutor mode and build retrieval queries via `_tutor_retrieval_query(...)`.
+  - Compute the next state (`stage`, `hint_level`, `allow_hint`, `allow_reveal`, `allow_new_question`) from the latest assistant `tutor_metadata` in `current_messages` (`:1127-1132`) and requested `tutor_action`, raising an explicit error mapped to HTTP `409` when `tutor_action` violates the server-computed `allow_*` flags.
+  - Execute `_generate_validated_tutor_path(...)` -> `evaluate_citations` -> `apply_semantic_validation` -> `filter_unsupported_claims` (`backend/services/domain_validation.py:402-500`).
+  - Render deterministic Markdown via `_render_tutor_answer(...)` (evidence claims with `[n]` citation markers + guiding question / scaffold).
+  - On `INSUFFICIENT_EVIDENCE` (`not retrieval_passed` or all claims dropped), persist the fail-closed response pointing the student to **Explain mode** while carrying the previous `tutor_metadata` forward unchanged instead of `None`.
+
+### F3.3 Schema, contracts, feature flag, and RLS/grants
+- **Database (`backend/models/tables.py`, planned Alembic migration):**
+  - Additive migration (chaining `down_revision` after F2-A's revision) on `ai_messages`:
+    - `interaction_mode VARCHAR(16) NOT NULL DEFAULT 'explain'` with `CheckConstraint("interaction_mode IN ('explain', 'tutor')", name="ck_ai_messages_interaction_mode")`
+    - `tutor_metadata JSON NULL`
+- **RLS & grants:** **No new runtime table.** `ai_messages` is already in all four synced `RUNTIME_TABLES` lists (`backend/eval/test_rls_integration.py:24-29`, `.github/workflows/pipeline.yml:150-152`, `scripts/runtime_database_transition.py`, `scripts/check_runtime_database.py`), already enforces `ENABLE` + `FORCE ROW LEVEL SECURITY` with 1-hop `tenant_isolation_policy` via `ai_conversations` (`backend/alembic/versions/c00000000000_enable_rls_and_policies.py:51-63`), and already has CRUD-only grants for `app_role`/`app_user`. Verify existing live RLS suites read and write both new columns under `app_role`.
+- **Feature flag & API (`backend/core/config.py`, `backend/schemas/ai_chat.py`, `backend/api/routes/ai_chat.py`, `backend/.env.example`):**
+  - Add `tutor_mode_enabled: bool = False` (`TUTOR_MODE_ENABLED`, **defaults off** until PR-F3.2 frontend QA and a live tutor spot-check pass) in `backend/core/config.py`, exposed via `AICapabilitiesResponse.tutor_mode_enabled` (`GET /api/ai/capabilities`, `backend/schemas/ai_chat.py:121-123`).
+  - Add `InteractionMode = Literal["explain", "tutor"]`, `TutorAction = Literal["auto", "hint", "reveal", "new_question"]`, and `TutorMetadataResponse` to `backend/schemas/ai_chat.py`; extend `SendMessageRequest` (`:89-93`) with `interaction_mode: InteractionMode = "explain"` and `tutor_action: TutorAction = "auto"`, and extend `MessageResponse` (`:69-80`) and `ChatAnswer` (`:111-118`) with `interaction_mode` and `tutor_metadata`.
+  - Route validation in `POST /api/ai/conversations/{conversation_id}/messages` (`backend/api/routes/ai_chat.py:211-233`): return `409 Conflict` when `interaction_mode="tutor"` and `not settings.tutor_mode_enabled` (mirroring `:221-225`), `409 Conflict` when `interaction_mode="tutor"` and `retrieval_mode != "document"`, `409 Conflict` when `tutor_action` is disallowed by the server-computed `allow_*` flags, and `422` when `tutor_action != "auto"` in Explain mode.
+
+### F3.4 Frontend
+- `frontend/types/ai-chat.ts` & `frontend/lib/api/ai-chat.ts`: add `AIInteractionMode`, `AITutorAction`, `AITutorMetadata`, and `tutor_mode_enabled` on `AICapabilities`; parse/validate them strictly in `getAICapabilities()` and conversation message responses/requests.
+- `frontend/components/study/AIStudyAssistantPanel.tsx`: add an **Explain / Tutor** segmented toggle in the header (`:608-804`) gated by `capabilities.tutor_mode_enabled`; in Tutor mode, lock Sources to **Document** with inline/screen-reader helper copy, switch empty-state starters to tutor prompts, and render contextual Tutor action chips (`Need a hint (N/3)`, `Show answer`, `Next question`) gated by `allow_hint`, `allow_reveal`, and `allow_new_question` (sending non-empty readable user prompts with `tutor_action`).
+- `frontend/components/study/AIConversationMessage.tsx` & `frontend/app/globals.css`: render `"Tutor"` pill (purple/indigo accent per `docs/GUARDRAILS.md` §6), assessment pill on `check` (`Correct` / `Partially right` / `Not quite`), hint counter badge on `hint` (`Hint N of 3`), `"Answer revealed"` badge on `reveal`, and **disable `"Save as flashcard"` on `probe` turns** (keep enabled on `check`, `hint`, and `reveal`). Keep `SafeMessageContent.tsx` and `AIConversationSources.tsx` plain React text nodes (no HTML injection surfaces, full F2 `SourcePassageDrawer` compatibility).
+
+### Implementation plan (PR breakdown)
+1. **PR-F3.1a (Tier 2, schema-migration path):** Additive Alembic migration (chained after F2-A's revision), `backend/models/tables.py`, Pydantic contracts (`backend/schemas/ai_chat.py`, `backend/schemas/domain.py`), `TUTOR_MODE_ENABLED` flag (default `false`) + `GET /api/ai/capabilities`, and persistence plumbing (`interaction_mode`, `tutor_metadata`) — **no behavior change** for existing Explain/Web/Hybrid turns.
+2. **PR-F3.1b (Tier 2):** Tutor prompt (`system_instruction`), `TutorTurnAnswer`, `generate_tutor_turn`, `validate_tutor_answer`, orchestration (`_generate_validated_tutor_path`, `_tutor_retrieval_query`, `_render_tutor_answer`, `409` mode/action guards, carry-forward `tutor_metadata` on insufficient evidence), backend unit tests, plus offline/live tutor eval cases (separate from `c1-v1` and `c3_baseline_v2`) — **`TUTOR_MODE_ENABLED` stays `false`** until PR-F3.2 frontend QA and a live tutor spot-check pass.
+3. **PR-F3.2 (Tier 1 if frontend-only):** Frontend Tutor Mode UI (`AIStudyAssistantPanel.tsx`, `AIConversationMessage.tsx`, `types/ai-chat.ts`, `lib/api/ai-chat.ts`, `globals.css`), responsive/keyboard QA, and live tutor spot-check before enabling `TUTOR_MODE_ENABLED=true`.
+4. **PR-F3.3 (Tier 0 docs / or folded after flip):** Update `docs/architecture.md`, `docs/tasks.md`, and `docs/roadmap.md`.
+
+### Tests, risk tier, and unverified items
+- **Backend & offline eval (WSL `.venv/bin/python`):** full `unittest` suite (including new `backend/test_tutor_mode.py` covering hint ladder `0..3`, `409` on disallowed `tutor_action` / non-`document` retrieval / disabled flag, `422` in Explain mode, `auto`-mode clarifying question graded as `check`, `INSUFFICIENT_EVIDENCE` carrying forward `tutor_metadata` and pointing to Explain mode, `_is_conversational_turn` bypass, `_tutor_retrieval_query`, `current_messages`-only scope, `e_XX` + F1.2 sanitizer + `system_instruction` checks), offline `backend/eval/` pytest, `backend/eval/run_c6.py --integrity-only`, and `backend/eval/test_prompt_injection.py`.
+- **Migration & live RLS (PR-F3.1a):** Alembic `upgrade head -> downgrade -1 -> upgrade head` against `docker-compose.test.yml`, `scripts/run_local_rls_tests.py` (both live `app_role` RLS suites covering the new `ai_messages` columns), and `scripts/tests/test_runtime_tables_sync.py`.
+- **Live evals (human-authorized once per merge candidate):** live `C3 -> C5 -> C6` vs `c3_baseline_v2` (zero regression on `STRICT_DOCUMENT`) plus separate live tutor spot-check (anti-sycophancy on wrong attempts and zero answer leaks at `hint_level` `0..2`) without modifying `c1-v1` or `c3_baseline_v2`.
+- **Frontend (PR-F3.2):** `tsc --noEmit`, `npm run lint`, `npm run build` (CI placeholder Clerk env vars), responsive/keyboard QA (`1440 / 1024 / 768 / 390 px`), reload persistence, and `"Save as flashcard"` disabled on `probe`.
+- **Risk tier:** **Tier 2** for PR-F3.1a / PR-F3.1b (schema-migration release path; touches `backend/alembic/**`, `backend/models/tables.py`, `backend/schemas/ai_chat.py`, `backend/core/config.py`, and prompt/eval-sensitive services); **Tier 1** for frontend-only PR-F3.2; **Tier 0** for docs-only PR-F3.3.
+- **Unverified on `origin/main` @ `397dd36` (could not verify in code yet):**
+  - Exact F1.1/F1.2 helper names and signatures (`system_instruction` parameter on `backend/services/llm_provider.py` and the F1.2 unified sanitizer in `backend/services/domain_validation.py` are not yet merged onto `origin/main`).
+  - Exact F2-A Alembic revision ID that F3's migration will chain from (F2-A is not yet merged onto `origin/main`; current head is `cdadb6e6d15a`).
+  - Live `gemini-2.5-flash` anti-sycophancy and no-answer-leak adherence under `TutorTurnAnswer` (requires live spot-check/eval after implementation).
+
+---
+
+## F4 and F5 (outline)
 
 **F4 FSRS + review log.** `UserPreferences.daily_review_goal` and `sm2_aggressiveness` are saved-only today (`settings-form.tsx:68-71`), so this extends cleanly. Add `flashcard_reviews` (card, rating, timestamps, scheduled days, stability, difficulty, state) following the 1-hop-via-documents RLS pattern, add it to `RUNTIME_TABLES`, run FSRS in shadow beside SM-2, then switch per user. Schema-migration release path.
 
